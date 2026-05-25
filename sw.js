@@ -1,5 +1,6 @@
-var CACHE = 'qf-v1';
+var CACHE = 'qf-v2';
 var FILES = ['./quick.html', './manifest.json'];
+var NO_CACHE = ['financas.html', 'OrgFinan'];
 
 self.addEventListener('install', function(e) {
   e.waitUntil(
@@ -19,6 +20,11 @@ self.addEventListener('activate', function(e) {
 
 self.addEventListener('fetch', function(e) {
   if (e.request.method !== 'GET') return;
+  var url = e.request.url;
+  if (NO_CACHE.some(function(p){ return url.indexOf(p) !== -1; })) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then(function(cached) {
       return cached || fetch(e.request).then(function(res) {
