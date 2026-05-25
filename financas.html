@@ -653,7 +653,7 @@ var _fbDb = null;
         appId:             '1:687712813015:web:2070c4ee83a4d80040d592'
       });
     }
-    firebase.auth().signInAnonymously().then(function() {
+    firebase.auth().signInWithEmailAndPassword('qf@orgfinanceira.local','QF_s1nc2026!').then(function() {
       _fbDb = firebase.database();
       _fbSync(false);
     }).catch(function(e){ console.warn('[FB auth]', e); });
