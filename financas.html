@@ -1575,7 +1575,7 @@ function renderDashboard() {
       if (!isActiveForYm(d, ym)) return;
       var dy = daysUntil(d.day);
       if (dy <= 10 && !isPaidInYm(d, ym) && !d.autoRenew) {
-        var cls = dy <= 5 ? 'ar' : 'ay';
+        var cls = dy <= 3 ? 'ar' : 'ay';
         var ico = dy <= 5 ? '⚠' : '⏱';
         html += `<div class="alrt ${cls}">${ico} <strong>${d.name}</strong> — vence ${dy===0?'hoje':dy===1?'amanhã':'em '+dy+' dias'} — ${fmt(d.val)}</div>`;
       }
@@ -1761,7 +1761,7 @@ function renderDespesas() {
     var inactive = !isActiveForYm(d, ym);
     var dy = inactive ? 999 : daysUntil(d.day);
     var _paid = isPaidInYm(d, ym);
-    var urg = !inactive && !_paid && dy<=5 ? 'color:var(--red)' : !inactive && !_paid && dy<=7 ? 'color:var(--ylw)' : '';
+    var urg = !inactive && !_paid && dy<=3 ? 'color:var(--red)' : !inactive && !_paid && dy<=7 ? 'color:var(--ylw)' : '';
     var rowStyle = inactive ? 'opacity:.45' : '';
     var inactBadge = inactive ? ' <span class="bdg" style="font-size:.6rem;background:rgba(128,128,128,.15);color:var(--mut)" title="Fora do período de vigência configurado">inativo</span>' : '';
     var autoBadge = d.autoRenew ? ' <span class="bdg" style="font-size:.58rem;background:rgba(0,212,160,.12);color:var(--grn);border:1px solid rgba(0,212,160,.25)" title="Renovação automática — não gera aviso">auto</span>' : '';
