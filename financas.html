@@ -305,7 +305,71 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
   .mover{padding:.4rem}
   .mbox{padding:1rem}
   #modalBody,#setBody{margin:0 -1rem;padding:.25rem 1rem}
-}</style>
+}
+
+/* ── QUICK-ADD FAB ──────────────────────────────────────────── */
+.qfab{position:fixed;bottom:1.5rem;right:1.3rem;z-index:500;
+      width:54px;height:54px;border-radius:50%;border:none;cursor:pointer;
+      background:var(--grn);color:#0d0f18;font-size:1.8rem;font-weight:700;
+      box-shadow:0 4px 20px rgba(0,212,160,.5);transition:transform .15s,box-shadow .15s;
+      display:flex;align-items:center;justify-content:center;line-height:1}
+.qfab:hover{box-shadow:0 6px 24px rgba(0,212,160,.65)}
+.qfab:active{transform:scale(.9)}
+.qov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:510;
+     opacity:0;pointer-events:none;transition:opacity .22s}
+.qov.on{opacity:1;pointer-events:auto}
+.qsh{position:fixed;bottom:0;left:0;right:0;z-index:520;background:var(--s1);
+     border-radius:18px 18px 0 0;padding:0 1.1rem 1.6rem;
+     transform:translateY(105%);transition:transform .3s cubic-bezier(.32,1,.23,1);
+     max-height:90vh;overflow-y:auto;box-shadow:0 -6px 40px rgba(0,0,0,.45)}
+.qsh.on{transform:translateY(0)}
+.qhandle{width:36px;height:4px;background:var(--s3);border-radius:2px;margin:.7rem auto .9rem}
+.qtype{display:grid;grid-template-columns:1fr 1fr;gap:.38rem;
+       background:var(--s2);border-radius:10px;padding:.28rem;margin-bottom:1rem}
+.qtpill{border-radius:7px;padding:.52rem;font-size:.8rem;font-weight:700;
+        text-align:center;color:var(--mut);transition:all .16s;border:none;cursor:pointer;background:none}
+.qtpill.qte{background:var(--red);color:#fff;box-shadow:0 2px 8px rgba(255,84,112,.32)}
+.qtpill.qti{background:var(--grn);color:#0d0f18;box-shadow:0 2px 8px rgba(0,212,160,.28)}
+.qamt-wrap{background:var(--s2);border-radius:14px;padding:.9rem 1rem .75rem;
+           margin-bottom:.9rem;border:1.5px solid var(--brd);transition:border-color .2s}
+.qamt-wrap.qte{border-color:rgba(255,84,112,.25)}
+.qamt-wrap.qti{border-color:rgba(0,212,160,.2)}
+.qaml{font-size:.6rem;color:var(--mut);font-weight:700;text-transform:uppercase;
+      letter-spacing:.08em;margin-bottom:.32rem}
+.qamr{display:flex;align-items:baseline;gap:.25rem}
+.qams{font-size:1.5rem;font-weight:700;color:var(--mut)}
+.qamin{flex:1;background:none;border:none;outline:none;font-size:2.8rem;
+       font-weight:800;color:var(--txt);letter-spacing:-.02em;min-width:0;caret-color:var(--grn)}
+.qamin::placeholder{color:var(--s3)}
+.qsl{font-size:.61rem;font-weight:700;color:var(--mut);text-transform:uppercase;
+     letter-spacing:.08em;margin-bottom:.42rem}
+.qchips{display:flex;gap:.36rem;overflow-x:auto;padding-bottom:.28rem;
+        margin-bottom:.85rem;-webkit-overflow-scrolling:touch}
+.qchips::-webkit-scrollbar{display:none}
+.qchip{flex-shrink:0;border-radius:18px;padding:.4rem .88rem;font-size:.79rem;
+       font-weight:600;color:var(--mut);border:1.5px solid var(--brd);background:var(--s2);
+       transition:all .13s;white-space:nowrap;cursor:pointer}
+.qchip:active{transform:scale(.93)}
+.qchip.qce{color:var(--red);border-color:rgba(255,84,112,.42);background:rgba(255,84,112,.1)}
+.qchip.qci{color:var(--grn);border-color:rgba(0,212,160,.4);background:rgba(0,212,160,.1)}
+.qchip.qca{color:var(--txt);border-color:rgba(255,255,255,.22);background:var(--s3)}
+.qdetail{display:flex;gap:.45rem;margin-bottom:.9rem}
+.qdet{display:flex;align-items:center;gap:.32rem;background:var(--s2);
+      border:1.5px solid var(--brd);border-radius:8px;padding:.42rem .72rem;
+      font-size:.78rem;font-weight:600;color:var(--mut);flex:1;cursor:pointer;
+      position:relative;transition:border-color .15s}
+.qdet:focus-within{border-color:rgba(255,255,255,.2)}
+.qdet input{background:none;border:none;outline:none;color:var(--txt);
+            font-size:.78rem;font-weight:600;font-family:inherit;width:100%;min-width:0}
+.qdet input[type="date"]{color-scheme:dark;opacity:0;position:absolute;
+                          width:1px;height:1px;pointer-events:none}
+.qdet input::placeholder{color:var(--mut)}
+.qsave{width:100%;padding:.88rem;border-radius:12px;border:none;font-size:1rem;
+       font-weight:700;cursor:pointer;transition:opacity .12s,transform .1s;letter-spacing:.01em}
+.qsave:active{opacity:.82;transform:scale(.98)}
+.qsave:disabled{opacity:.35;pointer-events:none}
+.qsave.qte{background:var(--red);color:#fff;box-shadow:0 4px 16px rgba(255,84,112,.3)}
+.qsave.qti{background:var(--grn);color:#0d0f18;box-shadow:0 4px 16px rgba(0,212,160,.24)}</style>
 </head>
 <body>
 
@@ -5409,6 +5473,135 @@ function fixStickyOffsets() {
   gnav.style.top = (hh + tabs.offsetHeight) + 'px';
 }
 window.addEventListener('resize', fixStickyOffsets);
+
+// ================================================================
+// QUICK-ADD FAB
+// ================================================================
+var _qT='e', _qCat='', _qAcc='';
+
+function qOpen() {
+  _qCat=''; _qAcc='';
+  var ai=document.getElementById('qAmt'); if(ai) ai.value='';
+  var ni=document.getElementById('qNote'); if(ni) ni.value='';
+  var di=document.getElementById('qDate'); if(di) di.value=todayStr();
+  var ll=document.getElementById('qDateLbl'); if(ll) ll.textContent='Hoje';
+  _qRender();
+  document.getElementById('qOv').classList.add('on');
+  document.getElementById('qSh').classList.add('on');
+  setTimeout(function(){ var a=document.getElementById('qAmt'); if(a) a.focus(); },350);
+}
+function qClose() {
+  document.getElementById('qOv').classList.remove('on');
+  document.getElementById('qSh').classList.remove('on');
+}
+function qType(t) { _qT=t; _qCat=''; _qRender(); }
+
+function _qRender() {
+  var isE=_qT==='e';
+  var pe=document.getElementById('qtE'), pi=document.getElementById('qtI');
+  if(pe) pe.className='qtpill'+(isE?' qte':'');
+  if(pi) pi.className='qtpill'+(!isE?' qti':'');
+  var aw=document.getElementById('qAmtWrap'); if(aw) aw.className='qamt-wrap '+_qT;
+  var sb=document.getElementById('qSaveBtn');
+  if(sb){ sb.className='qsave '+_qT; sb.textContent='Guardar '+(isE?'despesa':'receita'); }
+  var cl=document.getElementById('qCatLbl'); if(cl) cl.textContent=isE?'Categoria':'Fonte';
+
+  var cats=isE?(S.cfg.ccat||[]):(S.cfg.src||[]);
+  if(!_qCat && cats.length) _qCat=cats[0];
+  var cc=document.getElementById('qCatChips');
+  if(cc) cc.innerHTML=cats.map(function(c){
+    var sel=_qCat===c;
+    return '<div class="qchip'+(sel?' q'+(isE?'ce':'ci'):'')
+      +'" onclick="qPickCat(\''+c.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'+_esc(c)+'</div>';
+  }).join('');
+
+  var accs=S.cfg.pay||[];
+  if(!_qAcc && accs.length) _qAcc=accs[0];
+  var ac=document.getElementById('qAccChips');
+  if(ac) ac.innerHTML=accs.map(function(a){
+    var sel=_qAcc===a;
+    return '<div class="qchip'+(sel?' qca':'')
+      +'" onclick="qPickAcc(\''+a.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'+_esc(a)+'</div>';
+  }).join('');
+}
+function qPickCat(c){ _qCat=c; _qRender(); }
+function qPickAcc(a){ _qAcc=a; _qRender(); }
+
+function qPickDate(){
+  var inp=document.getElementById('qDate'); if(!inp) return;
+  inp.style.position=''; inp.style.opacity='1';
+  inp.style.width=''; inp.style.height=''; inp.style.pointerEvents='';
+  try{ inp.showPicker(); } catch(e){ inp.click(); }
+  setTimeout(function(){
+    inp.style.position='absolute'; inp.style.opacity='0';
+    inp.style.width='1px'; inp.style.height='1px'; inp.style.pointerEvents='none';
+  },200);
+}
+function qOnDateChange(){
+  var inp=document.getElementById('qDate');
+  var lbl=document.getElementById('qDateLbl');
+  if(!inp||!lbl) return;
+  var v=inp.value||todayStr();
+  if(v===todayStr()){ lbl.textContent='Hoje'; return; }
+  var p=v.split('-');
+  var wd=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  lbl.textContent=wd[new Date(+p[0],+p[1]-1,+p[2]).getDay()]+' '+p[2]+'/'+p[1];
+}
+function qSave(){
+  var raw=(document.getElementById('qAmt')||{}).value||'';
+  var amt=parseFloat(String(raw).replace(',','.'));
+  if(!amt||!isFinite(amt)||amt<=0){
+    showToast('⚠ Valor inválido',true);
+    var a=document.getElementById('qAmt'); if(a) a.focus(); return;
+  }
+  amt=Math.round(amt*100)/100;
+  var date=(document.getElementById('qDate')||{}).value||todayStr();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) date=todayStr();
+  var notes=((document.getElementById('qNote')||{}).value||'').trim().slice(0,120);
+  var cat=_qCat||''; var acc=_qAcc||'';
+  snapshot();
+  if(_qT==='i'){
+    S.rec.push({id:nid(),date:date,src:cat,val:amt,card:acc,notes:notes});
+  } else {
+    S.dc.push({id:nid(),date:date,name:cat,cat:cat,val:amt,card:acc,notes:notes});
+  }
+  saveState(); renderTab(CUR); qClose();
+  showToast('✓ '+(_qT==='i'?'Receita':'Despesa')+' guardada — '+amt.toFixed(2)+' €');
+}
 </script>
+
+<!-- QUICK-ADD FAB -->
+<button class="qfab" id="qFab" onclick="qOpen()" title="Registo rápido">＋</button>
+<div class="qov" id="qOv" onclick="qClose()"></div>
+<div class="qsh" id="qSh">
+  <div class="qhandle"></div>
+  <div class="qtype">
+    <button class="qtpill qte" id="qtE" onclick="qType('e')">↘ Despesa</button>
+    <button class="qtpill" id="qtI" onclick="qType('i')">↗ Receita</button>
+  </div>
+  <div class="qamt-wrap qte" id="qAmtWrap">
+    <div class="qaml">Valor</div>
+    <div class="qamr">
+      <span class="qams">€</span>
+      <input class="qamin" id="qAmt" type="text" inputmode="decimal"
+             placeholder="0" autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+  </div>
+  <div class="qsl" id="qCatLbl">Categoria</div>
+  <div class="qchips" id="qCatChips"></div>
+  <div class="qsl">Conta</div>
+  <div class="qchips" id="qAccChips"></div>
+  <div class="qdetail">
+    <div class="qdet" onclick="qPickDate()" style="flex:.85">
+      <span>📅</span><span id="qDateLbl">Hoje</span>
+      <input type="date" id="qDate" onchange="qOnDateChange()">
+    </div>
+    <div class="qdet" style="flex:1.5">
+      <span>✏</span>
+      <input type="text" id="qNote" placeholder="Nota..." autocomplete="off" maxlength="120">
+    </div>
+  </div>
+  <button class="qsave qte" id="qSaveBtn" onclick="qSave()">Guardar despesa</button>
+</div>
 </body>
 </html>
