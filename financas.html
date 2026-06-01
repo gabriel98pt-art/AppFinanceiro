@@ -598,7 +598,6 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 <!-- CARTÕES -->
 <div class="pnl" id="p-cartoes">
   <div class="kg mb2" id="ctCards"></div>
-  <div class="cc mb2" id="chBalWrap"><div class="slbl">Evolução do Saldo (Débito)</div><canvas id="chBal" style="height:210px"></canvas></div>
   <div class="cc mb2"><div class="slbl">Gastos por Cartão</div><canvas id="chCt" style="height:190px"></canvas></div>
   <div class="tc">
     <div class="tch">
@@ -2546,34 +2545,6 @@ function renderCartoes() {
     borderWidth: 2, borderRadius: 6, borderSkipped: false
   }], {noLegend: true});
 
-  // Balance history line chart (debit cards only)
-  var months12 = getLast(12, globalMonth);
-  var debitCards = methods.filter(function(c){ return (S.cfg.cardType||{})[c] !== 'credit'; });
-  var balDatasets = debitCards.map(function(card) {
-    var ci = methods.indexOf(card);
-    return {
-      label: card,
-      data: months12.map(function(ym) {
-        var m = parseInt(ym.slice(5, 7));
-        var y = parseInt(ym.slice(0, 4));
-        var lastDay = new Date(y, m, 0).getDate();
-        return cardBalAtDate(card, ym + '-' + pad2(lastDay));
-      }),
-      borderColor: CARD_HEX[ci % CARD_HEX.length],
-      backgroundColor: CARD_RGBA[ci % CARD_RGBA.length],
-      borderWidth: 2,
-      pointRadius: 3,
-      pointHoverRadius: 5,
-      tension: 0.3,
-      spanGaps: false
-    };
-  }).filter(function(ds){ return ds.data.some(function(v){ return v !== null; }); });
-
-  var balWrap = document.getElementById('chBalWrap');
-  if (balWrap) balWrap.style.display = balDatasets.length ? '' : 'none';
-  if (balDatasets.length) {
-    makeChart('chBal', 'line', months12.map(monthLabel), balDatasets);
-  }
 
   // Consolidated per-card grouped view
   var TX_TYPE = {
