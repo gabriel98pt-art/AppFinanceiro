@@ -1362,7 +1362,7 @@ function ccatBadge(cat) {
 function catBadge(type, cat, prefix) {
   var custom = (S.cfg.catColors||{})[type+':'+cat];
   if (custom) return _hexToBadge(custom, (prefix||'')+cat);
-  if (type === 'fcat') return '<span class="bdg gb">'+_esc((prefix||'')+cat)+'</span>';
+  if (type === 'fcat') return ccatBadge((prefix||'')+cat);
   if (type === 'vcat') return '<span class="bdg" style="background:rgba(245,166,35,.14);color:var(--ylw)">'+_esc((prefix||'')+cat)+'</span>';
   return ccatBadge(cat);
 }
@@ -1373,7 +1373,7 @@ function getDefaultCatColor(type, cat) {
     if (idx < 0) idx = cat.split('').reduce(function(h,ch){return h+ch.charCodeAt(0);},0);
     return CCAT_PAL[((idx % CCAT_PAL.length) + CCAT_PAL.length) % CCAT_PAL.length].c;
   }
-  if (type === 'fcat') return '#4d8fff';
+  if (type === 'fcat') return getDefaultCatColor('ccat', cat);
   if (type === 'vcat') return '#f5a623';
   if (type === 'src') { var si=(S.cfg.src||[]).indexOf(cat); return _SCH[((si>=0?si:0)%_SCH.length)]; }
   return '#4d8fff';
@@ -1388,8 +1388,8 @@ function setCatColor(type, cat, color) {
 // Zero-pad helper — padStart args were reversed, use this instead
 function pad2(n){return n<10?'0'+String(n):String(n);}
 
-// Custom chart colors
-var PAL = ['#4d8fff','#00d4a0','#ff5470','#f5a623','#a78bfa','#14c8b4','#f97316','#06b6d4'];
+// Custom chart colors — derived from CCAT_PAL for consistency
+var PAL = CCAT_PAL.map(function(p){return p.c;});
 
 // ================================================================
 // TABS
@@ -1656,12 +1656,13 @@ function renderDashboard() {
   if (prc > 0) ct['Parcelas'] = (ct['Parcelas'] || 0) + prc;
   var ks = Object.keys(ct).sort(function(a,b){ return ct[b]-ct[a]; });
   if (ks.length) {
-    makeChart('chDnt', 'doughnut', ks, [{data: ks.map(function(k){return ct[k];}), backgroundColor: PAL, borderWidth: 0, hoverOffset: 5}], {cutout: '65%'});
+    var dntColors = ks.map(function(k){ return (S.cfg.catColors||{})['ccat:'+k] || getDefaultCatColor('ccat', k); });
+    makeChart('chDnt', 'doughnut', ks, [{data: ks.map(function(k){return ct[k];}), backgroundColor: dntColors, borderWidth: 0, hoverOffset: 5}], {cutout: '65%'});
     var dntTotal = ks.reduce(function(s,k){return s+ct[k];},0);
     var dCat = document.getElementById('dCatBreak');
     if (dCat) dCat.innerHTML = ks.map(function(k,i){
       var pct = dntTotal>0 ? Math.round(ct[k]/dntTotal*100) : 0;
-      var col = PAL[i % PAL.length];
+      var col = dntColors[i];
       return `<div style="display:flex;align-items:center;gap:.6rem;padding:.3rem 0;border-bottom:1px solid var(--brd)">
         <span style="width:9px;height:9px;border-radius:50%;background:${col};flex-shrink:0"></span>
         <span style="flex:1;font-size:.76rem">${k}</span>
@@ -2829,7 +2830,7 @@ function selOpts(list, sel) {
 function buildForm(type, d) {
   var dd = (d && d.date) ? d.date : defaultDate();
   var so = selOpts(S.cfg.src, d&&d.src);
-  var fo = selOpts(S.cfg.fcat, d&&d.cat);
+  var fo = selOpts(S.cfg.ccat, d&&d.cat);
   var co = selOpts(S.cfg.ccat, d&&d.cat);
   var po = selOpts(S.cfg.pay, d&&d.card);
 
@@ -3258,8 +3259,7 @@ function openSettings() {
   // ── 1. Listas ──
   h += `<div class="sg"><div class="sgt">🏷 Listas</div><div class="sgrid">`;
   h += `<div class="ss"><h4>Fontes de Receita</h4><div class="tl">${tagList(c.src,'src')}</div>${addRow('si_src','Nova fonte...')}</div>`;
-  h += `<div class="ss"><h4>Categorias — Despesa Fixa</h4><div class="tl">${tagList(c.fcat,'fcat')}</div>${addRow('si_fcat','Nova categoria...')}</div>`;
-  h += `<div class="ss"><h4>Categorias — Despesa Corrente</h4><div class="tl">${tagList(c.ccat,'ccat')}</div>${addRow('si_ccat','Nova categoria...')}</div>`;
+  h += `<div class="ss"><h4>Categorias de Despesa</h4><div class="tl">${tagList(c.ccat,'ccat')}</div>${addRow('si_ccat','Nova categoria...')}</div>`;
   h += `<div class="ss"><h4>Categorias do Veículo</h4><div class="tl">${tagList(c.vcat||[],'vcat')}</div>${addRow('si_vcat','Nova categoria...')}</div>`;
   h += `</div></div>`;
 
@@ -3399,7 +3399,7 @@ function removeTag(type, val) {
 }
 
 function addTag(type) {
-  var inputId = {src:'si_src',fcat:'si_fcat',ccat:'si_ccat',pay:'si_pay',vcat:'si_vcat'}[type];
+  var inputId = {src:'si_src',ccat:'si_ccat',pay:'si_pay',vcat:'si_vcat'}[type];
   var el = document.getElementById(inputId);
   if (!el) return;
   var v = el.value.trim();
@@ -5855,6 +5855,25 @@ document.addEventListener('keydown', function(e) {
       });
       S.cfg.migrationLog._mig_clean_klarna = { ts: new Date().toISOString(), potential_dupes: _klarDupes };
       S.cfg._mig_clean_klarna_2026 = true;
+      localStorage.setItem(SK, JSON.stringify(S));
+    }
+
+    if (!S.cfg._mig_fcat_merged_2026) {
+      if (S.cfg.fcat && S.cfg.fcat.length) {
+        S.cfg.ccat = S.cfg.ccat || [];
+        S.cfg.fcat.forEach(function(c) {
+          if (S.cfg.ccat.indexOf(c) < 0) S.cfg.ccat.push(c);
+        });
+        if (S.cfg.catColors) {
+          S.cfg.fcat.forEach(function(c) {
+            var old = 'fcat:' + c, nw = 'ccat:' + c;
+            if (S.cfg.catColors[old] && !S.cfg.catColors[nw]) S.cfg.catColors[nw] = S.cfg.catColors[old];
+            delete S.cfg.catColors[old];
+          });
+        }
+      }
+      delete S.cfg.fcat;
+      S.cfg._mig_fcat_merged_2026 = true;
       localStorage.setItem(SK, JSON.stringify(S));
     }
 
