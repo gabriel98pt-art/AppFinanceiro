@@ -308,12 +308,12 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 }
 
 /* ── QUICK-ADD FAB ──────────────────────────────────────────── */
-.qfab{position:fixed;bottom:1.5rem;right:1.3rem;z-index:500;
-      width:54px;height:54px;border-radius:50%;border:none;cursor:pointer;
-      background:var(--grn);color:#0d0f18;font-size:1.8rem;font-weight:700;
-      box-shadow:0 4px 20px rgba(0,212,160,.5);transition:transform .15s,box-shadow .15s;
+.qfab{position:fixed;bottom:1.2rem;right:1.1rem;z-index:500;
+      width:38px;height:38px;border-radius:50%;border:1px solid var(--brd);cursor:pointer;
+      background:var(--s2);color:var(--mut);font-size:1.2rem;font-weight:700;
+      box-shadow:0 2px 8px rgba(0,0,0,.25);transition:transform .15s,background .15s;
       display:flex;align-items:center;justify-content:center;line-height:1}
-.qfab:hover{box-shadow:0 6px 24px rgba(0,212,160,.65)}
+.qfab:hover{background:var(--s3);color:var(--txt)}
 .qfab:active{transform:scale(.9)}
 .qov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:510;
      opacity:0;pointer-events:none;transition:opacity .22s}
