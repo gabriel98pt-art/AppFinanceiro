@@ -2380,14 +2380,15 @@ function renderCartoes() {
     var trfOut = sumVal(trf.filter(function(t){return t.from===card;}));
     var net = ent - sai + trfIn - trfOut;
 
-    // Saldo acumulado desde o ponto de referência mais recente
-    var snap     = getCardSnap(card, '9999-12-31');
+    // Saldo ao fim do mês visualizado
+    var ymEnd    = ym + '-31';
+    var snap     = getCardSnap(card, ymEnd);
     var snapVal  = snap.val;
     var snapDate = snap.date;
-    var allRecIn  = sumVal(S.rec.filter(function(r){return r.card===card&&r.date>snapDate;}));
-    var allDcOut  = sumVal(S.dc.filter(function(d){return d.card===card&&d.date>snapDate;}));
-    var allTrfIn  = sumVal((S.trf||[]).filter(function(t){return t.to===card&&t.date>snapDate;}));
-    var allTrfOut = sumVal((S.trf||[]).filter(function(t){return t.from===card&&t.date>snapDate;}));
+    var allRecIn  = sumVal(S.rec.filter(function(r){return r.card===card&&r.date>snapDate&&r.date<=ymEnd;}));
+    var allDcOut  = sumVal(S.dc.filter(function(d){return d.card===card&&d.date>snapDate&&d.date<=ymEnd;}));
+    var allTrfIn  = sumVal((S.trf||[]).filter(function(t){return t.to===card&&t.date>snapDate&&t.date<=ymEnd;}));
+    var allTrfOut = sumVal((S.trf||[]).filter(function(t){return t.from===card&&t.date>snapDate&&t.date<=ymEnd;}));
     var acum = snapVal + allRecIn - allDcOut + allTrfIn - allTrfOut;
 
     var col      = CARD_CSS[i % CARD_CSS.length];
@@ -2556,9 +2557,9 @@ function renderCartoes() {
     var netCol = netMo >= 0 ? 'var(--grn)' : 'var(--red)';
 
     // Opening balance for the month (debit cards only)
-    var snap = getCardSnap(card, '9999-12-31');
-    var hasSnap = snap.date !== '0000-01-01';
     var ymStart = ym + '-01';
+    var snap = getCardSnap(card, ymStart);
+    var hasSnap = snap.date !== '0000-01-01';
     var openBal = null;
     if (!isCredit && hasSnap) {
       var recB   = sumVal(S.rec.filter(function(r){ return r.card===card && r.date>=snap.date && r.date<ymStart; }));
