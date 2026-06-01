@@ -1574,7 +1574,7 @@ function renderDashboard() {
     S.df.forEach(function(d) {
       if (!isActiveForYm(d, ym)) return;
       var dy = daysUntil(d.day);
-      if (dy <= 10 && !d.paid) {
+      if (dy <= 10 && !isPaidInYm(d, ym) && !d.autoRenew) {
         var cls = dy <= 5 ? 'ar' : 'ay';
         var ico = dy <= 5 ? '⚠' : '⏱';
         html += `<div class="alrt ${cls}">${ico} <strong>${d.name}</strong> — vence ${dy===0?'hoje':dy===1?'amanhã':'em '+dy+' dias'} — ${fmt(d.val)}</div>`;
@@ -1760,10 +1760,13 @@ function renderDespesas() {
   if (el) el.innerHTML = S.df.length ? S.df.map(function(d) {
     var inactive = !isActiveForYm(d, ym);
     var dy = inactive ? 999 : daysUntil(d.day);
-    var urg = !inactive && !d.paid && dy<=5 ? 'color:var(--red)' : !inactive && !d.paid && dy<=10 ? 'color:var(--ylw)' : '';
+    var _paid = isPaidInYm(d, ym);
+    var urg = !inactive && !_paid && dy<=5 ? 'color:var(--red)' : !inactive && !_paid && dy<=10 ? 'color:var(--ylw)' : '';
     var rowStyle = inactive ? 'opacity:.45' : '';
     var inactBadge = inactive ? ' <span class="bdg" style="font-size:.6rem;background:rgba(128,128,128,.15);color:var(--mut)" title="Fora do período de vigência configurado">inativo</span>' : '';
-    return `<tr style="${rowStyle}"><td style="${urg};font-weight:${urg?700:400}">${_esc(d.name)}${inactBadge}</td><td>${catBadge('fcat',d.cat)}</td><td class="bold">${inactive?'<span style="color:var(--mut)">'+fmt(d.val)+'</span>':fmt(d.val)}</td><td style="${urg}">${d.day||'—'}</td><td>${_esc(d.card||'—')}</td><td><input type="checkbox" ${d.paid?'checked':''} ${inactive?'disabled':''} onchange="togglePaid(${d.id},this.checked)"></td><td>${_esc(d.notes||'—')}</td><td><div class="ac"><button class="ic e" onclick="openModal('dfixa',${d.id})">✏</button><button class="ic d" onclick="delRec('df',${d.id})">🗑</button></div></td></tr>`;
+    var autoBadge = d.autoRenew ? ' <span class="bdg" style="font-size:.58rem;background:rgba(0,212,160,.12);color:var(--grn);border:1px solid rgba(0,212,160,.25)" title="Renovação automática — não gera aviso">auto</span>' : '';
+    var chkDisabled = inactive || d.autoRenew ? 'disabled' : '';
+    return `<tr style="${rowStyle}"><td style="${urg};font-weight:${urg?700:400}">${_esc(d.name)}${inactBadge}${autoBadge}</td><td>${catBadge('fcat',d.cat)}</td><td class="bold">${inactive?'<span style="color:var(--mut)">'+fmt(d.val)+'</span>':fmt(d.val)}</td><td style="${urg}">${d.day||'—'}</td><td>${_esc(d.card||'—')}</td><td><input type="checkbox" ${_paid?'checked':''} ${chkDisabled} onchange="togglePaid(${d.id},this.checked)"></td><td>${_esc(d.notes||'—')}</td><td><div class="ac"><button class="ic e" onclick="openModal('dfixa',${d.id})">✏</button><button class="ic d" onclick="delRec('df',${d.id})">🗑</button></div></td></tr>`;
   }).join('') : '<tr><td colspan="8"><div class="empty"><span class="ei">↘</span>Nenhuma despesa fixa</div></td></tr>';
   var ft = document.getElementById('dfFoot');
   if (ft) ft.innerHTML = `<tr><td colspan="2">Total</td><td class="tred">${fmt(totFixas(ym))}</td><td colspan="5"></td></tr>`;
@@ -1833,13 +1836,20 @@ function renderDespesas() {
   // Budget
 }
 
+function isPaidInYm(d, ym) {
+  if (d.autoRenew) return true;
+  return !!(d.paidMonths && d.paidMonths[ym]);
+}
+
 function togglePaid(id, val) {
   snapshot();
   var d = S.df.find(function(x){return x.id===id;});
   if (d) {
-    d.paid = val;
+    if (!d.paidMonths) d.paidMonths = {};
+    d.paidMonths[globalMonth] = val;
     saveState();
-    showToast(val ? '✓ Marcado como pago' : '↩ Desmarcado');
+    renderDespesas();
+    showToast(val ? '✓ Pago em '+globalMonth : '↩ Desmarcado em '+globalMonth);
   }
 }
 
@@ -2748,6 +2758,11 @@ function buildForm(type, d) {
           </div>
         </div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
+        <div class="ff full"><label class="fl" style="display:flex;align-items:center;gap:.55rem;cursor:pointer;font-weight:400">
+          <input type="checkbox" id="f_autoRenew" ${d&&d.autoRenew?'checked':''} style="width:15px;height:15px;accent-color:var(--grn);flex-shrink:0">
+          <span style="font-weight:600">Renovação automática</span>
+          <span class="tmut" style="font-size:.72rem">(débito automático — não avisa vencimento)</span>
+        </label></div>
       </div>`;
     }
     case 'vehfix': {
@@ -2971,9 +2986,10 @@ function saveModal() {
       var _sm_afM=gv('f_afM'),_sm_afY=gv('f_afY'),_sm_atM=gv('f_atM'),_sm_atY=gv('f_atY');
       var _sm_af=(_sm_afY&&_sm_afM)?_sm_afY+'-'+_sm_afM:null;
       var _sm_at=(_sm_atY&&_sm_atM)?_sm_atY+'-'+_sm_atM:null;
-      var o = {name:gv('f_name'),cat:gv('f_cat'),val:gf('f_val'),day:gi('f_day'),card:gv('f_card'),notes:gv('f_notes'),activeFrom:_sm_af,activeTo:_sm_at};
+      var _ar = !!(document.getElementById('f_autoRenew') && document.getElementById('f_autoRenew').checked);
+      var o = {name:gv('f_name'),cat:gv('f_cat'),val:gf('f_val'),day:gi('f_day'),card:gv('f_card'),notes:gv('f_notes'),activeFrom:_sm_af,activeTo:_sm_at,autoRenew:_ar};
       if (id!==null) { Object.assign(S.df.find(function(x){return x.id===id;}), o); }
-      else S.df.push(Object.assign({id:nid(),paid:false}, o));
+      else S.df.push(Object.assign({id:nid(),paidMonths:{}}, o));
       break;
     }
     case 'dcorr': {
