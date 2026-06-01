@@ -2329,10 +2329,9 @@ function reconcileCard(card) {
     var snapDate = snap.date;
     var allRecIn  = sumVal(S.rec.filter(function(r){return r.card===card&&r.date>snapDate&&r.date<=today;}));
     var allDcOut  = sumVal(S.dc.filter(function(d){return d.card===card&&d.date>snapDate&&d.date<=today;}));
-    var allDfOut  = dfDebitsGtLte(card, snapDate, today);
     var allTrfIn  = sumVal((S.trf||[]).filter(function(t){return t.to===card&&t.date>snapDate&&t.date<=today;}));
     var allTrfOut = sumVal((S.trf||[]).filter(function(t){return t.from===card&&t.date>snapDate&&t.date<=today;}));
-    var appBal = snap.val + allRecIn - allDcOut - allDfOut + allTrfIn - allTrfOut;
+    var appBal = snap.val + allRecIn - allDcOut + allTrfIn - allTrfOut;
     promptMsg = 'Reconciliar "' + card + '"\n\nApp calcula: ' + fmt(appBal) + '\n\nQual o saldo actual no banco? (€)';
   }
 
@@ -2475,10 +2474,9 @@ function renderCartoes() {
     var snapDate = snap.date;
     var allRecIn  = sumVal(S.rec.filter(function(r){return r.card===card&&r.date>snapDate&&r.date<=balDate;}));
     var allDcOut  = sumVal(S.dc.filter(function(d){return d.card===card&&d.date>snapDate&&d.date<=balDate;}));
-    var allDfOut  = dfDebitsGtLte(card, snapDate, balDate);
     var allTrfIn  = sumVal((S.trf||[]).filter(function(t){return t.to===card&&t.date>snapDate&&t.date<=balDate;}));
     var allTrfOut = sumVal((S.trf||[]).filter(function(t){return t.from===card&&t.date>snapDate&&t.date<=balDate;}));
-    var acum = snapVal + allRecIn - allDcOut - allDfOut + allTrfIn - allTrfOut;
+    var acum = snapVal + allRecIn - allDcOut + allTrfIn - allTrfOut;
 
     var col      = CARD_CSS[i % CARD_CSS.length];
     var safeCard = card.replace(/'/g,"\\'");
@@ -2633,12 +2631,7 @@ function renderCartoes() {
       var dcB    = sumVal(S.dc.filter(function(d){  return d.card===card && d.date>=snap.date && d.date<ymStart; }));
       var trfInB = sumVal(trfAll.filter(function(t){ return t.to===card   && t.date>=snap.date && t.date<ymStart; }));
       var trfOB  = sumVal(trfAll.filter(function(t){ return t.from===card && t.date>=snap.date && t.date<ymStart; }));
-      // prev month end as string upper bound for dfDebitsGtLte
-      var _py = parseInt(ym.slice(0,4)), _pm = parseInt(ym.slice(5,7)) - 1;
-      if (_pm < 1) { _pm = 12; _py--; }
-      var prevMonthEnd = _py + '-' + (_pm < 10 ? '0' : '') + _pm + '-31';
-      var dfB  = dfDebitsGtLte(card, snap.date, prevMonthEnd);
-      openBal = snap.val + recB - dcB - dfB + trfInB - trfOB;
+      openBal = snap.val + recB - dcB + trfInB - trfOB;
     }
 
     // Group header row
