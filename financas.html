@@ -1201,7 +1201,9 @@ function parcMonths(p) {
 }
 
 function parcDate(p, ym) {
-  var day = parseInt(p.fd.slice(8, 10));
+  var isCredit = (S.cfg.cardType||{})[p.card] === 'credit';
+  var dueDay = isCredit ? ((S.cfg.cardDueDay||{})[p.card] || 0) : 0;
+  var day = dueDay || parseInt(p.fd.slice(8, 10));
   var pt = ym.split('-');
   var last = new Date(parseInt(pt[0]), parseInt(pt[1]), 0).getDate();
   day = Math.min(day, last);
@@ -1841,6 +1843,21 @@ function isPaidInYm(d, ym) {
   return !!(d.paidMonths && d.paidMonths[ym]);
 }
 
+function onParcCardChange() {
+  var card = (document.getElementById('f_card')||{}).value||'';
+  var isCredit = (S.cfg.cardType||{})[card] === 'credit';
+  var cb = document.getElementById('f_autoDebit');
+  if (cb) cb.checked = isCredit;
+}
+
+function _autoDebitParcVal(card, ym) {
+  return S.par.reduce(function(s, p) {
+    if (p.card !== card || !p.autoDebit) return s;
+    if (parcMonths(p).indexOf(ym) < 0) return s;
+    return s + p.vp;
+  }, 0);
+}
+
 function togglePaid(id, val) {
   snapshot();
   var d = S.df.find(function(x){return x.id===id;});
@@ -2063,7 +2080,8 @@ function renderParcelas() {
 
       t += `<tr ${dragAttrs} style="${rowStyle}">`;
       t += `<td class="drag-handle" title="Arrastar">⠿</td>`;
-      t += `<td class="bold">${_esc(p.name||'')}</td><td>${p.cat ? ccatBadge(p.cat) : '<span class="tmut" style="font-size:.74rem">—</span>'}</td><td>${fmt(p.vp)}</td>`;
+      var adBadge = p.autoDebit ? ' <span style="font-size:.58rem;background:rgba(0,212,160,.12);color:var(--grn);border:1px solid rgba(0,212,160,.25);border-radius:4px;padding:.05rem .3rem;font-weight:600">auto</span>' : '';
+      t += `<td class="bold">${_esc(p.name||'')}${adBadge}</td><td>${p.cat ? ccatBadge(p.cat) : '<span class="tmut" style="font-size:.74rem">—</span>'}</td><td>${fmt(p.vp)}</td>`;
 
       for (var ci = 0; ci < PARC_MONTHS.length; ci++) {
         var cm = PARC_MONTHS[ci];
@@ -2075,8 +2093,13 @@ function renderParcelas() {
           var ip = p.py[cm];
           var dt = parcDate(p, cm);
           var ds = fmtDateShort(dt);
+          var fatPaidThisMonth = p.autoDebit && (S.cfg.fatPaid||{})[p.card] && (S.cfg.fatPaid||{})[p.card][cm] && (S.cfg.fatPaid||{})[p.card][cm].paid;
           if (ip) {
-            t += `<td style="text-align:center;padding:.18rem .06rem;${hl2}"><div class="pmc pmp" onclick="unpayParc(${p.id},'${cm}')" title="Clique para desmarcar"><span style="font-size:.72rem;color:var(--grn);font-weight:800;line-height:1">✓</span><span class="pmd">${ds}</span></div></td>`;
+            var unPayClick = p.autoDebit ? '' : `onclick="unpayParc(${p.id},'${cm}')"`;
+            var unPayTitle = p.autoDebit ? 'Pago via fatura do cartão' : 'Clique para desmarcar';
+            t += `<td style="text-align:center;padding:.18rem .06rem;${hl2}"><div class="pmc pmp" ${unPayClick} title="${unPayTitle}"><span style="font-size:.72rem;color:var(--grn);font-weight:800;line-height:1">${p.autoDebit?'⚡':'✓'}</span><span class="pmd">${ds}</span></div></td>`;
+          } else if (p.autoDebit) {
+            t += `<td style="text-align:center;padding:.18rem .06rem;${hl2}"><div class="pmc" title="Débito automático — será pago com a fatura" style="cursor:default"><span style="font-size:.58rem;color:var(--mut);font-weight:600">auto</span><span class="pmd" style="color:var(--mut)">${ds}</span></div></td>`;
           } else {
             t += `<td style="text-align:center;padding:.18rem .06rem;${hl2}"><div class="pmc pma" onclick="payParc(${p.id},'${cm}','${dt}')" title="Marcar como pago — ${fmt(p.vp)}" style="cursor:pointer"><span class="pmd" style="font-size:.6rem;font-weight:600;color:var(--blu)">${ds}</span></div></td>`;
           }
@@ -2283,7 +2306,8 @@ function payFatura(card, ym) {
     if (!from) return;
   }
   var fatCalc = sumVal(S.df.filter(function(d){return d.card===card&&isActiveForYm(d,ym);}))
-             + sumVal(S.dc.filter(function(d){return inMonth(d.date,ym)&&d.card===card&&d._src!=='fat';}));
+             + sumVal(S.dc.filter(function(d){return inMonth(d.date,ym)&&d.card===card&&d._src!=='fat';}))
+             + _autoDebitParcVal(card, ym);
   var fatManualVal = (S.cfg.fatManual||{})[card] && (S.cfg.fatManual||{})[card][ym];
   var fat = fatManualVal != null ? fatManualVal : fatCalc;
   snapshot();
@@ -2292,6 +2316,9 @@ function payFatura(card, ym) {
   var dcId = nid();
   S.dc.push({id:dcId, date:todayStr(), name:'Cartão de Crédito '+card, cat:'Cartão de Crédito', val:fat, card:from, notes:'Ref. '+monthLabel(ym), _src:'fat', _fatCard:card, _fatYm:ym});
   S.cfg.fatPaid[card][ym] = {paid:true, val:fat, date:todayStr(), from:from, dcId:dcId};
+  S.par.forEach(function(p) {
+    if (p.card===card && p.autoDebit && parcMonths(p).indexOf(ym)>=0) p.py[ym]=true;
+  });
   globalMonth = todayStr().slice(0,7);
   S.cfg.lastMonth = globalMonth;
   saveState(); renderCartoes(); updateGlobalNav();
@@ -2370,7 +2397,8 @@ function renderCartoes() {
 
     if (isCredit) {
       var fatCalc = sumVal(dfM.filter(function(d){return d.card===card;}))
-                 + sumVal(dcM.filter(function(d){return d.card===card&&d._src!=='fat';}));
+                 + sumVal(dcM.filter(function(d){return d.card===card&&d._src!=='fat';}))
+                 + _autoDebitParcVal(card, ym);
       var fatManual = (S.cfg.fatManual||{})[card] && (S.cfg.fatManual||{})[card][ym];
       var fat = fatManual != null ? fatManual : fatCalc;
       var fatEntry = (S.cfg.fatPaid||{})[card] && (S.cfg.fatPaid||{})[card][ym];
@@ -2841,7 +2869,12 @@ function buildForm(type, d) {
       return `<div class="fg">
         <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
         <div class="ff"><label class="fl">Categoria</label><select class="fi" id="f_cat">${coP}</select></div>
-        <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${poP}</select></div>
+        <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card" onchange="onParcCardChange()">${poP}</select></div>
+        <div class="ff full"><label class="fl" style="display:flex;align-items:center;gap:.55rem;cursor:pointer;font-weight:400">
+          <input type="checkbox" id="f_autoDebit" ${d&&d.autoDebit?'checked':(!d&&(S.cfg.cardType||{})[d&&d.card]==='credit'?'checked':'')} style="width:15px;height:15px;accent-color:var(--grn);flex-shrink:0">
+          <span style="font-weight:600">Débito automático</span>
+          <span class="tmut" style="font-size:.72rem">(incluído na fatura sem precisar marcar)</span>
+        </label></div>
 
         <!-- TOGGLE -->
         <div class="ff full">
@@ -3039,7 +3072,8 @@ function saveModal() {
       break;
     }
     case 'parc': {
-      var o = {name:gv('f_name'),cat:gv('f_cat'),card:gv('f_card'),vp:gf('f_val'),num:gi('f_num'),fd:gv('f_fd')};
+      var _ad2 = !!(document.getElementById('f_autoDebit') && document.getElementById('f_autoDebit').checked);
+      var o = {name:gv('f_name'),cat:gv('f_cat'),card:gv('f_card'),vp:gf('f_val'),num:gi('f_num'),fd:gv('f_fd'),autoDebit:_ad2};
       if (id!==null) { Object.assign(S.par.find(function(x){return x.id===id;}), o); }
       else S.par.push(Object.assign({id:nid(),py:{}}, o));
       break;
@@ -3150,7 +3184,11 @@ function openSettings() {
   (c.pay||[]).forEach(function(x){
     var ct=(c.cardType||{})[x]||'debit';
     var safe=x.replace(/[^a-z0-9]/gi,'_');
-    h += `<div class="srow"><span class="srow-label">${x}</span><span class="srow-val"><select class="sel" id="sct_${safe}" style="font-size:.72rem;padding:.18rem .4rem"><option value="debit"${ct==='debit'?' selected':''}>Débito</option><option value="credit"${ct==='credit'?' selected':''}>Crédito</option><option value="transit"${ct==='transit'?' selected':''}>Passagem</option></select></span></div>`;
+    var dueDay=(c.cardDueDay||{})[x]||'';
+    h += `<div class="srow"><span class="srow-label">${x}</span><span class="srow-val" style="display:flex;gap:.4rem;align-items:center">`;
+    h += `<select class="sel" id="sct_${safe}" style="font-size:.72rem;padding:.18rem .4rem"><option value="debit"${ct==='debit'?' selected':''}>Débito</option><option value="credit"${ct==='credit'?' selected':''}>Crédito</option><option value="transit"${ct==='transit'?' selected':''}>Passagem</option></select>`;
+    if (ct==='credit') h += `<input type="number" id="scdd_${safe}" min="1" max="31" value="${dueDay}" placeholder="Dia venc." title="Dia de vencimento da fatura" style="width:72px;font-size:.72rem;padding:.18rem .4rem;background:var(--s2);border:1px solid var(--brd);border-radius:5px;color:var(--txt)">`;
+    h += `</span></div>`;
   });
   h += `</div>`;
   h += `</div></div>`;
@@ -3295,9 +3333,14 @@ function saveSet() {
     if (el) { S.cfg.bud = S.cfg.bud||{}; S.cfg.bud[x] = parseFloat(el.value)||0; }
   });
   S.cfg.cardType = S.cfg.cardType||{};
+  S.cfg.cardDueDay = S.cfg.cardDueDay||{};
   (S.cfg.pay||[]).forEach(function(x) {
-    var el = document.getElementById('sct_' + x.replace(/[^a-z0-9]/gi,'_'));
+    var safe = x.replace(/[^a-z0-9]/gi,'_');
+    var el = document.getElementById('sct_' + safe);
     if (el) S.cfg.cardType[x] = el.value || 'debit';
+    var eld = document.getElementById('scdd_' + safe);
+    if (eld && eld.value) S.cfg.cardDueDay[x] = parseInt(eld.value)||0;
+    else if (eld) delete S.cfg.cardDueDay[x];
   });
   // Cores
   if (!S.cfg.colors) S.cfg.colors = {};
