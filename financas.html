@@ -2292,56 +2292,46 @@ function getCardSnap(card, refDate) {
   return best || {val: 0, date: '0000-01-01'};
 }
 
-function setCardBal(card) {
-  var latest = getCardSnap(card, '9999-12-31');
-  var cur = latest.val;
-  var v = parseFloat(prompt('Saldo atual do cartão "' + card + '" (€):\n(usado como referência — transações futuras ajustam automaticamente)', cur));
-  if (isNaN(v)) return;
-  if (v < 0 && !confirm('Definir saldo negativo (' + fmt(v) + ')?\nCertifique-se de que este valor está correto.')) return;
-  snapshot();
-  if (!S.cfg.balSnap) S.cfg.balSnap = {};
-  var arr = S.cfg.balSnap[card];
-  if (!Array.isArray(arr)) arr = arr ? [arr] : [];
-  var today = todayStr();
-  var idx = arr.findIndex ? arr.findIndex(function(s){return s.date===today;}) : -1;
-  if (idx >= 0) { arr[idx] = {val: v, date: today}; }
-  else { arr.push({val: v, date: today}); }
-  S.cfg.balSnap[card] = arr;
-  saveState();
-  renderCartoes();
-  showToast('✓ Saldo definido: ' + fmt(v));
-}
-
 function reconcileCard(card) {
   var today = todayStr();
   var snap = getCardSnap(card, today);
-  var snapDate = snap.date;
-  var allRecIn  = sumVal(S.rec.filter(function(r){return r.card===card&&r.date>snapDate&&r.date<=today;}));
-  var allDcOut  = sumVal(S.dc.filter(function(d){return d.card===card&&d.date>snapDate&&d.date<=today;}));
-  var allDfOut  = dfDebitsGtLte(card, snapDate, today);
-  var allTrfIn  = sumVal((S.trf||[]).filter(function(t){return t.to===card&&t.date>snapDate&&t.date<=today;}));
-  var allTrfOut = sumVal((S.trf||[]).filter(function(t){return t.from===card&&t.date>snapDate&&t.date<=today;}));
-  var appBal = snap.val + allRecIn - allDcOut - allDfOut + allTrfIn - allTrfOut;
+  var isFirst = snap.date === '0000-01-01';
 
-  var realStr = prompt(
-    'Reconciliar "' + card + '"\n\n' +
-    'Saldo calculado pela app: ' + fmt(appBal) + '\n\n' +
-    'Qual o saldo actual no teu banco? (€)',
-    appBal.toFixed(2)
-  );
+  var promptMsg;
+  if (isFirst) {
+    promptMsg = 'Definir saldo inicial de "' + card + '" (€):\n\n(ponto de partida — transações futuras ajustam a partir daqui)';
+  } else {
+    var snapDate = snap.date;
+    var allRecIn  = sumVal(S.rec.filter(function(r){return r.card===card&&r.date>snapDate&&r.date<=today;}));
+    var allDcOut  = sumVal(S.dc.filter(function(d){return d.card===card&&d.date>snapDate&&d.date<=today;}));
+    var allDfOut  = dfDebitsGtLte(card, snapDate, today);
+    var allTrfIn  = sumVal((S.trf||[]).filter(function(t){return t.to===card&&t.date>snapDate&&t.date<=today;}));
+    var allTrfOut = sumVal((S.trf||[]).filter(function(t){return t.from===card&&t.date>snapDate&&t.date<=today;}));
+    var appBal = snap.val + allRecIn - allDcOut - allDfOut + allTrfIn - allTrfOut;
+    promptMsg = 'Reconciliar "' + card + '"\n\nApp calcula: ' + fmt(appBal) + '\n\nQual o saldo actual no banco? (€)';
+  }
+
+  var realStr = prompt(promptMsg, isFirst ? '' : appBal.toFixed(2));
   if (realStr === null) return;
   var real = parseFloat(realStr.replace(',', '.'));
   if (isNaN(real)) return;
 
-  var diff = parseFloat((real - appBal).toFixed(2));
-  if (Math.abs(diff) < 0.01) { showToast('✓ Saldo já correcto — sem diferença'); return; }
-
   snapshot();
-  if (diff > 0) {
-    S.rec.push({id: nid(), date: today, src: 'Ajuste', val: diff, card: card, notes: 'Reconciliação (' + fmt(appBal) + ' → ' + fmt(real) + ')', _src: 'recon'});
-  } else {
-    S.dc.push({id: nid(), date: today, name: 'Ajuste', cat: 'Ajuste', val: Math.abs(diff), card: card, notes: 'Reconciliação (' + fmt(appBal) + ' → ' + fmt(real) + ')', _src: 'recon'});
+
+  if (!isFirst) {
+    var diff = parseFloat((real - appBal).toFixed(2));
+    if (Math.abs(diff) >= 0.01) {
+      if (diff > 0) {
+        S.rec.push({id: nid(), date: today, src: 'Ajuste', val: diff, card: card, notes: 'Reconciliação (' + fmt(appBal) + ' → ' + fmt(real) + ')', _src: 'recon'});
+      } else {
+        S.dc.push({id: nid(), date: today, name: 'Ajuste', cat: 'Ajuste', val: Math.abs(diff), card: card, notes: 'Reconciliação (' + fmt(appBal) + ' → ' + fmt(real) + ')', _src: 'recon'});
+      }
+    } else {
+      showToast('✓ Saldo já correcto — sem diferença');
+      return;
+    }
   }
+
   if (!S.cfg.balSnap) S.cfg.balSnap = {};
   var arr = S.cfg.balSnap[card];
   if (!Array.isArray(arr)) arr = arr ? [arr] : [];
@@ -2351,7 +2341,11 @@ function reconcileCard(card) {
   globalMonth = today.slice(0,7);
   S.cfg.lastMonth = globalMonth;
   saveState(); renderTab(CUR); updateGlobalNav();
-  showToast((diff > 0 ? '↑ +' : '↓ ') + fmt(Math.abs(diff)) + ' ajustado — saldo: ' + fmt(real));
+  if (isFirst) {
+    showToast('✓ Saldo inicial definido: ' + fmt(real));
+  } else {
+    showToast((diff > 0 ? '↑ +' : '↓ ') + fmt(Math.abs(diff)) + ' ajustado — saldo: ' + fmt(real));
+  }
 }
 
 function setFaturaManual(card, ym) {
@@ -2469,14 +2463,11 @@ function renderCartoes() {
     if (isTransit) {
       var acumColT = acum >= 0 ? 'var(--grn)' : 'var(--red)';
       var _hasSnapT = snap.date !== '0000-01-01';
-      var snapInfoT = !_hasSnapT ? `<div style="font-size:.58rem;color:var(--ylw);margin-top:.1rem">⚠ defina saldo (⚙)</div>` : '';
+      var snapInfoT = !_hasSnapT ? `<div style="font-size:.58rem;color:var(--ylw);margin-top:.1rem">⚠ defina saldo (⚖)</div>` : '';
       return `<div class="kc" style="--_a:${col}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;width:100%">
           <div class="klbl" style="margin:0">⇄ ${card}</div>
-          <div style="display:flex;gap:.3rem">
-            <button class="ic" onclick="reconcileCard('${safeCard}')" title="Reconciliar com banco" style="font-size:.65rem;width:22px;height:22px">⚖</button>
-            <button class="ic" onclick="setCardBal('${safeCard}')" title="Definir saldo atual" style="font-size:.7rem;width:22px;height:22px">⚙</button>
-          </div>
+          <button class="ic" onclick="reconcileCard('${safeCard}')" title="Reconciliar com banco" style="font-size:.65rem;width:22px;height:22px">⚖</button>
         </div>
         <div class="kval" style="color:${acumColT}">${fmt(acum)}</div>
         <div class="ksub" style="color:var(--mut);font-size:.62rem">conta de passagem</div>
@@ -2518,13 +2509,11 @@ function renderCartoes() {
     var acumCol = acum >= 0 ? 'var(--grn)' : 'var(--red)';
     var netCol  = net  >= 0 ? 'var(--grn)' : 'var(--red)';
     var _hasSnap = snap.date !== '0000-01-01';
-    var snapInfo = !_hasSnap ? `<div style="font-size:.58rem;color:var(--ylw);margin-top:.1rem">⚠ defina saldo (⚙)</div>` : '';
+    var snapInfo = !_hasSnap ? `<div style="font-size:.58rem;color:var(--ylw);margin-top:.1rem">⚠ defina saldo (⚖)</div>` : '';
     return `<div class="kc" style="--_a:${col}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;width:100%">
         <div class="klbl" style="margin:0">${card}</div>
-        <div style="display:flex;gap:.3rem">
           <button class="ic" onclick="reconcileCard('${safeCard}')" title="Reconciliar com banco" style="font-size:.65rem;width:22px;height:22px">⚖</button>
-          <button class="ic" onclick="setCardBal('${safeCard}')" title="Definir saldo atual" style="font-size:.7rem;width:22px;height:22px">⚙</button>
         </div>
       </div>
       <div class="kval" style="color:${acumCol}">${fmt(acum)}</div>
@@ -2630,7 +2619,7 @@ function renderCartoes() {
     if (openBal !== null) {
       html += '<span style="font-size:.65rem;color:var(--mut)">abertura: <strong style="color:var(--txt)">'+fmt(openBal)+'</strong></span>';
     } else if (!isCredit && !hasSnap) {
-      html += '<span style="font-size:.63rem;color:var(--ylw)">⚠ defina saldo de referência (⚙)</span>';
+      html += '<span style="font-size:.63rem;color:var(--ylw)">⚠ defina saldo de referência (⚖)</span>';
     }
     html += '<span style="font-size:.65rem;color:'+netCol+';font-weight:700">'+(netMo>=0?'+':'')+fmt(netMo)+' este mês</span>';
     if (cardTxs.length === 0) html += '<span style="font-size:.65rem;color:var(--mut)">— sem movimentos</span>';
