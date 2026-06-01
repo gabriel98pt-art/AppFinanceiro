@@ -382,7 +382,7 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
     <button class="ib" id="fbSyncBtn" onclick="_fbSync(true)">🔄</button>
     <button class="ib" onclick="syncSave()">📤</button>
     <button class="ib" onclick="openSettings()">⚙️</button>
-    <button class="tgl" onclick="toggleTheme()"></button>
+    <button class="ib" id="themeBtn" onclick="toggleTheme()" title="Alternar tema"></button>
   </div>
 </header>
 
@@ -5300,6 +5300,10 @@ function resetColors() {
   showToast('✓ Cores repostas');
 }
 
+function _updateThemeBtn() {
+  var btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = document.documentElement.dataset.theme === 'dark' ? '🌑' : '☀️';
+}
 function toggleTheme() {
   var h = document.documentElement;
   var dk = h.dataset.theme === 'dark';
@@ -5307,6 +5311,7 @@ function toggleTheme() {
   S.cfg.theme = h.dataset.theme;
   applyColors();
   saveState();
+  _updateThemeBtn();
   setTimeout(function(){ renderTab(CUR); }, 60);
 }
 
@@ -5637,6 +5642,7 @@ document.addEventListener('keydown', function(e) {
 
     document.documentElement.dataset.theme = (S.cfg && S.cfg.theme) || 'dark';
     applyColors();
+    _updateThemeBtn();
     HIST.push(JSON.stringify(S));
     HIDX = 0;
     updateUR();
