@@ -396,6 +396,8 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 .srch-bar select{background:var(--bg);border:1px solid var(--brd);border-radius:var(--r-sm);padding:.3rem .55rem;font-size:.78rem;color:var(--txt);cursor:pointer}
 .srch-bar .srch-clr{background:none;border:none;color:var(--mut);cursor:pointer;font-size:.85rem;padding:.2rem .4rem;border-radius:4px;line-height:1}
 .srch-bar .srch-clr:hover{background:var(--s3);color:var(--txt)}
+.srch-pin{background:none;border:1px solid var(--brd);border-radius:4px;color:var(--mut);cursor:pointer;font-size:.75rem;padding:.2rem .4rem;line-height:1;transition:background var(--tr),color var(--tr),border-color var(--tr)}
+.srch-pin.on{background:rgba(77,143,255,.15);border-color:var(--blu);color:var(--blu)}
 /* long-press to delete */
 tr.swipe-row{cursor:default}
 tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15s}
@@ -538,6 +540,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     <div class="srch-bar">
       <input id="recSearch" type="search" placeholder="🔍 Pesquisar…" oninput="REC_SEARCH=this.value;renderReceitas()" value="">
       <select id="recCardFilt" onchange="REC_CARD=this.value;renderReceitas()"><option value="all">Todas as contas</option></select>
+      <button class="srch-pin" id="recPin" onclick="_togglePin('rec')" title="Manter filtro ao mudar de mês">📌</button>
       <button class="srch-clr" onclick="REC_SEARCH='';REC_CARD='all';document.getElementById('recSearch').value='';renderReceitas()" title="Limpar filtros">✕</button>
     </div>
     <div class="tw"><table>
@@ -574,6 +577,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     <div class="srch-bar">
       <input id="dcSearch" type="search" placeholder="🔍 Pesquisar…" oninput="DC_SEARCH=this.value;DC_PG=1;renderDespesas()" value="">
       <select id="dcCardFilt" onchange="DC_CARD=this.value;DC_PG=1;renderDespesas()"><option value="all">Todos os cartões</option></select>
+      <button class="srch-pin" id="dcPin" onclick="_togglePin('dc')" title="Manter filtro ao mudar de mês">📌</button>
       <button class="srch-clr" onclick="DC_SEARCH='';DC_CARD='all';document.getElementById('dcSearch').value='';DC_PG=1;renderDespesas()" title="Limpar filtros">✕</button>
     </div>
     <div id="dcFilterBar" style="display:none;padding:.55rem 1rem;border-bottom:1px solid var(--brd);background:var(--s2)">
@@ -1188,8 +1192,8 @@ function _syncDcInputs() {
 var globalMonth = '2026-05';
 var DC_SORT='date',DC_DIR=-1,DC_PG=1,DC_PGS=15;
 var DC_FROM=null,DC_TO=null,_dcFilterOpen=false;
-var REC_SEARCH='',REC_CARD='all';
-var DC_SEARCH='',DC_CARD='all';
+var REC_SEARCH='',REC_CARD='all',REC_PIN=false;
+var DC_SEARCH='',DC_CARD='all',DC_PIN=false;
 var CT_SORT='date',CT_DIR=-1,CT_PG=1,CT_PGS=15;
 
 // ================================================================
@@ -1602,9 +1606,21 @@ function makeChart(id, type, labels, datasets, opts) {
 // GLOBAL NAV
 // ================================================================
 function _resetListFilters() {
-  REC_SEARCH=''; REC_CARD='all'; DC_SEARCH=''; DC_CARD='all';
-  var rs=document.getElementById('recSearch'); if(rs) rs.value='';
-  var ds=document.getElementById('dcSearch');  if(ds) ds.value='';
+  if (!REC_PIN) { REC_SEARCH=''; REC_CARD='all'; var rs=document.getElementById('recSearch'); if(rs) rs.value=''; }
+  if (!DC_PIN)  { DC_SEARCH='';  DC_CARD='all';  var ds=document.getElementById('dcSearch');  if(ds) ds.value=''; }
+}
+function _togglePin(which) {
+  if (which==='rec') {
+    REC_PIN = !REC_PIN;
+    var btn = document.getElementById('recPin');
+    if (btn) btn.classList.toggle('on', REC_PIN);
+    showToast(REC_PIN ? '📌 Filtro de receitas fixado' : '📌 Filtro de receitas libertado');
+  } else {
+    DC_PIN = !DC_PIN;
+    var btn = document.getElementById('dcPin');
+    if (btn) btn.classList.toggle('on', DC_PIN);
+    showToast(DC_PIN ? '📌 Filtro de despesas fixado' : '📌 Filtro de despesas libertado');
+  }
 }
 function globalNav(dir) {
   globalMonth = addMonths(globalMonth, dir);
@@ -1934,6 +1950,7 @@ function renderReceitas() {
     return `<tr class="swipe-row" data-sid="${r.id}" data-stype="rec"><td title="${fmtDate(r.date)}">${fmtDateShort(r.date)}</td><td>${_esc(r.src||'')}</td><td class="tgrn bold">${fmt(r.val)}</td><td>${_esc(r.card||'—')}</td><td>${_esc(r.notes||'—')}</td><td><div class="ac"><button class="ic e" onclick="openModal('receita',${r.id})">✏</button><button class="ic d" onclick="delRec('rec',${r.id})">🗑</button></div></td></tr>`;
   }).join('') : `<tr><td colspan="6"><div class="empty"><span class="ei">↗</span>Nenhuma receita em ${monthLabel(globalMonth)}</div></td></tr>`;
   _initSwipe('rBody', 'rec');
+  var rp=document.getElementById('recPin'); if(rp) rp.classList.toggle('on',REC_PIN);
   var ft = document.getElementById('rFoot');
   if (ft) ft.innerHTML = `<tr><td colspan="2">Total ${monthLabel(globalMonth)}</td><td class="tgrn">${fmt(tot)}</td><td colspan="3"></td></tr>`;
 }
@@ -2040,6 +2057,7 @@ function renderDespesas() {
     return `<tr class="parc-r swipe-row" data-sid="${d.id}" data-stype="${isAuto?'':'dc'}"><td title="${fmtDate(d.date)}">${fmtDateShort(d.date)}</td><td style="font-size:.82rem">${nameCell}</td><td>${catLabel}</td><td class="${valCls}">${fmt(d.val)}</td><td>${d.card||'—'}</td><td style="font-size:.74rem">${notesCell}</td><td><div class="ac">${!isAuto?`<button class="ic e" onclick="openModal('dcorr',${d.id})">✏</button><button class="ic d" onclick="delRec('dc',${d.id})">🗑</button>`:'<span class="tmut" style="font-size:.63rem;padding:.15rem .35rem;background:var(--s2);border-radius:4px" title="Criado automaticamente — edite na aba de origem">auto</span>'}</div></td></tr>`;
   }).join('') : `<tr><td colspan="7"><div class="empty"><span class="ei">📋</span>Nenhuma despesa em ${dcPeriodLbl}</div></td></tr>`;
   _initSwipe('dcBody', 'dc');
+  var dp=document.getElementById('dcPin'); if(dp) dp.classList.toggle('on',DC_PIN);
   var totV = sumVal(corr.filter(function(d){return d._src==='veh';}));
   var totFat = sumVal(corr.filter(function(d){return d._src==='fat';}));
   var totAll = totM + totP + totV + totFat;
