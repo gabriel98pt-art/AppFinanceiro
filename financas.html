@@ -5462,14 +5462,14 @@ function resetColors() {
 }
 
 var _FS_STEPS = [11, 12, 13, 14, 15, 16];
-var _fsIdx = 1; // default = 12px
+var _fsIdx = 1;
 function adjustFont(dir) {
   _fsIdx = Math.max(0, Math.min(_FS_STEPS.length - 1, _fsIdx + dir));
   _applyFont();
   try { localStorage.setItem('_fsIdx', _fsIdx); } catch(e) {}
 }
 function _applyFont() {
-  document.body.style.fontSize = _FS_STEPS[_fsIdx] + 'px';
+  document.documentElement.style.fontSize = _FS_STEPS[_fsIdx] + 'px';
 }
 (function() {
   var s = localStorage.getItem('_fsIdx');
