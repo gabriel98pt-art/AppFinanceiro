@@ -265,7 +265,8 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 /* year badge */
 /* yr-sel replaced by mnav year buttons */
 /* trend arrows */
-.trend{font-size:.65rem;font-weight:700;margin-top:.2rem;display:flex;align-items:center;gap:.2rem}
+.trend{font-size:.62rem;font-weight:700;display:inline-flex;align-items:center;gap:.15rem}
+.kval-row{display:flex;align-items:baseline;justify-content:center;gap:.35rem;flex-wrap:wrap}
 .trend-up{color:var(--grn)}.trend-dn{color:var(--red)}.trend-eq{color:var(--mut)}
 /* backup alert */
 .backup-alert{background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.25);border-radius:var(--r-sm);padding:.5rem .9rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;font-size:.78rem;color:var(--ylw);margin-bottom:.75rem;flex-wrap:wrap}
@@ -1836,8 +1837,8 @@ function renderDashboard() {
     kEl.innerHTML = futureBanner + kpis.map(function(k) {
       var valStr = k.raw ? k.v : fmt(k.v);
       var fs = valStr.length > 9 ? '1rem' : valStr.length > 7 ? '1.1rem' : '1.2rem';
-      var subHtml = k.sub ? `<div style="font-size:.6rem;color:var(--ylw);margin-top:.15rem">${k.sub}</div>` : '';
-      return `<div class="kc" style="--_a:${k.a};${isFutureYm?'opacity:.6':''}"><div class="klbl">${k.l}</div><div class="kval" style="color:${k.c};font-size:${fs}">${valStr}</div>${subHtml}${k.tr||''}</div>`;
+      var subHtml = k.sub ? `<div style="font-size:.6rem;color:var(--ylw);margin-top:.1rem">${k.sub}</div>` : '';
+      return `<div class="kc" style="--_a:${k.a};${isFutureYm?'opacity:.6':''}"><div class="klbl">${k.l}</div><div class="kval-row"><div class="kval" style="color:${k.c};font-size:${fs}">${valStr}</div>${k.tr||''}</div>${subHtml}</div>`;
     }).join('');
   }
 
@@ -1961,10 +1962,10 @@ function renderReceitas() {
   var _prevMaxRec = _prevMnRecs.length ? Math.max.apply(null, _prevMnRecs.map(function(r){return r.val;})) : 0;
   var kEl = document.getElementById('recKpis');
   if (kEl) kEl.innerHTML =
-    `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Total</div><div class="kval tgrn">${fmt(mnTot)}</div>${trendHtml(mnTot,prevTot,false)}</div>` +
+    `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Total</div><div class="kval-row"><div class="kval tgrn">${fmt(mnTot)}</div>${trendHtml(mnTot,prevTot,false)}</div></div>` +
     `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Próximo</div><div class="kval tblu" style="font-size:1.1rem">${_nextRecDate}</div></div>` +
-    `<div class="kc" style="--_a:var(--pur)"><div class="klbl">Transferências</div><div class="kval tpur">${fmt(_trfIn)}</div>${trendHtml(_trfIn,_prevTrfIn,false)}</div>` +
-    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">Maior receita</div><div class="kval tylw">${fmt(_maxRec)}</div>${trendHtml(_maxRec,_prevMaxRec,false)}</div>`;
+    `<div class="kc" style="--_a:var(--pur)"><div class="klbl">Transferências</div><div class="kval-row"><div class="kval tpur">${fmt(_trfIn)}</div>${trendHtml(_trfIn,_prevTrfIn,false)}</div></div>` +
+    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">Maior receita</div><div class="kval-row"><div class="kval tylw">${fmt(_maxRec)}</div>${trendHtml(_maxRec,_prevMaxRec,false)}</div></div>`;
 
   // Card filter populate
   var cardFiltEl = document.getElementById('recCardFilt');
@@ -2012,10 +2013,10 @@ function renderDespesas() {
   var dkEl = document.getElementById('despKpis');
   var _parcCol = (S.cfg.catColors||{})['ccat:Parcelas'] || CAT_SEMANTIC['Parcelas'] || '#f43f5e';
   if (dkEl) dkEl.innerHTML =
-    `<div class="kc" style="--_a:var(--red)"><div class="klbl">Total</div><div class="kval tred">${fmt(_dTot)}</div>${trendHtml(_dTot,_pdTot,true)}</div>` +
-    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">Fixas</div><div class="kval tylw">${fmt(_dFix)}</div>${trendHtml(_dFix,_pdFix,true)}</div>` +
-    `<div class="kc" style="--_a:${_parcCol}"><div class="klbl">Parcelas</div><div class="kval" style="color:${_parcCol}">${fmt(_dParc)}</div>${trendHtml(_dParc,_pdParc,true)}</div>` +
-    `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Variáveis</div><div class="kval tblu">${fmt(_dCorr)}</div>${trendHtml(_dCorr,_pdCorr,true)}</div>`;
+    `<div class="kc" style="--_a:var(--red)"><div class="klbl">Total</div><div class="kval-row"><div class="kval tred">${fmt(_dTot)}</div>${trendHtml(_dTot,_pdTot,true)}</div></div>` +
+    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">Fixas</div><div class="kval-row"><div class="kval tylw">${fmt(_dFix)}</div>${trendHtml(_dFix,_pdFix,true)}</div></div>` +
+    `<div class="kc" style="--_a:${_parcCol}"><div class="klbl">Parcelas</div><div class="kval-row"><div class="kval" style="color:${_parcCol}">${fmt(_dParc)}</div>${trendHtml(_dParc,_pdParc,true)}</div></div>` +
+    `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Variáveis</div><div class="kval-row"><div class="kval tblu">${fmt(_dCorr)}</div>${trendHtml(_dCorr,_pdCorr,true)}</div></div>`;
 
   // Widget — próximos pagamentos (só mês actual)
   var proxEl = document.getElementById('despProx');
@@ -2218,10 +2219,10 @@ function renderVeiculo() {
   var _prevAll = _prevCg + _prevLp + _prevFix;
   var kEl = document.getElementById('vehKpis');
   if (kEl) kEl.innerHTML =
-    `<div class="kc" style="--_a:var(--pur)"><div class="klbl">Total</div><div class="kval tpur">${fmt(totAll)}</div>${trendHtml(totAll,_prevAll,true)}</div>` +
-    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">⚡ Carga</div><div class="kval tylw">${fmt(totCg)}</div>${trendHtml(totCg,_prevCg,true)}</div>` +
-    `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Fixas</div><div class="kval tgrn">${fmt(totFix)}</div>${trendHtml(totFix,_prevFix,true)}</div>` +
-    `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Variáveis</div><div class="kval tblu">${fmt(totLp)}</div>${trendHtml(totLp,_prevLp,true)}</div>`;
+    `<div class="kc" style="--_a:var(--pur)"><div class="klbl">Total</div><div class="kval-row"><div class="kval tpur">${fmt(totAll)}</div>${trendHtml(totAll,_prevAll,true)}</div></div>` +
+    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">⚡ Carga</div><div class="kval-row"><div class="kval tylw">${fmt(totCg)}</div>${trendHtml(totCg,_prevCg,true)}</div></div>` +
+    `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Fixas</div><div class="kval-row"><div class="kval tgrn">${fmt(totFix)}</div>${trendHtml(totFix,_prevFix,true)}</div></div>` +
+    `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Variáveis</div><div class="kval-row"><div class="kval tblu">${fmt(totLp)}</div>${trendHtml(totLp,_prevLp,true)}</div></div>`;
 
   // Carga — filtered by month
   var cg = S.veh.cg.filter(function(d){return inMonth(d.date, ym);}).sort(function(a,b){return b.date>a.date?1:-1;});
@@ -2357,8 +2358,8 @@ function renderParcelas() {
   var _prevTotMPending = totParcMonth(_prevPym) - _prevTotMPaid;
   var kEl = document.getElementById('parcKpis');
   if (kEl) kEl.innerHTML =
-    `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Pago</div><div class="kval tgrn">${fmt(totMPaid)}</div>${trendHtml(totMPaid,_prevTotMPaid,false)}</div>` +
-    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">Em aberto</div><div class="kval tylw">${fmt(totMPending)}</div>${trendHtml(totMPending,_prevTotMPending,true)}</div>` +
+    `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Pago</div><div class="kval-row"><div class="kval tgrn">${fmt(totMPaid)}</div>${trendHtml(totMPaid,_prevTotMPaid,false)}</div></div>` +
+    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">Em aberto</div><div class="kval-row"><div class="kval tylw">${fmt(totMPending)}</div>${trendHtml(totMPending,_prevTotMPending,true)}</div></div>` +
     `<div class="kc" style="--_a:var(--red)"><div class="klbl">Dívida restante</div><div class="kval tred">${fmt(totDiv)}</div></div>` +
     `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Compras activas</div><div class="kval tblu" style="font-size:1.3rem">${_parcAtivas}</div></div>`;
 
