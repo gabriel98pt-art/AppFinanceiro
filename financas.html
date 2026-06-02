@@ -432,9 +432,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     <button class="ib tip" data-tip="Refazer" id="redoBtn" onclick="redo()" disabled>↪️</button>
     <div class="sep"></div>
     <button class="ib tip" data-tip="Sincronizar cloud" id="fbSyncBtn" onclick="_fbSync(true)">🔄</button>
-    <button class="ib tip" data-tip="Guardar cópia" onclick="syncSave()">📤</button>
     <button class="ib tip" data-tip="Definições" onclick="openSettings()">⚙️</button>
-    <button class="ib tip" data-tip="Tema" id="themeBtn" onclick="toggleTheme()"></button>
     <div class="sep"></div>
     <div class="hdr-more" id="hdrMoreWrap">
       <button class="ib tip" data-tip="Mais opções" onclick="_hdrMoreToggle(event)">⋯</button>
@@ -442,7 +440,10 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
         <button class="hdr-more-item" onclick="adjustFont(-1);_hdrMoreClose()">A− <span style="color:var(--mut);font-size:.72rem">Diminuir fonte</span></button>
         <button class="hdr-more-item" onclick="adjustFont(1);_hdrMoreClose()">A+ <span style="color:var(--mut);font-size:.72rem">Aumentar fonte</span></button>
         <div style="height:1px;background:var(--brd);margin:.2rem 0"></div>
+        <button class="hdr-more-item" onclick="syncSave();_hdrMoreClose()">📤 <span style="color:var(--mut);font-size:.72rem">Guardar cópia</span></button>
         <button class="hdr-more-item" onclick="exportPDF();_hdrMoreClose()">🖨 <span style="color:var(--mut);font-size:.72rem">Exportar PDF</span></button>
+        <div style="height:1px;background:var(--brd);margin:.2rem 0"></div>
+        <button class="hdr-more-item" id="themeMenuItem" onclick="toggleTheme();_hdrMoreClose()"></button>
       </div>
     </div>
   </div>
@@ -5560,8 +5561,11 @@ function _applyFont() {
 })();
 
 function _updateThemeBtn() {
+  var isDark = document.documentElement.dataset.theme === 'dark';
   var btn = document.getElementById('themeBtn');
-  if (btn) btn.textContent = document.documentElement.dataset.theme === 'dark' ? '🌑' : '☀️';
+  if (btn) btn.textContent = isDark ? '🌑' : '☀️';
+  var mi = document.getElementById('themeMenuItem');
+  if (mi) mi.innerHTML = (isDark ? '☀️' : '🌑') + ' <span style="color:var(--mut);font-size:.72rem">' + (isDark ? 'Tema claro' : 'Tema escuro') + '</span>';
 }
 function toggleTheme() {
   var h = document.documentElement;
