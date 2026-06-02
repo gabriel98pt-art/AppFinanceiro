@@ -1946,24 +1946,21 @@ function renderReceitas() {
       return `<div class="kc" style="--_a:${col}"><div class="klbl">${src}</div><div class="kval" style="color:${col}">${fmt(srcMn[src])}</div></div>`;
     }).join('');
 
-  // Vencimento: próxima data de receita >= hoje no mês actual, ou '—'
-  var _nextRecDate = '—';
-  if (globalMonth === todayStr().slice(0,7)) {
-    var _fut = mnRecs.filter(function(r){ return r.date >= todayStr(); }).sort(function(a,b){ return a.date>b.date?1:-1; });
-    if (_fut.length) _nextRecDate = fmtDateShort(_fut[0].date);
-  }
-  // Transferências: total de transferências internas recebidas no mês
-  var _trfIn = sumVal((S.trf||[]).filter(function(t){ return inMonth(t.date, globalMonth); }));
+  // Vencimento: total de receitas com src que contenha 'vencimento' (case-insensitive)
+  var _recVenc = sumVal(mnRecs.filter(function(r){ return r.src && r.src.toLowerCase().indexOf('vencimento') >= 0; }));
+  // Transferências: total de receitas com src que contenha 'transfer' (case-insensitive)
+  var _trfIn = sumVal(mnRecs.filter(function(r){ return r.src && r.src.toLowerCase().indexOf('transfer') >= 0; }));
   // Maior receita
   var _maxRec = mnRecs.length ? Math.max.apply(null, mnRecs.map(function(r){return r.val;})) : 0;
 
-  var _prevTrfIn = sumVal((S.trf||[]).filter(function(t){ return inMonth(t.date, prevYm); }));
   var _prevMnRecs = S.rec.filter(function(r){ return r.date && r.date.startsWith(prevYm); });
+  var _prevRecVenc = sumVal(_prevMnRecs.filter(function(r){ return r.src && r.src.toLowerCase().indexOf('vencimento') >= 0; }));
+  var _prevTrfIn = sumVal(_prevMnRecs.filter(function(r){ return r.src && r.src.toLowerCase().indexOf('transfer') >= 0; }));
   var _prevMaxRec = _prevMnRecs.length ? Math.max.apply(null, _prevMnRecs.map(function(r){return r.val;})) : 0;
   var kEl = document.getElementById('recKpis');
   if (kEl) kEl.innerHTML =
     `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Total</div><div class="kval-row"><div class="kval tgrn">${fmt(mnTot)}</div>${trendHtml(mnTot,prevTot,false)}</div></div>` +
-    `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Próximo</div><div class="kval tblu" style="font-size:1.1rem">${_nextRecDate}</div></div>` +
+    `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Vencimento</div><div class="kval-row"><div class="kval tblu">${fmt(_recVenc)}</div>${trendHtml(_recVenc,_prevRecVenc,false)}</div></div>` +
     `<div class="kc" style="--_a:var(--pur)"><div class="klbl">Transferências</div><div class="kval-row"><div class="kval tpur">${fmt(_trfIn)}</div>${trendHtml(_trfIn,_prevTrfIn,false)}</div></div>` +
     `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">Maior receita</div><div class="kval-row"><div class="kval tylw">${fmt(_maxRec)}</div>${trendHtml(_maxRec,_prevMaxRec,false)}</div></div>`;
 
