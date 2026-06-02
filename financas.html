@@ -377,10 +377,9 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 .srch-bar select{background:var(--bg);border:1px solid var(--brd);border-radius:var(--r-sm);padding:.3rem .55rem;font-size:.78rem;color:var(--txt);cursor:pointer}
 .srch-bar .srch-clr{background:none;border:none;color:var(--mut);cursor:pointer;font-size:.85rem;padding:.2rem .4rem;border-radius:4px;line-height:1}
 .srch-bar .srch-clr:hover{background:var(--s3);color:var(--txt)}
-/* swipe-to-delete */
-tr.swipe-row{transition:transform .18s ease,background .12s;will-change:transform;cursor:default}
-tr.swipe-row.swiping{transition:none}
-tr.swipe-del{background:rgba(255,84,112,.18)!important}</style>
+/* long-press to delete */
+tr.swipe-row{cursor:default}
+tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15s}</style>
 </head>
 <body>
 
@@ -3331,33 +3330,28 @@ function _initSwipe(tbodyId, type) {
   if (!tbody || !('ontouchstart' in window)) return;
   var rows = tbody.querySelectorAll('tr.swipe-row[data-stype="'+type+'"]');
   rows.forEach(function(row) {
-    var sx = 0, dx = 0, active = false;
-    row.addEventListener('touchstart', function(e) {
-      sx = e.touches[0].clientX; dx = 0; active = true;
+    var _timer = null, _moved = false;
+    row.addEventListener('touchstart', function() {
+      _moved = false;
+      _timer = setTimeout(function() {
+        if (!_moved) {
+          row.classList.add('swipe-del');
+          setTimeout(function() {
+            row.classList.remove('swipe-del');
+            var id = parseInt(row.dataset.sid);
+            delRecSwipe(row.dataset.stype, id);
+          }, 300);
+        }
+      }, 600);
     }, {passive: true});
-    row.addEventListener('touchmove', function(e) {
-      if (!active) return;
-      dx = e.touches[0].clientX - sx;
-      if (dx < 0) {
-        row.classList.add('swiping');
-        row.style.transform = 'translateX('+Math.max(dx, -100)+'px)';
-        if (dx < -60) row.classList.add('swipe-del');
-        else row.classList.remove('swipe-del');
-      }
+    row.addEventListener('touchmove', function() {
+      _moved = true;
+      clearTimeout(_timer);
+      row.classList.remove('swipe-del');
     }, {passive: true});
     row.addEventListener('touchend', function() {
-      active = false;
-      row.classList.remove('swiping');
-      if (dx < -70 && row.dataset.stype) {
-        var id = parseInt(row.dataset.sid);
-        row.style.transform = 'translateX(-100%)';
-        row.style.opacity = '0';
-        setTimeout(function(){ delRecSwipe(row.dataset.stype, id); }, 160);
-      } else {
-        row.style.transform = '';
-        row.classList.remove('swipe-del');
-      }
-    });
+      clearTimeout(_timer);
+    }, {passive: true});
   });
 }
 
