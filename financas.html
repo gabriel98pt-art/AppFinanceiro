@@ -2353,10 +2353,10 @@ function renderParcelas() {
   if (badge) badge.textContent = _parcAtivas ? _parcAtivas + ' ativas' : '';
   var kEl = document.getElementById('parcKpis');
   if (kEl) kEl.innerHTML =
+    `<div class="kc" style="--_a:var(--pur)"><div class="klbl">Total mensal</div><div class="kval tpur">${fmt(totM)}</div></div>` +
     `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Pago</div><div class="kval tgrn">${fmt(totMPaid)}</div></div>` +
     `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">Em aberto</div><div class="kval tylw">${fmt(totMPending)}</div></div>` +
-    `<div class="kc" style="--_a:var(--red)"><div class="klbl">Dívida restante</div><div class="kval tred">${fmt(totDiv)}</div></div>` +
-    `<div class="kc" style="--_a:var(--pur)"><div class="klbl">Total compras</div><div class="kval tpur">${fmt(_totParc)}</div></div>`;
+    `<div class="kc" style="--_a:var(--red)"><div class="klbl">Dívida restante</div><div class="kval tred">${fmt(totDiv)}</div></div>`;
 
   var h = '';
   if (!S.par.length) {
