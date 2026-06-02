@@ -389,6 +389,9 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     <button class="ib" id="undoBtn" onclick="undo()" disabled>↩️</button>
     <button class="ib" id="redoBtn" onclick="redo()" disabled>↪️</button>
     <div class="sep"></div>
+    <button class="ib" onclick="adjustFont(-1)" title="Diminuir fonte" style="font-size:.75rem;font-weight:700">A−</button>
+    <button class="ib" onclick="adjustFont(1)"  title="Aumentar fonte" style="font-size:.85rem;font-weight:700">A+</button>
+    <div class="sep"></div>
     <button class="ib" id="fbSyncBtn" onclick="_fbSync(true)">🔄</button>
     <button class="ib" onclick="syncSave()">📤</button>
     <button class="ib" onclick="openSettings()">⚙️</button>
@@ -1858,7 +1861,7 @@ function renderReceitas() {
 
   var el = document.getElementById('rBody');
   if (el) el.innerHTML = rows.length ? rows.map(function(r) {
-    return `<tr class="swipe-row" data-sid="${r.id}" data-stype="rec"><td>${fmtDate(r.date)}</td><td>${_esc(r.src||'')}</td><td class="tgrn bold">${fmt(r.val)}</td><td>${_esc(r.card||'—')}</td><td>${_esc(r.notes||'—')}</td><td><div class="ac"><button class="ic e" onclick="openModal('receita',${r.id})">✏</button><button class="ic d" onclick="delRec('rec',${r.id})">🗑</button></div></td></tr>`;
+    return `<tr class="swipe-row" data-sid="${r.id}" data-stype="rec"><td title="${fmtDate(r.date)}">${fmtDateShort(r.date)}</td><td>${_esc(r.src||'')}</td><td class="tgrn bold">${fmt(r.val)}</td><td>${_esc(r.card||'—')}</td><td>${_esc(r.notes||'—')}</td><td><div class="ac"><button class="ic e" onclick="openModal('receita',${r.id})">✏</button><button class="ic d" onclick="delRec('rec',${r.id})">🗑</button></div></td></tr>`;
   }).join('') : `<tr><td colspan="6"><div class="empty"><span class="ei">↗</span>Nenhuma receita em ${monthLabel(globalMonth)}</div></td></tr>`;
   _initSwipe('rBody', 'rec');
   var ft = document.getElementById('rFoot');
@@ -1964,7 +1967,7 @@ function renderDespesas() {
     }
     var valCls = d._src === 'parc' ? 'tpur' : d._src === 'veh' ? 'tylw' : d._src === 'fat' ? 'tblu' : 'tred';
     var notesCell = _esc(d.notes || '—');
-    return `<tr class="parc-r swipe-row" data-sid="${d.id}" data-stype="${isAuto?'':'dc'}"><td>${fmtDate(d.date)}</td><td style="font-size:.82rem">${nameCell}</td><td>${catLabel}</td><td class="${valCls}">${fmt(d.val)}</td><td>${d.card||'—'}</td><td style="font-size:.74rem">${notesCell}</td><td><div class="ac">${!isAuto?`<button class="ic e" onclick="openModal('dcorr',${d.id})">✏</button><button class="ic d" onclick="delRec('dc',${d.id})">🗑</button>`:'<span class="tmut" style="font-size:.63rem;padding:.15rem .35rem;background:var(--s2);border-radius:4px" title="Criado automaticamente — edite na aba de origem">auto</span>'}</div></td></tr>`;
+    return `<tr class="parc-r swipe-row" data-sid="${d.id}" data-stype="${isAuto?'':'dc'}"><td title="${fmtDate(d.date)}">${fmtDateShort(d.date)}</td><td style="font-size:.82rem">${nameCell}</td><td>${catLabel}</td><td class="${valCls}">${fmt(d.val)}</td><td>${d.card||'—'}</td><td style="font-size:.74rem">${notesCell}</td><td><div class="ac">${!isAuto?`<button class="ic e" onclick="openModal('dcorr',${d.id})">✏</button><button class="ic d" onclick="delRec('dc',${d.id})">🗑</button>`:'<span class="tmut" style="font-size:.63rem;padding:.15rem .35rem;background:var(--s2);border-radius:4px" title="Criado automaticamente — edite na aba de origem">auto</span>'}</div></td></tr>`;
   }).join('') : `<tr><td colspan="7"><div class="empty"><span class="ei">📋</span>Nenhuma despesa em ${dcPeriodLbl}</div></td></tr>`;
   _initSwipe('dcBody', 'dc');
   var totV = sumVal(corr.filter(function(d){return d._src==='veh';}));
@@ -2052,7 +2055,7 @@ function renderVeiculo() {
   var cg = S.veh.cg.filter(function(d){return inMonth(d.date, ym);}).sort(function(a,b){return b.date>a.date?1:-1;});
   var cgEl = document.getElementById('cgBody');
   if (cgEl) cgEl.innerHTML = cg.length ? cg.map(function(d) {
-    return `<tr><td>${fmtDate(d.date)}</td><td>${d.local||'—'}</td><td>${d.kwh||'—'}</td><td class="tylw bold">${fmt(d.val)}</td><td>${d.card||'—'}</td><td>${d.notes||'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('carga',${d.id})">✏</button><button class="ic d" onclick="delRec('cg',${d.id})">🗑</button></div></td></tr>`;
+    return `<tr><td title="${fmtDate(d.date)}">${fmtDateShort(d.date)}</td><td>${d.local||'—'}</td><td>${d.kwh||'—'}</td><td class="tylw bold">${fmt(d.val)}</td><td>${d.card||'—'}</td><td>${d.notes||'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('carga',${d.id})">✏</button><button class="ic d" onclick="delRec('cg',${d.id})">🗑</button></div></td></tr>`;
   }).join('') : '<tr><td colspan="7"><div class="empty"><span class="ei">⚡</span>Nenhuma carga em '+monthLabel(ym)+'</div></td></tr>';
   var cgFt = document.getElementById('cgFoot');
   if (cgFt) cgFt.innerHTML = `<tr><td colspan="3">Total ${monthLabel(ym)}</td><td class="tylw">${fmt(totCg)}</td><td colspan="3"></td></tr>`;
@@ -2060,7 +2063,7 @@ function renderVeiculo() {
   var lp = S.veh.lp.filter(function(d){return inMonth(d.date, ym);}).sort(function(a,b){return b.date>a.date?1:-1;});
   var lpEl = document.getElementById('lpBody');
   if (lpEl) lpEl.innerHTML = lp.length ? lp.map(function(d) {
-    return `<tr><td>${fmtDate(d.date)}</td><td>${d.tipo||'—'}</td><td class="bold">${fmt(d.val)}</td><td>${d.card||'—'}</td><td>${d.notes||'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('limp',${d.id})">✏</button><button class="ic d" onclick="delRec('lp',${d.id})">🗑</button></div></td></tr>`;
+    return `<tr><td title="${fmtDate(d.date)}">${fmtDateShort(d.date)}</td><td>${d.tipo||'—'}</td><td class="bold">${fmt(d.val)}</td><td>${d.card||'—'}</td><td>${d.notes||'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('limp',${d.id})">✏</button><button class="ic d" onclick="delRec('lp',${d.id})">🗑</button></div></td></tr>`;
   }).join('') : '<tr><td colspan="6"><div class="empty"><span class="ei">🧼</span>Nenhuma limpeza em '+monthLabel(ym)+'</div></td></tr>';
   var lpFt = document.getElementById('lpFoot');
   if (lpFt) lpFt.innerHTML = `<tr><td colspan="2">Total ${monthLabel(ym)}</td><td>${fmt(totLp)}</td><td colspan="3"></td></tr>`;
@@ -2078,7 +2081,7 @@ function renderVeiculo() {
   var vehDc = S.dc.filter(function(d){return inMonth(d.date, ym)&&d._src==='veh';}).sort(function(a,b){return b.date>a.date?1:-1;});
   var vDcEl=document.getElementById('vehDcBody');
   if(vDcEl) vDcEl.innerHTML=vehDc.length?vehDc.map(function(d){
-    return `<tr class="parc-r"><td>${fmtDate(d.date)}</td><td>${catBadge('vcat',d.cat,'🚘 ')}</td><td class="tred bold">${fmt(d.val)}</td><td>${d.card||'—'}</td><td style="font-size:.74rem">${d.notes||'—'}</td></tr>`;
+    return `<tr class="parc-r"><td title="${fmtDate(d.date)}">${fmtDateShort(d.date)}</td><td>${catBadge('vcat',d.cat,'🚘 ')}</td><td class="tred bold">${fmt(d.val)}</td><td>${d.card||'—'}</td><td style="font-size:.74rem">${d.notes||'—'}</td></tr>`;
   }).join(''):'<tr><td colspan="5"><div class="empty" style="padding:1rem"><span>Nenhum registo automático — adicione carga ou limpeza</span></div></td></tr>';
   var vDcFt=document.getElementById('vehDcFoot');
   if(vDcFt) vDcFt.innerHTML=`<tr><td colspan="2">Total Veículo em Despesas</td><td class="tylw">${fmt(totAll)}</td><td colspan="2"></td></tr>`;
@@ -2383,7 +2386,7 @@ function renderCal() {
   var evtEl = document.getElementById('evtBody');
   var sorted = S.evt.slice().sort(function(a,b){return a.date>b.date?1:-1;});
   if (evtEl) evtEl.innerHTML = sorted.length ? sorted.map(function(e){
-    return `<tr><td>${e.name}</td><td>${fmtDate(e.date)}</td><td>${e.val?fmt(e.val):'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('evt',${e.id})">✏</button><button class="ic d" onclick="delRec('evt',${e.id})">🗑</button></div></td></tr>`;
+    return `<tr><td>${e.name}</td><td title="${fmtDate(e.date)}">${fmtDateShort(e.date)}</td><td>${e.val?fmt(e.val):'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('evt',${e.id})">✏</button><button class="ic d" onclick="delRec('evt',${e.id})">🗑</button></div></td></tr>`;
   }).join('') : '<tr><td colspan="4"><div class="empty"><span class="ei">📅</span>Nenhum evento</div></td></tr>';
 }
 
@@ -5457,6 +5460,22 @@ function resetColors() {
   openSettings();
   showToast('✓ Cores repostas');
 }
+
+var _FS_STEPS = [11, 12, 13, 14, 15, 16];
+var _fsIdx = 1; // default = 12px
+function adjustFont(dir) {
+  _fsIdx = Math.max(0, Math.min(_FS_STEPS.length - 1, _fsIdx + dir));
+  _applyFont();
+  try { localStorage.setItem('_fsIdx', _fsIdx); } catch(e) {}
+}
+function _applyFont() {
+  document.body.style.fontSize = _FS_STEPS[_fsIdx] + 'px';
+}
+(function() {
+  var s = localStorage.getItem('_fsIdx');
+  if (s !== null) _fsIdx = Math.max(0, Math.min(_FS_STEPS.length - 1, parseInt(s)||1));
+  _applyFont();
+})();
 
 function _updateThemeBtn() {
   var btn = document.getElementById('themeBtn');
