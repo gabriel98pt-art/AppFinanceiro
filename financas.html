@@ -1255,6 +1255,7 @@ function todayStr() {
     pad2(d.getMonth() + 1) + '-' +
     pad2(d.getDate());
 }
+function currentYm() { return todayStr().slice(0, 7); }
 
 function monthLabel(ym) {
   var p = ym.split('-');
@@ -1612,7 +1613,12 @@ function makeChart(id, type, labels, datasets, opts) {
 // ================================================================
 function _resetListFilters() {
   if (!REC_PIN) { REC_SEARCH=''; REC_CARD='all'; var rs=document.getElementById('recSearch'); if(rs) rs.value=''; }
-  if (!DC_PIN)  { DC_SEARCH='';  DC_CARD='all';  var ds=document.getElementById('dcSearch');  if(ds) ds.value=''; }
+  if (!DC_PIN) {
+    DC_SEARCH=''; DC_CARD='all'; var ds=document.getElementById('dcSearch'); if(ds) ds.value='';
+    DC_FROM=null; DC_TO=null; _dcFilterOpen=false;
+    var bar=document.getElementById('dcFilterBar'); if(bar) bar.style.display='none';
+    var btn=document.getElementById('dcFilterBtn'); if(btn){btn.classList.remove('pri');btn.classList.add('sec');}
+  }
 }
 function _togglePin(which) {
   if (which==='rec') {
@@ -1750,7 +1756,7 @@ function setBudShow(cat, checked) {
 }
 
 function renderDashboard() {
-  if (!globalMonth || globalMonth.length !== 7) globalMonth = (function(){ var d=new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1); })();
+  if (!globalMonth || globalMonth.length !== 7) globalMonth = currentYm();
   miniAnnYear = parseInt(globalMonth.slice(0, 4));
   renderBackupAlert();
 
@@ -1926,7 +1932,7 @@ function renderReceitas() {
 
   // Totals
   var annRecs = S.rec.filter(function(r){ return r.date && r.date.startsWith(recYearVal); });
-  var mnRecs = S.rec.filter(function(r){ return r.date && r.date.startsWith(globalMonth); });
+  var mnRecs = S.rec.filter(function(r){ return inMonth(r.date, globalMonth); });
   var mnTot = sumVal(mnRecs);
   var prevYm = addMonths(globalMonth, -1);
   var prevTot = totRec(prevYm);
@@ -1951,7 +1957,7 @@ function renderReceitas() {
   // Maior receita
   var _maxRec = mnRecs.length ? Math.max.apply(null, mnRecs.map(function(r){return r.val;})) : 0;
 
-  var _prevMnRecs = S.rec.filter(function(r){ return r.date && r.date.startsWith(prevYm); });
+  var _prevMnRecs = S.rec.filter(function(r){ return inMonth(r.date, prevYm); });
   var _prevRecVenc = sumVal(_prevMnRecs.filter(function(r){ return r.src && r.src.toLowerCase().indexOf('vencimento') >= 0; }));
   var _prevTrfIn = sumVal(_prevMnRecs.filter(function(r){ return r.src && r.src.toLowerCase().indexOf('transfer') >= 0; }));
   var _prevMaxRec = _prevMnRecs.length ? Math.max.apply(null, _prevMnRecs.map(function(r){return r.val;})) : 0;
@@ -1975,7 +1981,7 @@ function renderReceitas() {
   // Filtered rows
   var _rq = REC_SEARCH.toLowerCase();
   var rows = S.rec.filter(function(r){
-    if (!r.date || !r.date.startsWith(globalMonth)) return false;
+    if (!inMonth(r.date, globalMonth)) return false;
     if (srcFilt !== 'all' && r.src !== srcFilt) return false;
     if (REC_CARD !== 'all' && r.card !== REC_CARD) return false;
     if (_rq && !((r.src||'').toLowerCase().includes(_rq) || (r.notes||'').toLowerCase().includes(_rq) || (r.card||'').toLowerCase().includes(_rq))) return false;
@@ -2016,7 +2022,7 @@ function renderDespesas() {
   // Widget — próximos pagamentos (só mês actual)
   var proxEl = document.getElementById('despProx');
   if (proxEl) {
-    var _isNowYm = ym === todayStr().slice(0,7);
+    var _isNowYm = ym === currentYm();
     if (_isNowYm) {
       var _todDay = parseInt(todayStr().slice(8));
       var _proxItems = [];
@@ -2057,7 +2063,7 @@ function renderDespesas() {
     var inactBadge = inactive ? ' <span class="bdg" style="font-size:.6rem;background:rgba(128,128,128,.15);color:var(--mut)" title="Fora do período de vigência configurado">inativo</span>' : '';
     var autoBadge = d.autoRenew ? ' <span class="bdg" style="font-size:.58rem;background:rgba(0,212,160,.12);color:var(--grn);border:1px solid rgba(0,212,160,.25)" title="Renovação automática — não gera aviso">auto</span>' : '';
     var chkDisabled = inactive || d.autoRenew ? 'disabled' : '';
-    return `<tr style="${rowStyle}"><td style="${urg};font-weight:${urg?700:400}">${_esc(d.name)}${inactBadge}${autoBadge}</td><td>${catBadge('fcat',d.cat)}</td><td class="bold">${inactive?'<span style="color:var(--mut)">'+fmt(d.val)+'</span>':fmt(d.val)}</td><td style="${urg}">${d.day||'—'}</td><td>${_esc(d.card||'—')}</td><td><input type="checkbox" ${_paid?'checked':''} ${chkDisabled} onchange="togglePaid(${d.id},this.checked)"></td><td>${_esc(d.notes||'—')}</td><td><div class="ac"><button class="ic e" onclick="openModal('dfixa',${d.id})">✏</button><button class="ic d" onclick="delRec('df',${d.id})">🗑</button></div></td></tr>`;
+    return `<tr style="${rowStyle}"><td style="${urg};font-weight:${urg?700:400}">${_esc(d.name)}${inactBadge}${autoBadge}</td><td>${catBadge('fcat',d.cat)}</td><td class="bold">${inactive?'<span style="color:var(--mut)">'+fmt(d.val)+'</span>':fmt(d.val)}</td><td style="${urg}">${d.day||'—'}</td><td>${_esc(d.card||'—')}</td><td><input type="checkbox" ${_paid?'checked':''} ${chkDisabled} onchange="togglePaid(${d.id},this.checked,'${ym}')"></td><td>${_esc(d.notes||'—')}</td><td><div class="ac"><button class="ic e" onclick="openModal('dfixa',${d.id})">✏</button><button class="ic d" onclick="delRec('df',${d.id})">🗑</button></div></td></tr>`;
   }).join('') : '<tr><td colspan="8"><div class="empty"><span class="ei">↘</span>Nenhuma despesa fixa</div></td></tr>';
   var ft = document.getElementById('dfFoot');
   if (ft) ft.innerHTML = `<tr><td colspan="2">Total</td><td class="tred">${fmt(totFixas(ym))}</td><td colspan="5"></td></tr>`;
@@ -2167,15 +2173,16 @@ function _autoDebitParcVal(card, ym) {
   }, 0);
 }
 
-function togglePaid(id, val) {
+function togglePaid(id, val, ym) {
+  var _ym = ym || globalMonth;
   snapshot();
   var d = S.df.find(function(x){return x.id===id;});
   if (d) {
     if (!d.paidMonths) d.paidMonths = {};
-    d.paidMonths[globalMonth] = val;
+    d.paidMonths[_ym] = val;
     saveState();
     renderDespesas();
-    showToast(val ? '✓ Pago em '+globalMonth : '↩ Desmarcado em '+globalMonth);
+    showToast(val ? '✓ Pago em '+_ym : '↩ Desmarcado em '+_ym);
   }
 }
 
@@ -2328,7 +2335,7 @@ function buildParcMonths() {
   S.par.forEach(function(p) { parcMonths(p).forEach(function(m){ set[m]=1; }); });
   var months = Object.keys(set).sort();
   if (!months.length) {
-    var cur = todayStr().slice(0,7);
+    var cur = currentYm();
     for (var i=0;i<12;i++) months.push(addMonths(cur,i));
   }
   PARC_MONTHS = months;
@@ -2720,7 +2727,7 @@ function payFatura(card, ym) {
   S.par.forEach(function(p) {
     if (p.card===card && p.autoDebit && parcMonths(p).indexOf(ym)>=0) p.py[ym]=true;
   });
-  globalMonth = todayStr().slice(0,7);
+  globalMonth = currentYm();
   S.cfg.lastMonth = globalMonth;
   saveState(); renderCartoes(); updateGlobalNav();
   showToast('✓ Cartão de Crédito pago: '+fmt(fat)+' via '+from);
@@ -5919,7 +5926,7 @@ document.addEventListener('keydown', function(e) {
 // ================================================================
 (function() {
   try {
-    globalMonth = (function(){ var d=new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1); })();
+    globalMonth = currentYm();
     // Migração única: fatura AB Gold (C) maio 2026 paga a 20-05
     if (!S.cfg._mig_fat_2605) {
       var _fc = 'AB Gold (C)', _fy = '2026-05', _fd = '2026-05-20', _fv = 373.75, _ff = 'AB (D)';
@@ -5933,7 +5940,7 @@ document.addEventListener('keydown', function(e) {
         S.cfg.fatPaid[_fc][_fy] = {paid:true, val:_fv, date:_fd, from:_ff, dcId:_fid};
       }
       S.cfg._mig_fat_2605 = true;
-      localStorage.setItem(SK, JSON.stringify(S));
+      saveState();
     }
 
     // Migração única: importação extrato Revolut 01/01–21/05/2026
@@ -6143,7 +6150,7 @@ document.addEventListener('keydown', function(e) {
       _cg('2026-05-17','Powerdot',14.99);_cg('2026-05-17','Powerdot',9.37);_cg('2026-05-20','Powerdot',8.08);
 
       S.cfg._mig_revolut_2026 = true;
-      localStorage.setItem(SK, JSON.stringify(S));
+      saveState();
     }
 
     // Backup único dos arrays afetados pelas migrações de dedup
@@ -6175,7 +6182,7 @@ document.addEventListener('keydown', function(e) {
       });
       S.cfg.migrationLog._mig_dedup3 = { ts: new Date().toISOString(), potential_dupes: _dupes3 };
       S.cfg._mig_dedup3_revolut_2026 = true;
-      localStorage.setItem(SK, JSON.stringify(S));
+      saveState();
     }
 
     if (!S.cfg._mig_continente_cg_2026) {
@@ -6228,7 +6235,7 @@ document.addEventListener('keydown', function(e) {
         S.dc.push({id:nid(),date:ev.d,cat:'Carga Elétrica',val:ev.v,card:_rc,notes:'⚡ '+ev.l,_src:'veh',_vid:cid,_vtype:'carga'});
       });
       S.cfg._mig_continente_cg_2026 = true;
-      localStorage.setItem(SK, JSON.stringify(S));
+      saveState();
     }
 
     if (!S.cfg._mig_clean_dupes_2026) {
@@ -6253,7 +6260,7 @@ document.addEventListener('keydown', function(e) {
       });
       S.cfg.migrationLog._mig_clean_dupes = { ts: new Date().toISOString(), potential_dupes: _dupes2 };
       S.cfg._mig_clean_dupes_2026 = true;
-      localStorage.setItem(SK, JSON.stringify(S));
+      saveState();
     }
 
     if (!S.cfg._mig_clean_klarna_2026) {
@@ -6267,7 +6274,7 @@ document.addEventListener('keydown', function(e) {
       });
       S.cfg.migrationLog._mig_clean_klarna = { ts: new Date().toISOString(), potential_dupes: _klarDupes };
       S.cfg._mig_clean_klarna_2026 = true;
-      localStorage.setItem(SK, JSON.stringify(S));
+      saveState();
     }
 
     if (!S.cfg._mig_fcat_merged_2026) {
@@ -6286,7 +6293,7 @@ document.addEventListener('keydown', function(e) {
       }
       delete S.cfg.fcat;
       S.cfg._mig_fcat_merged_2026 = true;
-      localStorage.setItem(SK, JSON.stringify(S));
+      saveState();
     }
 
     if (!S.cfg._mig_balsnap_array_2026) {
@@ -6299,7 +6306,7 @@ document.addEventListener('keydown', function(e) {
         });
       }
       S.cfg._mig_balsnap_array_2026 = true;
-      localStorage.setItem(SK, JSON.stringify(S));
+      saveState();
     }
 
     document.documentElement.dataset.theme = (S.cfg && S.cfg.theme) || 'dark';
