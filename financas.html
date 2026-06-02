@@ -1816,14 +1816,12 @@ function renderDashboard() {
       ]
     : (function(){
         var _showPartial = isCurrentYm && _pendente>0 && !_monthClosed;
-        var _poupPct = rec>0 ? Math.round(sld/rec*100) : 0;
-        var _poupCol = _poupPct>=20?'var(--grn)':_poupPct>=0?'var(--ylw)':'var(--red)';
-        var _prevPoupPct = prevRec>0 ? Math.round(prevSld/prevRec*100) : 0;
+        var _pendCol = _pendente>0 ? 'var(--ylw)' : 'var(--mut)';
         return [
           {l:'Receitas',  v:rec,  c:'var(--grn)', a:'var(--grn)', tr:trendHtml(rec,prevRec,false)},
-          {l:'Despesas',  v:desp, c:'var(--red)', a:'var(--red)', sub:_showPartial?'▼ '+fmt(_pendente)+' pendente':'', tr:trendHtml(desp,prevDesp,true)},
+          {l:'Despesas',  v:desp, c:'var(--red)', a:'var(--red)', tr:trendHtml(desp,prevDesp,true)},
           {l:_showPartial?'Saldo parcial':'Saldo', v:sld, c:sld>=0?'var(--grn)':'var(--red)', a:sld>=0?'var(--grn)':'var(--red)', tr:trendHtml(sld,prevSld,false)},
-          {l:'Poupança', v:_poupPct+'%', c:_poupCol, a:_poupCol, raw:true, tr:trendHtml(_poupPct,_prevPoupPct,false)}
+          {l:'Pendente', v:_pendente, c:_pendCol, a:_pendCol}
         ];
       })();
   _renderComp(ym);
