@@ -1557,16 +1557,20 @@ function renderMiniAnnual() {
   var lbl3=document.getElementById('miniAnnLbl'); if(lbl3) lbl3.textContent=yr;
   var MN_SHORT = MN;
   var totRecACents = 0, totDespACents = 0;
+  var curYm = todayStr().slice(0, 7);
   var html = '<div class="ann-mini">';
   for (var mi = 1; mi <= 12; mi++) {
     var m = yr + '-' + pad2(mi);
-    var r = totRec(m), d = totDesp(m), s = r - d;
-    totRecACents += toCents(r); totDespACents += toCents(d);
-    var bg = s > 0 ? 'rgba(0,212,160,.15)' : s < 0 ? 'rgba(255,84,112,.1)' : 'var(--s2)';
-    var col = s > 0 ? 'var(--grn)' : s < 0 ? 'var(--red)' : 'var(--mut)';
-    html += `<div class="ann-cell" style="background:${bg}">
+    var isFuture = m > curYm;
+    var r = totRec(m);
+    var d = isFuture ? totCorrManual(m) : totDesp(m);
+    var s = r - d;
+    if (!isFuture) { totRecACents += toCents(r); totDespACents += toCents(d); }
+    var bg = isFuture ? 'var(--s2)' : s > 0 ? 'rgba(0,212,160,.15)' : s < 0 ? 'rgba(255,84,112,.1)' : 'var(--s2)';
+    var col = isFuture ? 'var(--mut)' : s > 0 ? 'var(--grn)' : s < 0 ? 'var(--red)' : 'var(--mut)';
+    html += `<div class="ann-cell" style="background:${bg};opacity:${isFuture?.45:1}">
       <div style="color:var(--mut);font-size:.58rem;margin-bottom:.1rem">${MN_SHORT[mi-1]}</div>
-      <div class="av" style="color:${col}">${s===0?'—':(s>0?'+':'')+Math.round(s)}€</div>
+      <div class="av" style="color:${col}">${isFuture?'·':(s===0?'—':(s>0?'+':'')+Math.round(s)+'€')}</div>
     </div>`;
   }
   html += '</div>';
