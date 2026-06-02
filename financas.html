@@ -581,12 +581,15 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
   <div class="tc mb2">
     <div class="tch">
       <span class="slbl" style="margin:0">Despesas Fixas</span>
-      <button class="btn pri sm" onclick="openModal('dfixa')">+ Adicionar</button>
+      <div class="row g2">
+        <button class="ic tip" id="eyeBtn_df" data-tip="Mostrar/esconder" onclick="_toggleVis('dfCollapse','eyeBtn_df')" style="font-size:.8rem;width:28px;height:28px"></button>
+        <button class="btn pri sm" onclick="openModal('dfixa')">+ Adicionar</button>
+      </div>
     </div>
-    <div class="tw"><table>
+    <div id="dfCollapse"><div class="tw"><table>
       <thead><tr><th>Nome</th><th>Categoria</th><th>Valor</th><th title="Dia de vencimento mensal">Dia Venc.</th><th>Cartão</th><th title="Marque quando pago — não reinicia a cada mês">Pago?</th><th>Notas</th><th></th></tr></thead>
       <tbody id="dfBody" class="anim"></tbody><tfoot id="dfFoot"></tfoot>
-    </table></div>
+    </table></div></div>
   </div>
   <div class="tc mb2">
     <div class="tch">
@@ -595,10 +598,12 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
         <span id="dcFilterLbl" style="display:none" class="bdg gy">📅 filtro ativo</span>
       </div>
       <div class="row g2">
+        <button class="ic tip" id="eyeBtn_dc" data-tip="Mostrar/esconder" onclick="_toggleVis('dcCollapse','eyeBtn_dc')" style="font-size:.8rem;width:28px;height:28px"></button>
         <button class="btn sec sm" id="dcFilterBtn" onclick="toggleDcFilter()" title="Filtrar por intervalo de datas">🔍 Período</button>
         <button class="btn pri sm" onclick="openModal('dcorr')">+ Adicionar</button>
       </div>
     </div>
+    <div id="dcCollapse">
     <div class="srch-bar">
       <input id="dcSearch" type="search" placeholder="🔍 Pesquisar…" oninput="DC_SEARCH=this.value;DC_PG=1;renderDespesas()" value="">
       <select id="dcCardFilt" onchange="DC_CARD=this.value;DC_PG=1;renderDespesas()"><option value="all">Todos os cartões</option></select>
@@ -622,6 +627,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
       <thead id="dcHead"><tr><th>Data</th><th>Nome</th><th>Categoria</th><th>Valor</th><th>Cartão</th><th>Notas</th><th></th></tr></thead>
       <tbody id="dcBody" class="anim"></tbody><tfoot id="dcFoot"></tfoot>
     </table><div id="dcPager" class="pgr" style="display:none"></div></div>
+    </div>
   </div>
 </div>
 
@@ -683,6 +689,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     <div class="tch">
       <span class="slbl" style="margin:0">Parcelas <span id="parcAtivaBadge" style="font-size:.68rem;font-weight:600;color:var(--mut);background:var(--s2);border:1px solid var(--brd);border-radius:99px;padding:.1rem .45rem;vertical-align:middle"></span></span>
       <div class="row g2">
+        <button class="ic tip" id="eyeBtn_parc" data-tip="Mostrar/esconder" onclick="_toggleVis('parcContent','eyeBtn_parc')" style="font-size:.8rem;width:28px;height:28px"></button>
         <button class="btn pri sm" onclick="openModal('parc')">+ Adicionar</button>
       </div>
     </div>
@@ -1143,13 +1150,34 @@ function showToast(msg, type) {
   _toastT = setTimeout(function() { el.classList.remove('on'); }, dur);
 }
 
+var _EYE_O = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+var _EYE_C = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+function _visKey(id) { return '_vis_'+id; }
+function _isVisible(id) { return localStorage.getItem(_visKey(id)) !== '0'; }
+function _toggleVis(contentId, btnId) {
+  var vis = _isVisible(contentId);
+  localStorage.setItem(_visKey(contentId), vis ? '0' : '1');
+  _applyVis(contentId, btnId);
+}
+function _applyVis(contentId, btnId) {
+  var vis = _isVisible(contentId);
+  var el = document.getElementById(contentId);
+  if (el) el.style.display = vis ? '' : 'none';
+  var btn = btnId ? document.getElementById(btnId) : null;
+  if (btn) btn.innerHTML = vis ? _EYE_O : _EYE_C;
+}
+function _applyAllVis() {
+  [['dfCollapse','eyeBtn_df'],['dcCollapse','eyeBtn_dc'],['parcContent','eyeBtn_parc']].forEach(function(p){
+    _applyVis(p[0], p[1]);
+  });
+}
 function _toggleProx() {
   var hidden = localStorage.getItem('_proxH') === '1';
   localStorage.setItem('_proxH', hidden ? '0' : '1');
   var list = document.getElementById('proxList');
-  var btn = document.querySelector('#despProx .btn');
+  var btn = document.getElementById('proxEyeBtn');
   if (list) list.style.display = hidden ? 'block' : 'none';
-  if (btn) btn.innerHTML = (hidden ? '▼ Esconder' : '▶ Mostrar');
+  if (btn) btn.innerHTML = hidden ? _EYE_O : _EYE_C;
 }
 function _rowCatColor(cat, type) {
   type = type || 'ccat';
@@ -2105,11 +2133,10 @@ function renderDespesas() {
             <span style="font-weight:700;color:var(--red);white-space:nowrap">${fmt(i.val)}</span>
           </div>`;
         }).join('');
-        var _ico = _hidden ? '▶' : '▼';
         proxEl.innerHTML = `<div class="tc mb2">
           <div class="tch">
             <span class="slbl" style="margin:0">⏰ Próximos pagamentos <span style="font-size:.68rem;color:var(--mut);font-weight:400">(${_proxItems.length})</span></span>
-            <button class="btn sec sm" onclick="_toggleProx()" style="font-size:.7rem;padding:.2rem .55rem">${_ico} ${_hidden?'Mostrar':'Esconder'}</button>
+            <button class="ic" id="proxEyeBtn" onclick="_toggleProx()" style="font-size:.8rem;width:28px;height:28px">${_hidden?_EYE_C:_EYE_O}</button>
           </div>
           <div id="proxList" style="display:${_hidden?'none':'block'}">${_px}</div>
         </div>`;
@@ -2220,7 +2247,7 @@ function renderDespesas() {
     (totV>0?`<tr><td colspan="3">🚘 Veículo</td><td class="tylw">${fmt(totV)}</td><td colspan="3"></td></tr>`:'') +
     (totFat>0?`<tr><td colspan="3">💳 Cartão de Crédito</td><td class="tblu">${fmt(totFat)}</td><td colspan="3"></td></tr>`:'');
   _renderPager('dcPager',DC_PG,corr.length,DC_PGS,'pgDC');
-
+  _applyAllVis();
   // Budget
 }
 
@@ -2536,6 +2563,7 @@ function renderParcelas() {
   }
 
   document.getElementById('parcContent').innerHTML = h;
+  _applyAllVis();
 }
 
 function toggleParcDone() {
@@ -6384,6 +6412,7 @@ document.addEventListener('keydown', function(e) {
     applyColors();
     _updateThemeBtn();
     _updateCompactBtn();
+    _applyAllVis();
     HIST.push(JSON.stringify(S));
     HIDX = 0;
     updateUR();
