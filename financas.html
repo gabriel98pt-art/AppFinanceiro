@@ -1143,6 +1143,14 @@ function showToast(msg, type) {
   _toastT = setTimeout(function() { el.classList.remove('on'); }, dur);
 }
 
+function _toggleProx() {
+  var hidden = localStorage.getItem('_proxH') === '1';
+  localStorage.setItem('_proxH', hidden ? '0' : '1');
+  var list = document.getElementById('proxList');
+  var btn = document.querySelector('#despProx .btn');
+  if (list) list.style.display = hidden ? 'block' : 'none';
+  if (btn) btn.innerHTML = (hidden ? '▼ Esconder' : '▶ Mostrar');
+}
 function _rowCatColor(cat, type) {
   type = type || 'ccat';
   return (S.cfg.catColors||{})[type+':'+cat] || getDefaultCatColor(type, cat);
@@ -2083,21 +2091,28 @@ function renderDespesas() {
       S.df.forEach(function(d) {
         if (!isActiveForYm(d,ym) || isPaidInYm(d,ym)) return;
         var dy = d.day - _todDay;
-        if (dy >= 0 && dy <= 14) _proxItems.push({name:d.name, val:d.val, dy:dy, tipo:'fixa'});
+        if (dy >= 0 && dy <= 5) _proxItems.push({name:d.name, val:d.val, dy:dy});
       });
-      S.par.forEach(function(p) {
-        if (parcMonths(p).indexOf(ym) < 0 || p.py[ym]) return;
-        _proxItems.push({name:p.name, val:p.vp, dy:null, tipo:'parcela'});
-      });
-      _proxItems.sort(function(a,b){ return (a.dy===null?99:a.dy)-(b.dy===null?99:b.dy); });
+      _proxItems.sort(function(a,b){ return a.dy - b.dy; });
       if (_proxItems.length) {
-        var _px = _proxItems.slice(0,6).map(function(i){
-          var badge = i.tipo==='fixa'
-            ? (i.dy===0?'<span style="color:var(--red);font-weight:700">hoje</span>':i.dy===1?'<span style="color:var(--ylw)">amanhã</span>':'<span style="color:var(--mut)">'+i.dy+'d</span>')
-            : '<span style="color:var(--mut)">parcela</span>';
-          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem .75rem;border-bottom:1px solid var(--brd);font-size:.78rem"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(i.name)}</span><span style="margin:0 .6rem">${badge}</span><span style="font-weight:700;color:var(--red);white-space:nowrap">${fmt(i.val)}</span></div>`;
+        var _hidden = localStorage.getItem('_proxH') === '1';
+        var _px = _proxItems.map(function(i){
+          var dyCol = i.dy===0 ? 'var(--red)' : i.dy<=2 ? 'var(--ylw)' : 'var(--mut)';
+          var dyLbl = i.dy===0 ? 'hoje' : i.dy===1 ? 'amanhã' : i.dy+'d';
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:.4rem .75rem;border-bottom:1px solid var(--brd);font-size:.78rem">
+            <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(i.name)}</span>
+            <span style="margin:0 .75rem;font-size:.7rem;font-weight:700;color:${dyCol};background:rgba(0,0,0,.08);padding:.1rem .4rem;border-radius:4px">${dyLbl}</span>
+            <span style="font-weight:700;color:var(--red);white-space:nowrap">${fmt(i.val)}</span>
+          </div>`;
         }).join('');
-        proxEl.innerHTML = `<div class="tc mb2"><div class="tch"><span class="slbl" style="margin:0">⏰ Próximos pagamentos</span></div>${_px}</div>`;
+        var _ico = _hidden ? '▶' : '▼';
+        proxEl.innerHTML = `<div class="tc mb2">
+          <div class="tch">
+            <span class="slbl" style="margin:0">⏰ Próximos pagamentos <span style="font-size:.68rem;color:var(--mut);font-weight:400">(${_proxItems.length})</span></span>
+            <button class="btn sec sm" onclick="_toggleProx()" style="font-size:.7rem;padding:.2rem .55rem">${_ico} ${_hidden?'Mostrar':'Esconder'}</button>
+          </div>
+          <div id="proxList" style="display:${_hidden?'none':'block'}">${_px}</div>
+        </div>`;
       } else {
         proxEl.innerHTML = '';
       }
