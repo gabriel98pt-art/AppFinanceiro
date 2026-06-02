@@ -1765,8 +1765,22 @@ function renderDashboard() {
     ae.innerHTML = html;
   }
 
-  var rec = totRec(ym), prc = totParcMonth(ym), fix = totFixas(ym), cor = totCorrManual(ym), veh = totVeh(ym);
+  var rec = totRec(ym), cor = totCorrManual(ym), veh = totVeh(ym);
+  var _today = todayStr(), _curYm = _today.slice(0,7), _todayDay = parseInt(_today.slice(8));
+  var isCurrentYm = (ym === _curYm);
+  var fix, prc, fixPrev, prcPrev;
+  if (isCurrentYm) {
+    // current month: only count df already paid or day has passed; parc only if paid
+    fix = sumVal(S.df.filter(function(d){ return isActiveForYm(d,ym) && (isPaidInYm(d,ym) || d.day <= _todayDay); }));
+    prc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(ym)>=0 && p.py[ym] ? s+p.vp : s; }, 0);
+    // projected totals (full month) for display
+    fixPrev = totFixas(ym); prcPrev = totParcMonth(ym);
+  } else {
+    fix = totFixas(ym); prc = totParcMonth(ym);
+    fixPrev = fix; prcPrev = prc;
+  }
   var desp = fix + cor + prc + veh, sld = rec - desp, disp = rec - fix - prc - veh;
+  var _pendente = isCurrentYm ? ((fixPrev - fix) + (prcPrev - prc)) : 0;
 
   var prevYm = addMonths(ym, -1);
   var prevRec = totRec(prevYm), prevDesp = totDesp(prevYm);
@@ -1786,7 +1800,7 @@ function renderDashboard() {
   }, 0);
 
   var parcCol = (S.cfg.catColors||{})['ccat:Parcelas'] || CAT_SEMANTIC['Parcelas'] || '#f43f5e';
-  var isFutureYm = ym > todayStr().slice(0, 7);
+  var isFutureYm = ym > _curYm;
   var kpis = isFutureYm
     ? [
         {l:'Receitas previstas',  v:rec,  c:'var(--mut)', a:'var(--mut)'},
@@ -1797,7 +1811,7 @@ function renderDashboard() {
     : [
         {l:'Receitas',  v:rec,  c:'var(--grn)', a:'var(--grn)'},
         {l:'Despesas',  v:desp, c:'var(--red)', a:'var(--red)'},
-        {l:'Saldo',     v:sld,  c:sld>=0?'var(--grn)':'var(--red)', a:sld>=0?'var(--grn)':'var(--red)'},
+        {l:isCurrentYm&&_pendente>0?'Saldo parcial':'Saldo', v:sld, c:sld>=0?'var(--grn)':'var(--red)', a:sld>=0?'var(--grn)':'var(--red)', sub:isCurrentYm&&_pendente>0?'▼ '+fmt(_pendente)+' pendente':''},
         {l:'Parcelas',  v:prc,  c:parcCol,      a:parcCol}
       ];
   _renderComp(ym);
@@ -1811,7 +1825,8 @@ function renderDashboard() {
     kEl.innerHTML = futureBanner + kpis.map(function(k) {
       var valStr = fmt(k.v);
       var fs = valStr.length > 9 ? '1rem' : valStr.length > 7 ? '1.1rem' : '1.2rem';
-      return `<div class="kc" style="--_a:${k.a};${isFutureYm?'opacity:.6':''}"><div class="klbl">${k.l}</div><div class="kval" style="color:${k.c};font-size:${fs}">${valStr}</div></div>`;
+      var subHtml = k.sub ? `<div style="font-size:.6rem;color:var(--ylw);margin-top:.15rem">${k.sub}</div>` : '';
+      return `<div class="kc" style="--_a:${k.a};${isFutureYm?'opacity:.6':''}"><div class="klbl">${k.l}</div><div class="kval" style="color:${k.c};font-size:${fs}">${valStr}</div>${subHtml}</div>`;
     }).join('');
   }
 
