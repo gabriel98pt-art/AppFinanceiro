@@ -519,7 +519,6 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
   <div id="dAlerts" class="alist"></div>
   <div class="kg" id="dKpis"></div>
   <div id="dComp" class="cmp-row"></div>
-  <div id="dTrend" class="tc mb2" style="display:none"></div>
   <div class="dash-grid">
     <!-- Coluna esquerda: donut + categorias -->
     <div class="cc" style="height:100%;display:flex;flex-direction:column;box-sizing:border-box;min-width:0">
@@ -1971,29 +1970,6 @@ function renderDashboard() {
     }).join('');
   }
 
-  // Trend 6 meses
-  var trendEl = document.getElementById('dTrend');
-  if (trendEl) {
-    var _tMonths = [];
-    for (var _ti = 5; _ti >= 0; _ti--) _tMonths.push(addMonths(ym, -_ti));
-    var _tRecs = _tMonths.map(function(m){ return totRec(m); });
-    var _tDesps = _tMonths.map(function(m){ return totDesp(m); });
-    var _tMax = Math.max.apply(null, _tRecs.concat(_tDesps).filter(function(v){return v>0;})) || 1;
-    var _tRows = _tMonths.map(function(m, i) {
-      var r = _tRecs[i], d = _tDesps[i];
-      var rw = Math.round(r/_tMax*100), dw = Math.round(d/_tMax*100);
-      var isCurM = m === ym;
-      var lbl = m.slice(5,7)+'/'+m.slice(2,4);
-      return `<div style="display:grid;grid-template-columns:38px 1fr 1fr;gap:.3rem .5rem;align-items:center;padding:.3rem .85rem;${isCurM?'background:rgba(77,143,255,.06)':''}border-bottom:1px solid var(--brd)">
-        <span style="font-size:.68rem;font-weight:${isCurM?700:500};color:${isCurM?'var(--blu)':'var(--mut)'}">${lbl}</span>
-        <div style="position:relative;height:7px;background:var(--s3);border-radius:3px;overflow:hidden"><div style="position:absolute;left:0;top:0;height:100%;width:${rw}%;background:var(--grn);border-radius:3px;transition:width .4s ease"></div></div>
-        <div style="position:relative;height:7px;background:var(--s3);border-radius:3px;overflow:hidden"><div style="position:absolute;left:0;top:0;height:100%;width:${dw}%;background:var(--red);border-radius:3px;transition:width .4s ease"></div></div>
-      </div>`;
-    }).join('');
-    trendEl.style.display = '';
-    trendEl.innerHTML = `<div class="tch"><span class="slbl" style="margin:0">Evolução 6 meses</span><div style="display:flex;gap:1rem;font-size:.65rem;color:var(--mut)"><span style="display:flex;align-items:center;gap:.3rem"><span style="width:10px;height:6px;background:var(--grn);border-radius:2px;display:inline-block"></span>Receitas</span><span style="display:flex;align-items:center;gap:.3rem"><span style="width:10px;height:6px;background:var(--red);border-radius:2px;display:inline-block"></span>Despesas</span></div></div>${_tRows}`;
-  }
-
   // Donut
   var ct = {};
   S.df.filter(function(d){ return isActiveForYm(d, ym); })
@@ -2050,6 +2026,15 @@ function renderDashboard() {
   var sc = sld>=goal?'var(--grn)':sld>=goal*.7?'var(--ylw)':'var(--red)';
   var ss = sld>=goal?'✅ Atingido':sld>=goal*.7?'🟡 No Caminho':'🔴 Abaixo';
   var _remain = goal - sld;
+  var _isClosed = !isCurrentYm || _monthClosed;
+  var _savBadge, _savBadgeCls;
+  if (_isClosed) {
+    _savBadge = sld >= goal ? '✅ Atingido' : '❌ Não atingido';
+    _savBadgeCls = sld >= goal ? 'gg' : 'gr';
+  } else {
+    _savBadge = sld >= goal ? '🟢 Na meta' : '🔴 Fora da meta';
+    _savBadgeCls = sld >= goal ? 'gg' : 'gr';
+  }
   var savEl = document.getElementById('dSav');
   if (savEl) savEl.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
@@ -2058,16 +2043,15 @@ function renderDashboard() {
         <div style="font-size:.65rem;color:var(--mut);margin-top:.1rem">de ${fmt(goal)} meta</div>
       </div>
       <div style="text-align:right">
-        <span class="bdg ${sld>=goal?'gg':sld>=goal*.7?'gy':'gr'}" style="font-size:.7rem">${ss}</span>
+        <span class="bdg ${_savBadgeCls}" style="font-size:.7rem">${_savBadge}</span>
         ${_remain>0?`<div style="font-size:.63rem;color:var(--mut);margin-top:.3rem">faltam ${fmt(_remain)}</div>`:''}
       </div>
     </div>
-    <div style="position:relative;height:10px;background:var(--s3);border-radius:5px;overflow:hidden">
-      <div style="position:absolute;left:0;top:0;height:100%;width:${pct2}%;background:${sc};border-radius:5px;transition:width .6s ease"></div>
-      <div style="position:absolute;left:69.9%;top:0;height:100%;width:1px;background:var(--mut);opacity:.4"></div>
+    <div style="height:10px;background:var(--s3);border-radius:5px;overflow:hidden">
+      <div style="height:100%;width:${pct2}%;background:${sc};border-radius:5px;transition:width .6s ease"></div>
     </div>
     <div style="display:flex;justify-content:space-between;margin-top:.3rem;font-size:.62rem;color:var(--mut)">
-      <span>0%</span><span style="color:${pct2>=70?'var(--ylw)':'var(--mut)'}">70%</span><span style="color:${pct2>=100?'var(--grn)':'var(--mut)'}">100% — ${pct2}%</span>
+      <span>0%</span><span style="color:${pct2>=100?'var(--grn)':'var(--mut)'}">100% — ${pct2}%</span>
     </div>`;
   renderMiniAnnual();
 }
