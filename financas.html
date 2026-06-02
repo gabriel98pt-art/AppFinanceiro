@@ -2832,8 +2832,7 @@ function renderCartoes() {
     return `<div class="kc" style="--_a:${col}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;width:100%">
         <div class="klbl" style="margin:0">${card}</div>
-          <button class="ic" onclick="reconcileCard('${safeCard}')" title="Reconciliar com banco" style="font-size:.65rem;width:22px;height:22px">⚖</button>
-        </div>
+        <button class="ic" onclick="reconcileCard('${safeCard}')" title="Reconciliar com banco" style="font-size:.65rem;width:22px;height:22px">⚖</button>
       </div>
       <div class="kval" style="color:${acumCol}">${fmt(acum)}</div>
       <div class="ksub" style="color:${netCol};font-weight:700">${net>=0?'+':''}${fmt(net)} este mês</div>
