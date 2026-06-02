@@ -2370,6 +2370,7 @@ function renderParcelas() {
   for (var pi = 0; pi < S.par.length; pi++) {
     var p = S.par[pi];
     var ms = parcMonths(p);
+    if (!ms.length) continue;
     var paid = ms.filter(function(m){ return p.py[m]; }).length;
     if (paid >= ms.length) donePar.push({p:p, pi:pi});
     else activePar.push({p:p, pi:pi});
@@ -3397,7 +3398,7 @@ function saveModal() {
   switch(mType) {
     case 'receita': {
       var o = {date:gv('f_date'),src:gv('f_src'),val:gf('f_val'),card:gv('f_card'),notes:gv('f_notes')};
-      if (id!==null) { Object.assign(S.rec.find(function(x){return x.id===id;}), o); }
+      if (id!==null) { var _t=S.rec.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.rec.push(Object.assign({id:nid()}, o));
       break;
     }
@@ -3407,13 +3408,13 @@ function saveModal() {
       var _sm_at=(_sm_atY&&_sm_atM)?_sm_atY+'-'+_sm_atM:null;
       var _ar = !!(document.getElementById('f_autoRenew') && document.getElementById('f_autoRenew').checked);
       var o = {name:gv('f_name'),cat:gv('f_cat'),val:gf('f_val'),day:gi('f_day'),card:gv('f_card'),notes:gv('f_notes'),activeFrom:_sm_af,activeTo:_sm_at,autoRenew:_ar};
-      if (id!==null) { Object.assign(S.df.find(function(x){return x.id===id;}), o); }
+      if (id!==null) { var _t=S.df.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.df.push(Object.assign({id:nid(),paidMonths:{}}, o));
       break;
     }
     case 'dcorr': {
       var o = {date:gv('f_date'),name:gv('f_name'),cat:gv('f_cat'),val:gf('f_val'),card:gv('f_card'),notes:gv('f_notes')};
-      if (id!==null) { Object.assign(S.dc.find(function(x){return x.id===id;}), o); }
+      if (id!==null) { var _t=S.dc.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.dc.push(Object.assign({id:nid()}, o));
       break;
     }
@@ -3460,26 +3461,26 @@ function saveModal() {
     case 'parc': {
       var _ad2 = !!(document.getElementById('f_autoDebit') && document.getElementById('f_autoDebit').checked);
       var o = {name:gv('f_name'),cat:gv('f_cat'),card:gv('f_card'),vp:gf('f_val'),num:gi('f_num'),fd:gv('f_fd'),autoDebit:_ad2};
-      if (id!==null) { Object.assign(S.par.find(function(x){return x.id===id;}), o); }
+      if (id!==null) { var _t=S.par.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.par.push(Object.assign({id:nid(),py:{}}, o));
       break;
     }
     case 'evt': {
       var o = {name:gv('f_name'),date:gv('f_date'),val:gf('f_val')||null};
-      if (id!==null) { Object.assign(S.evt.find(function(x){return x.id===id;}), o); }
+      if (id!==null) { var _t=S.evt.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.evt.push(Object.assign({id:nid()}, o));
       break;
     }
     case 'fund': {
       var o = {name:gv('f_name'),goal:gf('f_goal'),saved:gf('f_saved'),deadline:gv('f_dl')};
-      if (id!==null) { Object.assign(S.fnds.find(function(x){return x.id===id;}), o); }
+      if (id!==null) { var _t=S.fnds.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.fnds.push(Object.assign({id:nid()}, o));
       break;
     }
     case 'trf': {
       var o = {date:gv('f_date'),from:gv('f_from'),to:gv('f_to'),val:gf('f_val'),notes:gv('f_notes')};
       if (!S.trf) S.trf = [];
-      if (id!==null) { Object.assign(S.trf.find(function(x){return x.id===id;}), o); }
+      if (id!==null) { var _t=S.trf.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.trf.push(Object.assign({id:nid()}, o));
       break;
     }
@@ -3489,7 +3490,7 @@ function saveModal() {
       var _sm2_at=(_sm2_atY&&_sm2_atM)?_sm2_atY+'-'+_sm2_atM:null;
       var o = {name:gv('f_name'),cat:gv('f_cat'),val:gf('f_val'),day:gi('f_day'),card:gv('f_card'),notes:gv('f_notes'),activeFrom:_sm2_af,activeTo:_sm2_at};
       if (!S.veh.df) S.veh.df = [];
-      if (id!==null) { Object.assign(S.veh.df.find(function(x){return x.id===id;}), o); }
+      if (id!==null) { var _t=S.veh.df.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.veh.df.push(Object.assign({id:nid()}, o));
       break;
     }
@@ -6194,7 +6195,7 @@ function _renderComp(ym) {
   var desp = totDesp(ym), pDesp = totDesp(prev);
   var sld = rec - desp, pSld = pRec - pDesp;
   function chip(lbl, cur, old) {
-    if (!old) return '';
+    if (!old || Math.abs(old) < 0.001) return '';
     var diff = cur - old, pct = Math.round(diff / Math.abs(old) * 100);
     var cls = diff > 0 ? 'cmp-up' : diff < 0 ? 'cmp-dn' : 'cmp-eq';
     var arr = diff > 0 ? '↑' : diff < 0 ? '↓' : '=';
