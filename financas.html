@@ -6632,7 +6632,7 @@ function _qRender() {
   if(cc) cc.innerHTML=cats.map(function(c){
     var sel=_qCat===c;
     return '<button type="button" class="qchip'+(sel?' q'+(isE?'ce':'ci'):'')
-      +'" onclick="qPickCat('+JSON.stringify(c)+')">'+_esc(c)+'</button>';
+      +'" data-val="'+_esc(c)+'" onclick="qPickCat(this.dataset.val)">'+_esc(c)+'</button>';
   }).join('');
 
   var accs=S.cfg.pay||[];
@@ -6641,7 +6641,7 @@ function _qRender() {
   if(ac) ac.innerHTML=accs.map(function(a){
     var sel=_qAcc===a;
     return '<button type="button" class="qchip'+(sel?' qca':'')
-      +'" onclick="qPickAcc('+JSON.stringify(a)+')">'+_esc(a)+'</button>';
+      +'" data-val="'+_esc(a)+'" onclick="qPickAcc(this.dataset.val)">'+_esc(a)+'</button>';
   }).join('');
 }
 function qPickCat(c){ _qCat=c; _qRender(); }
