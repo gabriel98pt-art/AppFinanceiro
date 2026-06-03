@@ -396,11 +396,12 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 .qchips::-webkit-scrollbar{display:none}
 .qchip{flex-shrink:0;border-radius:18px;padding:.4rem .88rem;font-size:.79rem;
        font-weight:600;color:var(--mut);border:1.5px solid var(--brd);background:var(--s2);
-       transition:all .13s;white-space:nowrap;cursor:pointer}
+       transition:all .13s;white-space:nowrap;cursor:pointer;
+       touch-action:manipulation;-webkit-tap-highlight-color:transparent;font-family:inherit}
 .qchip:active{transform:scale(.93)}
 .qchip.qce{color:var(--red);border-color:rgba(255,84,112,.42);background:rgba(255,84,112,.1)}
 .qchip.qci{color:var(--grn);border-color:rgba(0,212,160,.4);background:rgba(0,212,160,.1)}
-.qchip.qca{color:var(--txt);border-color:rgba(255,255,255,.22);background:var(--s3)}
+.qchip.qca{color:var(--blu);border-color:var(--blu);background:rgba(77,143,255,.13)}
 .qdetail{display:flex;gap:.45rem;margin-bottom:.9rem}
 .qdet{display:flex;align-items:center;gap:.32rem;background:var(--s2);
       border:1.5px solid var(--brd);border-radius:8px;padding:.42rem .72rem;
@@ -6630,8 +6631,8 @@ function _qRender() {
   var cc=document.getElementById('qCatChips');
   if(cc) cc.innerHTML=cats.map(function(c){
     var sel=_qCat===c;
-    return '<div class="qchip'+(sel?' q'+(isE?'ce':'ci'):'')
-      +'" onclick="qPickCat('+JSON.stringify(c)+')">'+_esc(c)+'</div>';
+    return '<button type="button" class="qchip'+(sel?' q'+(isE?'ce':'ci'):'')
+      +'" onclick="qPickCat('+JSON.stringify(c)+')">'+_esc(c)+'</button>';
   }).join('');
 
   var accs=S.cfg.pay||[];
@@ -6639,8 +6640,8 @@ function _qRender() {
   var ac=document.getElementById('qAccChips');
   if(ac) ac.innerHTML=accs.map(function(a){
     var sel=_qAcc===a;
-    return '<div class="qchip'+(sel?' qca':'')
-      +'" onclick="qPickAcc('+JSON.stringify(a)+')">'+_esc(a)+'</div>';
+    return '<button type="button" class="qchip'+(sel?' qca':'')
+      +'" onclick="qPickAcc('+JSON.stringify(a)+')">'+_esc(a)+'</button>';
   }).join('');
 }
 function qPickCat(c){ _qCat=c; _qRender(); }
