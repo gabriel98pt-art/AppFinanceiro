@@ -2721,7 +2721,7 @@ function renderCal() {
   var sorted = S.evt.slice().sort(function(a,b){return a.date>b.date?1:-1;});
   if (evtEl) evtEl.innerHTML = sorted.length ? sorted.map(function(e){
     return `<tr><td>${e.name}</td><td title="${fmtDate(e.date)}">${fmtDateShort(e.date)}</td><td>${e.val?fmt(e.val):'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('evt',${e.id})">✏</button><button class="ic d" onclick="delRec('evt',${e.id})">🗑</button></div></td></tr>`;
-  }).join('') : '<tr><td colspan="4"><div class="empty"><span class="ei">📅</span>Nenhum evento</div></td></tr>';
+  }).join('') : _emptyRow(4,'📅','Nenhum evento','Adiciona marcos e datas importantes');
 }
 
 // ================================================================
@@ -3038,7 +3038,7 @@ function renderCartoes() {
   if (ctPg) ctPg.style.display = 'none';
 
   if (!filteredCards.length) {
-    ctBody.innerHTML = '<tr><td colspan="5"><div class="empty"><span class="ei">👛</span>Nenhum cartão configurado</div></td></tr>';
+    ctBody.innerHTML = _emptyRow(5,'👛','Nenhum cartão configurado','Adiciona cartões nas Definições');
     return;
   }
 
@@ -3124,7 +3124,7 @@ function renderCartoes() {
     });
   });
 
-  ctBody.innerHTML = html || '<tr><td colspan="5"><div class="empty"><span class="ei">👛</span>Nenhuma transação em '+monthLabel(ym)+'</div></td></tr>';
+  ctBody.innerHTML = html || _emptyRow(5,'👛','Nenhuma transação em '+monthLabel(ym),'Regista receitas e despesas para ver aqui');
 }
 
 // ================================================================
@@ -3169,7 +3169,7 @@ function renderMetas() {
   if (fc) fc.innerHTML = S.fnds.length ? S.fnds.map(function(f){
     var pct=f.goal>0?Math.min(100,Math.round(f.saved/f.goal*100)):0;
     return `<div class="fcard"><div class="row g1" style="justify-content:space-between;margin-bottom:.2rem"><div class="fn2">${_esc(f.name)}</div><div class="ac"><button class="ic e" onclick="openModal('fund',${f.id})">✏</button><button class="ic d" onclick="delRec('fnd',${f.id})">🗑</button></div></div><div class="fm">Meta: ${fmt(f.goal)} · ${fmtDate(f.deadline)||'—'}</div><div class="row g1 mb1"><span class="tpur bold">${fmt(f.saved)}</span><span class="tmut" style="font-size:.7rem">/ ${fmt(f.goal)}</span></div><div class="pb"><div class="pf" style="width:${pct}%;background:var(--pur)"></div></div><div class="tmut" style="font-size:.66rem;margin-top:.22rem">${pct}%</div><button class="btn sec sm" style="margin-top:.6rem;width:100%" onclick="contFund(${f.id})">+ Contribuir</button></div>`;
-  }).join('') : '<div class="empty"><span class="ei">◎</span>Nenhum fundo criado</div>';
+  }).join('') : _emptyDiv('◎','Nenhum fundo criado','Adiciona um fundo de poupança com o botão +');
 }
 
 function contFund(id) {
