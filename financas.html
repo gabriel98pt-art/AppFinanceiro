@@ -797,6 +797,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
       <button class="btn sec sm" onclick="exportCSV()">📊 Exportar CSV</button>
       <button class="btn sec sm" onclick="exportData()">📤 Exportar JSON</button>
       <button class="btn sec sm" onclick="document.getElementById('impFile').click()">📥 Importar</button>
+      <button class="btn sec sm" onclick="_fbRestoreBackup()">🛡 Restaurar backup</button>
       <input type="file" id="impFile" accept=".json" style="display:none" onchange="importData(this)">
       <button class="btn dan sm" onclick="clearData()">🗑 Limpar tudo</button>
       <button class="btn pri" onclick="saveSet()">Guardar</button>
@@ -883,9 +884,90 @@ function _fbNormalizeState(fb) {
   return fb;
 }
 
+// Conta total de registos num estado (usado para detetar perda de dados)
+function _stateWeight(s) {
+  if (!s || typeof s !== 'object') return 0;
+  return (s.rec||[]).length + (s.df||[]).length + (s.dc||[]).length +
+         (s.par||[]).length + (s.evt||[]).length + (s.fnds||[]).length +
+         (s.trf||[]).length + ((s.veh||{}).cg||[]).length +
+         ((s.veh||{}).lp||[]).length + ((s.veh||{}).df||[]).length;
+}
+
+// Guarda snapshot no localStorage antes de qualquer operação destrutiva
+function _fbBackup(state, label) {
+  try {
+    localStorage.setItem(SK + '_bk', JSON.stringify({ s: state, at: Date.now(), lbl: label || 'auto' }));
+  } catch(e) {}
+}
+
+// Restaura o último backup automático
+function _fbRestoreBackup() {
+  try {
+    var raw = localStorage.getItem(SK + '_bk');
+    if (!raw) { showToast('⚠ Nenhum backup automático encontrado', true); return; }
+    var bk = JSON.parse(raw);
+    if (!bk || !bk.s) { showToast('⚠ Backup inválido', true); return; }
+    var at = bk.at ? new Date(bk.at).toLocaleString('pt-PT') : '—';
+    var w = _stateWeight(bk.s);
+    if (!confirm('Restaurar backup automático de ' + at + ' (' + w + ' registos)?\n\nO estado actual será substituído.')) return;
+    snapshot();
+    S = _fbNormalizeState(bk.s);
+    try { localStorage.setItem(SK, JSON.stringify(S)); } catch(e) {}
+    computeYearRange(); renderTab(CUR);
+    showToast('✓ Backup restaurado — ' + w + ' registos');
+  } catch(e) { showToast('⚠ Erro ao restaurar backup', true); }
+}
+
+// Modal de conflito: mostra quando local tem _id alto mas muito menos registos que Firebase
+function _fbShowConflict(fbState, fbW, localW) {
+  var el = document.getElementById('_syncConflictModal');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = '_syncConflictModal';
+    el.className = 'mover';
+    document.body.appendChild(el);
+  }
+  var fbAt = fbState && fbState._savedAt ? new Date(fbState._savedAt).toLocaleString('pt-PT') : '—';
+  var lkAt = S._savedAt ? new Date(S._savedAt).toLocaleString('pt-PT') : '—';
+  el.innerHTML =
+    '<div class="mbox" style="max-width:440px">' +
+      '<div class="mhdr"><div class="mttl">⚠ Conflito de Sincronização</div></div>' +
+      '<div class="inf" style="margin-bottom:1rem;line-height:1.7">' +
+        'O Firebase tem <strong>' + fbW + ' registos</strong> mas este browser só tem <strong>' + localW + '</strong>.<br>' +
+        '<span style="color:var(--mut);font-size:.75rem">Firebase: ' + fbAt + ' · Browser: ' + lkAt + '</span>' +
+      '</div>' +
+      '<p style="font-size:.8rem;color:var(--mut);line-height:1.7;margin-bottom:1.2rem">' +
+        'Pode ter ocorrido perda de dados neste browser. Escolhe qual versão manter:' +
+      '</p>' +
+      '<div style="display:flex;flex-direction:column;gap:.5rem">' +
+        '<button class="btn pri" style="justify-content:center" onclick="_fbConflictResolve(\'firebase\')">☁ Usar Firebase <span style="font-weight:400;font-size:.72rem">(' + fbW + ' registos — recomendado)</span></button>' +
+        '<button class="btn sec" style="justify-content:center" onclick="_fbConflictResolve(\'local\')">💻 Manter local <span style="font-weight:400;font-size:.72rem">(' + localW + ' registos)</span></button>' +
+      '</div>' +
+    '</div>';
+  el.classList.add('on');
+  window._fbConflictState = fbState;
+}
+
+function _fbConflictResolve(choice) {
+  var el = document.getElementById('_syncConflictModal');
+  if (el) el.classList.remove('on');
+  if (choice === 'firebase' && window._fbConflictState) {
+    _fbBackup(S, 'conflict-replaced-local');
+    S = _fbNormalizeState(window._fbConflictState);
+    try { localStorage.setItem(SK, JSON.stringify(S)); } catch(e) {}
+    computeYearRange(); renderTab(CUR);
+    showToast('☁ Dados do Firebase restaurados');
+  } else {
+    if (window._fbConflictState) _fbBackup(window._fbConflictState, 'conflict-replaced-firebase');
+    _fbSave(S);
+    showToast('💻 Dados locais enviados para o Firebase');
+  }
+  window._fbConflictState = null;
+}
+
 // Chamado no arranque e no botão "Sincronizar":
-// Se Firebase tiver dados mais recentes (_id maior), actualiza o estado local e re-renderiza.
-// Se local for mais recente, empurra para Firebase.
+// Se Firebase tiver _id maior → backup local + descarrega Firebase.
+// Se local for mais recente → verifica perda de dados antes de empurrar.
 function _fbSync(showFeedback) {
   if (!_fbDb) { if (showFeedback) showToast('⚠ Firebase não disponível', true); return; }
   var _lbl = document.getElementById('fbSyncBtn');
@@ -893,13 +975,27 @@ function _fbSync(showFeedback) {
   _fbDb.ref(SK).once('value').then(function(snap) {
     var fb = snap.val();
     if (_lbl) { _lbl.disabled = false; _lbl.style.opacity = ''; }
-    if (fb && typeof fb === 'object' && !Array.isArray(fb) && (fb._id || 0) > (S._id || 0)) {
+    var fbValid = fb && typeof fb === 'object' && !Array.isArray(fb);
+    var fbId = fbValid ? (fb._id || 0) : 0;
+    if (fbValid && fbId > (S._id || 0)) {
+      // Firebase mais recente: guarda backup local antes de sobrescrever
+      _fbBackup(S, 'pre-download');
       S = _fbNormalizeState(fb);
       try { localStorage.setItem(SK, JSON.stringify(S)); } catch(e) {}
       computeYearRange();
       renderTab(CUR);
       if (showFeedback) showToast('↑ Dados sincronizados do Firebase');
     } else {
+      // Local mais recente: verifica se há perda de dados suspeita
+      var localW = _stateWeight(S);
+      var fbW    = fbValid ? _stateWeight(_fbNormalizeState(JSON.parse(JSON.stringify(fb)))) : 0;
+      if (fbW > 5 && localW < fbW * 0.5) {
+        // Conflito: Firebase tem muito mais registos apesar de _id local ser maior
+        _fbShowConflict(fb, fbW, localW);
+        return;
+      }
+      // Seguro empurrar: guarda backup do Firebase antes de substituir
+      if (fbValid) _fbBackup(fb, 'pre-push');
       _fbSave(S);
       if (showFeedback) showToast('✓ Dados já actualizados');
     }
@@ -1086,6 +1182,7 @@ computeYearRange();
 function saveState() {
   var _ok = false;
   try {
+    S._savedAt = Date.now();
     localStorage.setItem(SK, JSON.stringify(S));
     _fbSave(S);
     _ok = true;
