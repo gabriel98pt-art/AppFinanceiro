@@ -891,10 +891,40 @@ var _fbDb = null;
   } catch(e) { console.warn('[FB init]', e); }
 })();
 
+// Dot vermelho no botão 🔄 quando há dados não sincronizados
+var _fbRetryTimer = null;
+function _fbMarkUnsaved(unsaved) {
+  var btn = document.getElementById('fbSyncBtn');
+  if (!btn) return;
+  var dot = document.getElementById('_fbUnsavedDot');
+  if (unsaved) {
+    if (!dot) {
+      dot = document.createElement('span');
+      dot.id = '_fbUnsavedDot';
+      dot.style.cssText = 'position:absolute;top:2px;right:2px;width:7px;height:7px;background:#ff5470;border-radius:50%;pointer-events:none;z-index:1;box-shadow:0 0 0 2px var(--s1)';
+      btn.style.position = 'relative';
+      btn.appendChild(dot);
+    }
+    dot.style.display = '';
+    btn.setAttribute('data-tip', '⚠ Não sincronizado — clica para guardar');
+  } else {
+    if (dot) dot.style.display = 'none';
+    btn.setAttribute('data-tip', 'Sincronizar cloud');
+  }
+}
+
 function _fbSave(s) {
-  if (!_fbDb) return;
-  try { _fbDb.ref(SK).set(s).catch(function(e){ console.warn('[FB save]', e); }); }
-  catch(e) { console.warn('[FB save]', e); }
+  if (!_fbDb) { _fbMarkUnsaved(true); return; }
+  _fbDb.ref(SK).set(s).then(function() {
+    _fbMarkUnsaved(false);
+    if (_fbRetryTimer) { clearTimeout(_fbRetryTimer); _fbRetryTimer = null; }
+  }).catch(function(e) {
+    console.warn('[FB save]', e);
+    _fbMarkUnsaved(true);
+    // Retenta em 6s — garante que dados chegam ao Firebase mesmo em falhas de rede
+    if (_fbRetryTimer) clearTimeout(_fbRetryTimer);
+    _fbRetryTimer = setTimeout(function() { _fbSave(S); }, 6000);
+  });
 }
 
 function _fbNormalizeState(fb) {
@@ -1006,13 +1036,14 @@ function _fbSync(showFeedback) {
       try { localStorage.setItem(SK, JSON.stringify(S)); } catch(e) {}
       computeYearRange();
       renderTab(CUR);
+      _fbMarkUnsaved(false);
       if (showFeedback) showToast('↑ Dados sincronizados do Firebase');
     } else {
       // Local mais recente: verifica se há perda de dados suspeita
       var localW = _stateWeight(S);
       var fbW    = fbValid ? _stateWeight(_fbNormalizeState(JSON.parse(JSON.stringify(fb)))) : 0;
-      if (fbW > 5 && localW < fbW * 0.5) {
-        // Conflito: Firebase tem muito mais registos apesar de _id local ser maior
+      // Limiar 70%: se Firebase tem consideravelmente mais registos, há conflito
+      if (fbW > 5 && localW < fbW * 0.7) {
         _fbShowConflict(fb, fbW, localW);
         return;
       }
