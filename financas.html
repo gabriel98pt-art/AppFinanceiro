@@ -248,9 +248,15 @@ tbody.anim tr:nth-child(n+6){animation-delay:.14s}
 
 /* SINKING FUNDS */
 .fcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.65rem;margin-bottom:1rem}
-.fcard{background:var(--s1);border:1px solid var(--brd);border-radius:var(--r);padding:1rem;box-shadow:var(--sh-sm)}
+.fcard{background:var(--s1);border:1px solid var(--brd);border-left:3px solid var(--_fc,var(--grn));border-radius:var(--r);padding:1rem;box-shadow:var(--sh-sm)}
 .fn2{font-weight:700;margin-bottom:.2rem;font-size:.88rem}
 .fm{font-size:.68rem;color:var(--mut);margin-bottom:.5rem}
+.fcard-stat{display:flex;align-items:center;gap:.4rem;margin:.3rem 0 .15rem}
+.fcard-proj{font-size:.65rem;color:var(--mut);margin-top:.1rem}
+.meta-sav-grid{display:grid;grid-template-columns:1fr auto;gap:1rem;align-items:start;margin-top:.65rem}
+.meta-sav-right{display:flex;flex-direction:column;gap:.3rem;min-width:130px;border-left:1px solid var(--brd);padding-left:.75rem}
+.meta-sav-row{display:flex;justify-content:space-between;align-items:center;gap:.5rem;font-size:.78rem}
+.funds-hdr{display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem;flex-wrap:wrap}
 
 /* IMPORT */
 .imp-zone{border:2px dashed var(--brd);border-radius:var(--r);padding:2.5rem 1rem;text-align:center;cursor:pointer;transition:border-color var(--tr),background var(--tr)}
@@ -346,6 +352,8 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
   .pnl{padding:.75rem}
   .tch{padding:.6rem .75rem}
   .kc{padding:.7rem .75rem}
+  .meta-sav-grid{grid-template-columns:1fr}
+  .meta-sav-right{border-left:none;border-top:1px solid var(--brd);padding-left:0;padding-top:.5rem;flex-direction:row;flex-wrap:wrap;gap:.5rem 1.5rem}
 }
 
 /* Modal muito compacto em ecrãs estreitos */
@@ -775,13 +783,14 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 <div class="pnl" id="p-metas">
   <div class="kg mb2" id="metaKpis"></div>
   <div class="cc mb2" id="metaSav"></div>
+  <div class="funds-hdr">
+    <span class="slbl" style="margin:0">Fundos de Poupança</span>
+    <span class="tmut" id="fundsTotalLbl" style="font-size:.75rem"></span>
+    <button class="btn pri sm" onclick="openModal('fund')" style="margin-left:auto">+ Novo Fundo</button>
+  </div>
+  <div class="fcards mb2" id="fundCards"></div>
   <div class="tc mb2"><div class="tch"><span class="slbl" style="margin:0">Resumo Anual</span></div><div class="tw" id="annT"></div></div>
   <div class="cc mb2"><div class="slbl">Anual</div><canvas id="chAnn" style="height:190px"></canvas></div>
-  <div class="row g2 wrap mb2">
-    <div class="slbl" style="margin:0">Fundos de Poupança</div>
-    <button class="btn pri sm" onclick="openModal('fund')">+ Novo Fundo</button>
-  </div>
-  <div class="fcards" id="fundCards"></div>
 </div>
 
 <!-- IMPORTAR -->
@@ -3390,35 +3399,102 @@ function renderCartoes() {
 // ================================================================
 function renderMetas() {
   var ym = globalMonth;
-  var rec = totRec(ym), desp = totDesp(ym), sld = rec - desp, goal = S.cfg.sgoal || 500;
-  var pct = goal>0?Math.min(100,Math.round(sld/goal*100)):0;
-  var sc = sld >= goal ? 'var(--grn)' : 'var(--red)';
+  var rec = totRec(ym);
   var _curYmM = currentYm(), _todDayM = parseInt(todayStr().slice(8));
   var _lastDayM = new Date(parseInt(_curYmM.slice(0,4)), parseInt(_curYmM.slice(5,7)), 0).getDate();
   var _isCurrentYmM = ym === _curYmM, _isClosedM = !_isCurrentYmM || _todDayM >= _lastDayM;
+  // mês atual: mesma lógica do Dashboard (só fixas pagas/vencidas + parcelas pagas)
+  var desp;
+  if (_isCurrentYmM) {
+    var _fix = sumVal(S.df.filter(function(d){ return isActiveForYm(d,ym) && (isPaidInYm(d,ym) || d.day <= _todDayM); }));
+    var _prc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(ym)>=0 && p.py[ym] ? s+p.vp : s; }, 0);
+    desp = _fix + _prc + totCorrManual(ym) + totVeh(ym);
+  } else {
+    desp = totDesp(ym);
+  }
+  var sld = rec - desp, goal = S.cfg.sgoal || 500;
+  var pct = goal > 0 ? Math.max(0, Math.min(100, Math.round(sld / goal * 100))) : 0;
+  var sc = sld >= goal ? 'var(--grn)' : 'var(--red)';
   var _mBadge = _isClosedM
     ? (sld >= goal ? '✅ Atingido' : '❌ Não atingido')
-    : (sld >= goal ? '🟢 Na meta'  : '🔴 Fora da meta');
+    : (sld >= goal ? '🟢 Na meta' : '🔴 Fora da meta');
   var _mBadgeCls = sld >= goal ? 'gg' : 'gr';
 
-  // M5 — KPIs no topo
   var _totalFunds = S.fnds.reduce(function(s,f){ return s + (f.saved||0); }, 0);
+  var _totalGoal = S.fnds.reduce(function(s,f){ return s + (f.goal||0); }, 0);
   var _annSav = getLast(12, ym).reduce(function(s,m){ return s + Math.max(0, totRec(m)-totDesp(m)); }, 0);
+  var _txPoupanca = rec > 0 ? Math.round(Math.max(0, sld) / rec * 100) : 0;
+
   var mkEl = document.getElementById('metaKpis');
   if (mkEl) mkEl.innerHTML =
-    `<div class="kc" style="--_a:var(--pur)"><div class="klbl">Total em Fundos</div><div class="kval tpur">${fmt(_totalFunds)}</div><div class="ksub">${S.fnds.length} fundo${S.fnds.length!==1?'s':''}</div></div>` +
     `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Meta Mensal</div><div class="kval tgrn">${fmt(goal)}</div><div class="ksub">${pct}% atingido</div></div>` +
-    `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Poupado (12m)</div><div class="kval tblu">${fmt(_annSav)}</div></div>`;
+    `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Taxa de Poupança</div><div class="kval tblu">${_txPoupanca}%</div><div class="ksub">${rec > 0 ? fmt(Math.max(0,sld)) + ' guardado' : 'sem receitas'}</div></div>` +
+    `<div class="kc" style="--_a:var(--pur)"><div class="klbl">Total em Fundos</div><div class="kval tpur">${fmt(_totalFunds)}</div><div class="ksub">${S.fnds.length} fundo${S.fnds.length!==1?'s':''}</div></div>` +
+    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">Poupado (12m)</div><div class="kval" style="color:var(--ylw)">${fmt(_annSav)}</div><div class="ksub">últimos 12 meses</div></div>`;
 
   var ms = document.getElementById('metaSav');
   if (ms) ms.innerHTML = `
-    <div class="slbl">Meta de Poupança — ${monthLabelFull(ym)}</div>
-    <div class="row g2 wrap mb1">
-      <span style="font-size:1.7rem;font-weight:800;color:${sc}">${fmt(sld)}</span>
-      <span class="bdg ${_mBadgeCls}" style="font-size:.8rem;padding:.3rem .75rem">${_mBadge}</span>
-    </div>
-    <div class="tmut" style="font-size:.75rem;margin-bottom:.6rem">Meta: ${fmt(goal)} · ${pct}%</div>
-    <div class="pb" style="height:10px"><div class="pf" style="width:${pct}%;background:${sc}"></div></div>`;
+    <div class="kc-hdr"><span class="slbl" style="margin:0">Meta — ${monthLabelFull(ym)}</span><span class="bdg ${_mBadgeCls}">${_mBadge}</span></div>
+    <div class="meta-sav-grid">
+      <div>
+        <div style="font-size:1.9rem;font-weight:800;color:${sc};line-height:1.1">${fmt(sld)}</div>
+        <div class="tmut" style="font-size:.72rem;margin:.3rem 0 .7rem">de ${fmt(goal)} · ${pct}%</div>
+        <div class="pb" style="height:9px"><div class="pf" style="width:${pct}%;background:${sc}"></div></div>
+      </div>
+      <div class="meta-sav-right">
+        <div class="meta-sav-row"><span class="tmut">Receitas</span><span class="tgrn" style="font-weight:700">${fmt(rec)}</span></div>
+        <div class="meta-sav-row"><span class="tmut">Despesas</span><span class="tred" style="font-weight:700">${fmt(desp)}</span></div>
+        <div class="meta-sav-row" style="border-top:1px solid var(--brd);padding-top:.3rem;margin-top:.1rem"><span class="tmut">Saldo</span><span style="font-weight:700;color:${sc}">${fmt(sld)}</span></div>
+      </div>
+    </div>`;
+
+  var ftl = document.getElementById('fundsTotalLbl');
+  if (ftl) ftl.textContent = S.fnds.length ? fmt(_totalFunds) + (_totalGoal > 0 ? ' / ' + fmt(_totalGoal) : '') : '';
+
+  var fc = document.getElementById('fundCards');
+  if (fc) fc.innerHTML = S.fnds.length ? S.fnds.map(function(f){
+    var fpct = f.goal > 0 ? Math.min(100, Math.round((f.saved||0) / f.goal * 100)) : 0;
+    var fBarCol = fpct >= 80 ? 'var(--grn)' : fpct >= 40 ? 'var(--ylw)' : 'var(--red)';
+    var falta = Math.max(0, (f.goal||0) - (f.saved||0));
+
+    var daysLeft = null, dlBadge = '';
+    if (f.deadline) {
+      var _dl = new Date(f.deadline + 'T00:00:00');
+      var _now = new Date(); _now.setHours(0,0,0,0);
+      daysLeft = Math.ceil((_dl - _now) / 86400000);
+      var dlCls = daysLeft < 0 ? 'gr' : daysLeft < 7 ? 'gr' : daysLeft < 30 ? 'gy' : 'gb';
+      var dlLbl = daysLeft < 0 ? 'vencido' : daysLeft === 0 ? 'hoje' : daysLeft + 'd';
+      dlBadge = `<span class="bdg ${dlCls}" style="font-size:.6rem">${dlLbl}</span>`;
+    }
+
+    var projHtml = '';
+    if (f.deadline && daysLeft !== null && daysLeft > 0 && falta > 0) {
+      var mesesRest = Math.max(1, Math.ceil(daysLeft / 30));
+      var porMes = fromCents(Math.ceil(toCents(falta) / mesesRest));
+      projHtml = `<div class="fcard-proj">≈ ${fmt(porMes)}/mês necessários</div>`;
+    } else if (daysLeft !== null && daysLeft < 0 && falta > 0) {
+      projHtml = `<div class="fcard-proj" style="color:var(--red)">Prazo ultrapassado</div>`;
+    }
+
+    return `<div class="fcard" style="--_fc:${fBarCol}">
+      <div class="fcard-hdr">
+        <div class="fn2">${_esc(f.name)}</div>
+        <div style="display:flex;align-items:center;gap:.3rem">
+          ${dlBadge}
+          <div class="ac"><button class="ic e" onclick="openModal('fund',${f.id})">✏</button><button class="ic d" onclick="delRec('fnd',${f.id})">🗑</button></div>
+        </div>
+      </div>
+      <div class="pb mb1"><div class="pf" style="width:${fpct}%;background:${fBarCol}"></div></div>
+      <div class="fcard-stat">
+        <span style="color:${fBarCol};font-weight:700;font-size:.9rem">${fmt(f.saved||0)}</span>
+        <span class="tmut" style="font-size:.7rem">/ ${fmt(f.goal)}</span>
+        <span class="bdg" style="margin-left:auto;background:rgba(255,255,255,.06);color:var(--mut);font-size:.6rem">${fpct}%</span>
+      </div>
+      ${falta > 0 ? `<div class="fcard-proj">Em falta: <strong style="color:var(--txt)">${fmt(falta)}</strong>${f.deadline ? ' · ' + fmtDate(f.deadline) : ''}</div>` : `<div class="fcard-proj" style="color:var(--grn);font-weight:600">Meta atingida!</div>`}
+      ${projHtml}
+      <button class="btn sec sm" style="margin-top:.6rem;width:100%" onclick="openContribModal(${f.id})">+ Contribuir</button>
+    </div>`;
+  }).join('') : _emptyDiv('◎','Nenhum fundo criado','Adiciona um fundo de poupança com o botão +');
 
   var months = getLast(12, ym);
   var ann = document.getElementById('annT');
@@ -3432,45 +3508,21 @@ function renderMetas() {
     {label:'Receitas',data:months.map(totRec),backgroundColor:'rgba(0,212,160,.18)',borderColor:'#00d4a0',borderWidth:2,borderRadius:4,borderSkipped:false},
     {label:'Despesas',data:months.map(totDesp),backgroundColor:'rgba(255,84,112,.18)',borderColor:'#ff5470',borderWidth:2,borderRadius:4,borderSkipped:false}
   ]);
-
-  var fc = document.getElementById('fundCards');
-  if (fc) fc.innerHTML = S.fnds.length ? S.fnds.map(function(f){
-    var fpct = f.goal>0 ? Math.min(100,Math.round(f.saved/f.goal*100)) : 0;
-    // M4 — barra de cor por percentagem
-    var fBarCol = fpct >= 80 ? 'var(--grn)' : fpct >= 40 ? 'var(--ylw)' : 'var(--red)';
-    // M3 — dias restantes até deadline
-    var daysLeft = null, dlBadge = '';
-    if (f.deadline) {
-      var _dl = new Date(f.deadline + 'T00:00:00');
-      var _now = new Date(); _now.setHours(0,0,0,0);
-      daysLeft = Math.ceil((_dl - _now) / 86400000);
-      var dlCls = daysLeft < 0 ? 'gr' : daysLeft < 7 ? 'gr' : daysLeft < 30 ? 'gy' : 'gb';
-      var dlLbl = daysLeft < 0 ? 'vencido' : daysLeft === 0 ? 'hoje' : daysLeft + 'd';
-      dlBadge = `<span class="bdg ${dlCls}" style="font-size:.6rem">${dlLbl}</span>`;
-    }
-    return `<div class="fcard">
-      <div class="fcard-hdr">
-        <div class="fn2">${_esc(f.name)}</div>
-        <div style="display:flex;align-items:center;gap:.3rem">
-          ${dlBadge}
-          <div class="ac"><button class="ic e" onclick="openModal('fund',${f.id})">✏</button><button class="ic d" onclick="delRec('fnd',${f.id})">🗑</button></div>
-        </div>
-      </div>
-      <div class="fm">Meta: ${fmt(f.goal)}${f.deadline?' · '+fmtDate(f.deadline):' · sem prazo'}</div>
-      <div class="row g1 mb1"><span style="color:${fBarCol};font-weight:700">${fmt(f.saved)}</span><span class="tmut" style="font-size:.7rem">/ ${fmt(f.goal)}</span></div>
-      <div class="pb"><div class="pf" style="width:${fpct}%;background:${fBarCol}"></div></div>
-      <div class="tmut" style="font-size:.66rem;margin-top:.22rem">${fpct}%</div>
-      <button class="btn sec sm" style="margin-top:.6rem;width:100%" onclick="contFund(${f.id})">+ Contribuir</button>
-    </div>`;
-  }).join('') : _emptyDiv('◎','Nenhum fundo criado','Adiciona um fundo de poupança com o botão +');
 }
 
-function contFund(id) {
+function openContribModal(id) {
   var f = S.fnds.find(function(x){return x.id===id;});
   if (!f) return;
-  var _cv = prompt('Valor a contribuir (€):');
-  var v = _cv !== null ? parseMoney(_cv) : NaN;
-  if (!isNaN(v) && v > 0) { snapshot(); f.saved = fromCents(toCents(f.saved) + toCents(v)); saveState(); renderMetas(); }
+  mType = 'contrib';
+  mId = id;
+  var title = document.getElementById('modalTitle');
+  if (title) title.textContent = 'Contribuir — ' + f.name;
+  var body = document.getElementById('modalBody');
+  if (body) body.innerHTML = buildForm('contrib', f);
+  var delArea = document.getElementById('modalDelArea');
+  if (delArea) delArea.innerHTML = '';
+  var modal = document.getElementById('mainModal');
+  if (modal) modal.classList.add('on');
 }
 
 // ================================================================
@@ -3533,7 +3585,7 @@ function calcFromTotal() {
 var mType = null, mId = null;
 var MODAL_TITLES = {
   receita:'Receita', dfixa:'Despesa Fixa', dcorr:'Despesa Corrente',
-  carga:'Carga Elétrica', limp:'Despesa do Veículo', vehfix:'Despesa Fixa Veículo', parc:'Parcela', evt:'Evento', fund:'Fundo de Poupança', trf:'Transferência Interna'
+  carga:'Carga Elétrica', limp:'Despesa do Veículo', vehfix:'Despesa Fixa Veículo', parc:'Parcela', evt:'Evento', fund:'Fundo de Poupança', trf:'Transferência Interna', contrib:'Contribuição'
 };
 
 // Type → delRec key mapping
@@ -3765,6 +3817,13 @@ function buildForm(type, d) {
       <div class="ff"><label class="fl">Poupado (€)</label><input class="fi fiu" id="f_saved" type="number" step="0.01" value="${d?d.saved||0:0}"></div>
       <div class="ff"><label class="fl">Data Objetivo</label><input class="fi" id="f_dl" type="date" value="${d?d.deadline||'':''}"></div>
     </div>`;
+    case 'contrib': {
+      var _falta = d ? Math.max(0,(d.goal||0)-(d.saved||0)) : 0;
+      return `<div class="fg">
+        <div class="inf" style="margin-bottom:.75rem">Poupado: <strong>${fmt(d?d.saved||0:0)}</strong> de <strong>${fmt(d?d.goal||0:0)}</strong>${_falta>0?' · em falta: <strong>'+fmt(_falta)+'</strong>':' · <span style="color:var(--grn)">meta atingida</span>'}</div>
+        <div class="ff full"><label class="fl">Valor a contribuir (€)</label><input class="fi fiu" id="f_contrib" type="number" step="0.01" min="0.01" placeholder="0.00" autofocus></div>
+      </div>`;
+    }
     case 'trf': {
       var po1 = selOpts(S.cfg.pay, d&&d.from);
       var po2 = selOpts(S.cfg.pay, d&&d.to);
@@ -3829,6 +3888,9 @@ function validateForm(type) {
     case 'fund':
       if (!fv('f_name')) return 'Nome do fundo obrigatório.';
       if (!(ff('f_goal') > 0)) return 'Objetivo deve ser maior que zero.';
+      return null;
+    case 'contrib':
+      if (!(ff('f_contrib') > 0)) return 'Valor deve ser maior que zero.';
       return null;
     case 'trf':
       if (!fv('f_date')) return 'Data obrigatória.';
@@ -3935,6 +3997,11 @@ function saveModal() {
       var o = {name:gv('f_name'),goal:gf('f_goal'),saved:gf('f_saved'),deadline:gv('f_dl')};
       if (id!==null) { var _t=S.fnds.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.fnds.push(Object.assign({id:nid()}, o));
+      break;
+    }
+    case 'contrib': {
+      var _cf = S.fnds.find(function(x){return x.id===id;});
+      if (_cf) _cf.saved = fromCents(toCents(_cf.saved||0) + toCents(gf('f_contrib')));
       break;
     }
     case 'trf': {
