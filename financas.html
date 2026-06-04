@@ -2423,12 +2423,14 @@ function renderDespesas() {
   if (_cb) _cb.style.display = _dcRangeActive ? '' : 'none';
 
   corr = _sortArr(corr, DC_SORT, DC_DIR);
+  // Entradas de veículo ficam fora da tabela — os totais são calculados via aba Veículo
+  var corrDisplay = corr.filter(function(d){ return d._src !== 'veh'; });
   var totM = sumVal(corr.filter(function(d){return !d._src;}));
   var totP = sumVal(corr.filter(function(d){return d._src==='parc';}));
   var dcPeriodLbl = _dcRangeActive ? (fmtDate(DC_FROM) + ' — ' + fmtDate(DC_TO)) : monthLabel(ym);
   _setHead('dcHead',[{l:'Data',col:'date'},{l:'Nome',col:'name'},{l:'Categoria'},{l:'Valor',col:'val'},{l:'Cartão'},{l:'Notas'},{l:''}],DC_SORT,DC_DIR,'sortDC');
-  var dcPages=Math.ceil(corr.length/DC_PGS)||1;DC_PG=Math.min(DC_PG,dcPages);
-  var corrPage=corr.slice((DC_PG-1)*DC_PGS,DC_PG*DC_PGS);
+  var dcPages=Math.ceil(corrDisplay.length/DC_PGS)||1;DC_PG=Math.min(DC_PG,dcPages);
+  var corrPage=corrDisplay.slice((DC_PG-1)*DC_PGS,DC_PG*DC_PGS);
   _setAnimBody('dcBody', (function() { return corrPage.length ? corrPage.map(function(d) {
     var isAuto = !!d._src;
     var nameCell = d._src === 'fat' ? ('Cartão de Crédito '+_esc(d._fatCard||'')) : _esc(d.name || (d._src === 'parc' ? (d.notes||'').split(' — ')[0] : '') || '—');
@@ -2458,9 +2460,9 @@ function renderDespesas() {
     (_dcRangeActive ? `<tr><td colspan="3" style="font-size:.7rem;color:var(--mut)">${dcPeriodLbl}</td><td class="tred bold">${fmt(totAll)}</td><td colspan="3"></td></tr>` : '') +
     `<tr><td colspan="3">Manual</td><td class="tred">${fmt(totM)}</td><td colspan="3"></td></tr>` +
     `<tr><td colspan="3">Parcelas pagas</td><td class="tpur">${fmt(totP)}</td><td colspan="3"></td></tr>` +
-    (totV>0?`<tr><td colspan="3">🚘 Veículo</td><td class="tylw">${fmt(totV)}</td><td colspan="3"></td></tr>`:'') +
+    (totV>0?`<tr><td colspan="3" style="color:var(--mut)">🚘 Veículo <span style="font-size:.68rem">(ver aba Veículo)</span></td><td class="tylw">${fmt(totV)}</td><td colspan="3"></td></tr>`:'') +
     (totFat>0?`<tr><td colspan="3">💳 Cartão de Crédito</td><td class="tblu">${fmt(totFat)}</td><td colspan="3"></td></tr>`:'');
-  _renderPager('dcPager',DC_PG,corr.length,DC_PGS,'pgDC');
+  _renderPager('dcPager',DC_PG,corrDisplay.length,DC_PGS,'pgDC');
   _applyAllVis();
   // Budget
 }
