@@ -737,6 +737,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 
 <!-- CALENDÁRIO -->
 <div class="pnl" id="p-cal">
+  <div class="kg mb2" id="calKpis"></div>
   <div class="cc mb2">
     <div class="cal-legend">
       <span class="caev evg" style="font-size:.65rem;padding:.12rem .5rem">Receita</span>
@@ -2931,6 +2932,18 @@ function renderCal() {
   S.rec.filter(function(r){return inMonth(r.date,ym);}).forEach(function(r){addEv(parseInt(r.date.slice(8)),_esc(r.src||'')+' '+fmt(r.val),'evg');});
   S.evt.filter(function(e){return inMonth(e.date,ym);}).forEach(function(e){addEv(parseInt(e.date.slice(8)),_esc(e.name||'')+(e.val?' '+fmt(e.val):''),'evb');});
 
+  var _calRec = totRec(ym), _calDesp = totDesp(ym);
+  var _calEvts = S.evt.filter(function(e){ return inMonth(e.date, ym); }).length;
+  var _calRecN = S.rec.filter(function(r){ return inMonth(r.date, ym); }).length;
+  var _calDespN = S.df.filter(function(d){ return isActiveForYm(d, ym); }).length
+                + S.dc.filter(function(d){ return inMonth(d.date, ym); }).length;
+  var prevYmCal = addMonths(ym, -1);
+  var calKpis = document.getElementById('calKpis');
+  if (calKpis) calKpis.innerHTML =
+    `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Receitas</div><div class="kval tgrn">${fmt(_calRec)}</div>${trendHtml(_calRec,totRec(prevYmCal),false)}<div class="ksub">${_calRecN} entrada${_calRecN!==1?'s':''}</div></div>` +
+    `<div class="kc" style="--_a:var(--red)"><div class="klbl">Despesas</div><div class="kval tred">${fmt(_calDesp)}</div>${trendHtml(_calDesp,totDesp(prevYmCal),true)}<div class="ksub">${_calDespN} lançamento${_calDespN!==1?'s':''}</div></div>` +
+    `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Eventos</div><div class="kval tblu">${_calEvts}</div><div class="ksub">${_calEvts ? 'neste mês' : 'sem eventos'}</div></div>`;
+
   var days = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
   var h = days.map(function(d){return `<div class="cahdr">${d}</div>`;}).join('');
   for (var i = 0; i < dow; i++) {
@@ -3014,76 +3027,46 @@ function getCardSnap(card, refDate) {
   return best || {val: 0, date: '0000-01-01'};
 }
 
-function reconcileCard(card) {
+function openReconcileModal(card) {
   var today = todayStr();
   var snap = getCardSnap(card, today);
   var isFirst = snap.date === '0000-01-01';
-
-  var promptMsg;
-  if (isFirst) {
-    promptMsg = 'Definir saldo inicial de "' + card + '" (€):\n\n(ponto de partida — transações futuras ajustam a partir daqui)';
-  } else {
-    var snapDate = snap.date;
-    var allRecIn  = sumVal(S.rec.filter(function(r){return r.card===card&&r.date>snapDate&&r.date<=today;}));
-    var allDcOut  = sumVal(S.dc.filter(function(d){return d.card===card&&d.date>snapDate&&d.date<=today;}));
-    var allTrfIn  = sumVal((S.trf||[]).filter(function(t){return t.to===card&&t.date>snapDate&&t.date<=today;}));
-    var allTrfOut = sumVal((S.trf||[]).filter(function(t){return t.from===card&&t.date>snapDate&&t.date<=today;}));
-    var appBal = snap.val + allRecIn - allDcOut + allTrfIn - allTrfOut;
-    promptMsg = 'Reconciliar "' + card + '"\n\nApp calcula: ' + fmt(appBal) + '\n\nQual o saldo actual no banco? (€)';
-  }
-
-  var realStr = prompt(promptMsg, isFirst ? '' : appBal.toFixed(2));
-  if (realStr === null) return;
-  var real = parseFloat(realStr.replace(',', '.'));
-  if (isNaN(real)) return;
-
-  snapshot();
-
+  var appBal = null;
   if (!isFirst) {
-    var diff = parseFloat((real - appBal).toFixed(2));
-    if (Math.abs(diff) >= 0.01) {
-      if (diff > 0) {
-        S.rec.push({id: nid(), date: today, src: 'Ajuste', val: diff, card: card, notes: 'Reconciliação (' + fmt(appBal) + ' → ' + fmt(real) + ')', _src: 'recon'});
-      } else {
-        S.dc.push({id: nid(), date: today, name: 'Ajuste', cat: 'Ajuste', val: Math.abs(diff), card: card, notes: 'Reconciliação (' + fmt(appBal) + ' → ' + fmt(real) + ')', _src: 'recon'});
-      }
-    } else {
-      showToast('✓ Saldo já correcto — sem diferença');
-      return;
-    }
+    var snapDate = snap.date;
+    appBal = snap.val
+      + sumVal(S.rec.filter(function(r){return r.card===card&&r.date>snapDate&&r.date<=today;}))
+      - sumVal(S.dc.filter(function(d){return d.card===card&&d.date>snapDate&&d.date<=today;}))
+      + sumVal((S.trf||[]).filter(function(t){return t.to===card&&t.date>snapDate&&t.date<=today;}))
+      - sumVal((S.trf||[]).filter(function(t){return t.from===card&&t.date>snapDate&&t.date<=today;}));
   }
-
-  if (!S.cfg.balSnap) S.cfg.balSnap = {};
-  var arr = S.cfg.balSnap[card];
-  if (!Array.isArray(arr)) arr = arr ? [arr] : [];
-  var idx = arr.findIndex ? arr.findIndex(function(s){return s.date===today;}) : -1;
-  if (idx >= 0) { arr[idx] = {val: real, date: today}; } else { arr.push({val: real, date: today}); }
-  S.cfg.balSnap[card] = arr;
-  globalMonth = today.slice(0,7);
-  S.cfg.lastMonth = globalMonth;
-  saveState(); renderTab(CUR); updateGlobalNav();
-  if (isFirst) {
-    showToast('✓ Saldo inicial definido: ' + fmt(real));
-  } else {
-    showToast((diff > 0 ? '↑ +' : '↓ ') + fmt(Math.abs(diff)) + ' ajustado — saldo: ' + fmt(real));
-  }
+  _rcCard = card;
+  mType = 'reconcile'; mId = null;
+  var title = document.getElementById('modalTitle');
+  if (title) title.textContent = (isFirst ? 'Saldo inicial — ' : 'Reconciliar — ') + card;
+  var body = document.getElementById('modalBody');
+  if (body) body.innerHTML = buildForm('reconcile', {card:card, isFirst:isFirst, appBal:appBal});
+  var delArea = document.getElementById('modalDelArea');
+  if (delArea) delArea.innerHTML = '';
+  var modal = document.getElementById('mainModal');
+  if (modal) modal.classList.add('on');
 }
 
-function setFaturaManual(card, ym) {
+function openFatManualModal(card, ym) {
   var cur = ((S.cfg.fatManual||{})[card]||{})[ym];
-  var v = prompt('Valor real do cartão de crédito ' + card + ' em ' + monthLabel(ym) + ':\n(deixe vazio para usar o cálculo automático)', cur != null ? cur : '');
-  if (v === null) return;
-  snapshot();
-  if (!S.cfg.fatManual) S.cfg.fatManual = {};
-  if (!S.cfg.fatManual[card]) S.cfg.fatManual[card] = {};
-  if (v.trim() === '') {
-    delete S.cfg.fatManual[card][ym];
-  } else {
-    var n = parseMoney(v);
-    if (isNaN(n) || n < 0) { alert('Valor inválido'); return; }
-    S.cfg.fatManual[card][ym] = n;
-  }
-  saveState(); renderCartoes(); showToast('✓ Valor do cartão atualizado');
+  var fatCalc = sumVal(S.df.filter(function(d){return d.card===card&&isActiveForYm(d,ym);}))
+             + sumVal(S.dc.filter(function(d){return inMonth(d.date,ym)&&d.card===card&&d._src!=='fat';}))
+             + _autoDebitParcVal(card, ym);
+  _rcCard = card; _rcYm = ym;
+  mType = 'fatmanual'; mId = null;
+  var title = document.getElementById('modalTitle');
+  if (title) title.textContent = 'Fatura — ' + card + ' · ' + monthLabel(ym);
+  var body = document.getElementById('modalBody');
+  if (body) body.innerHTML = buildForm('fatmanual', {cur:cur, fatCalc:fatCalc});
+  var delArea = document.getElementById('modalDelArea');
+  if (delArea) delArea.innerHTML = '';
+  var modal = document.getElementById('mainModal');
+  if (modal) modal.classList.add('on');
 }
 
 function payFatura(card, ym) {
@@ -3152,25 +3135,33 @@ function renderCartoes() {
   var CARD_RGBA = ['rgba(77,143,255,.35)','rgba(167,139,250,.35)','rgba(245,166,35,.35)','rgba(255,84,112,.35)'];
   var CARD_HEX  = ['#4d8fff','#a78bfa','#f5a623','#ff5470'];
 
-  // C1 — Summary KPIs (total entradas, saídas, saldo líquido)
+  // C1 — Summary KPIs (total entradas, saídas, saldo líquido) com trend
   var _smEl = document.getElementById('ctSummaryKpis');
   if (_smEl) {
     if (methods.length === 0) {
       _smEl.innerHTML = '';
     } else {
       var _smIn = 0, _smOut = 0;
+      var prevYmCt = addMonths(ym, -1);
+      var dfPrev = S.df.filter(function(d){ return isActiveForYm(d, prevYmCt); });
+      var dcPrev = S.dc.filter(function(d){ return inMonth(d.date, prevYmCt) && !d._src; });
+      var recPrev = S.rec.filter(function(r){ return inMonth(r.date, prevYmCt); });
+      var _smPrevIn = 0, _smPrevOut = 0;
       methods.forEach(function(card) {
         if ((S.cfg.cardType||{})[card] === 'transit') return;
-        _smIn  += sumVal(recM.filter(function(r){ return r.card===card; }));
-        _smOut += sumVal(dfM.filter(function(d){ return d.card===card; }))
-                + sumVal(dcM.filter(function(d){ return d.card===card; }));
+        _smIn     += sumVal(recM.filter(function(r){ return r.card===card; }));
+        _smOut    += sumVal(dfM.filter(function(d){ return d.card===card; }))
+                  + sumVal(dcM.filter(function(d){ return d.card===card; }));
+        _smPrevIn  += sumVal(recPrev.filter(function(r){ return r.card===card; }));
+        _smPrevOut += sumVal(dfPrev.filter(function(d){ return d.card===card; }))
+                   + sumVal(dcPrev.filter(function(d){ return d.card===card; }));
       });
-      var _smNet = _smIn - _smOut;
+      var _smNet = _smIn - _smOut, _smPrevNet = _smPrevIn - _smPrevOut;
       var _smNetCol = _smNet >= 0 ? 'var(--grn)' : 'var(--red)';
       _smEl.innerHTML =
-        `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Entradas</div><div class="kval tgrn">${fmt(_smIn)}</div></div>` +
-        `<div class="kc" style="--_a:var(--red)"><div class="klbl">Saídas</div><div class="kval tred">${fmt(_smOut)}</div></div>` +
-        `<div class="kc" style="--_a:${_smNetCol}"><div class="klbl">Saldo líquido</div><div class="kval" style="color:${_smNetCol}">${_smNet>=0?'+':''}${fmt(_smNet)}</div></div>`;
+        `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Entradas</div><div class="kval tgrn">${fmt(_smIn)}</div>${trendHtml(_smIn,_smPrevIn,false)}</div>` +
+        `<div class="kc" style="--_a:var(--red)"><div class="klbl">Saídas</div><div class="kval tred">${fmt(_smOut)}</div>${trendHtml(_smOut,_smPrevOut,true)}</div>` +
+        `<div class="kc" style="--_a:${_smNetCol}"><div class="klbl">Saldo líquido</div><div class="kval" style="color:${_smNetCol}">${_smNet>=0?'+':''}${fmt(_smNet)}</div>${trendHtml(_smNet,_smPrevNet,false)}</div>`;
     }
   }
 
@@ -3214,7 +3205,7 @@ function renderCartoes() {
       return `<div class="kc" style="--_a:${col}">
         <div class="kc-hdr">
           <div class="klbl" style="margin:0">⇄ ${card}</div>
-          <button class="ic" onclick="reconcileCard('${safeCard}')" title="Reconciliar com banco" style="font-size:.65rem;width:22px;height:22px">⚖</button>
+          <button class="ic" onclick="openReconcileModal('${safeCard}')" title="Reconciliar com banco" style="font-size:.65rem;width:22px;height:22px">⚖</button>
         </div>
         <div class="kval" style="color:${acumColT}">${fmt(acum)}</div>
         <div class="ksub" style="color:var(--mut);font-size:.62rem">conta de passagem</div>
@@ -3240,7 +3231,7 @@ function renderCartoes() {
       return `<div class="kc" style="--_a:${col}">
         <div class="kc-hdr">
           <div class="klbl" style="margin:0">💳 ${card}</div>
-          <button class="ic" onclick="setFaturaManual('${safeCard}','${ym}')" title="Definir valor de fatura" style="font-size:.7rem;width:22px;height:22px">✏</button>
+          <button class="ic" onclick="openFatManualModal('${safeCard}','${ym}')" title="Definir valor de fatura" style="font-size:.7rem;width:22px;height:22px">✏</button>
         </div>
         <div class="kval tred">${fmt(displayVal)}</div>
         <div class="ksub">${isPaid?'✓ pago':'pagamento pendente'}</div>
@@ -3257,13 +3248,15 @@ function renderCartoes() {
     var netCol  = net  >= 0 ? 'var(--grn)' : 'var(--red)';
     var _hasSnap = snap.date !== '0000-01-01';
     var snapInfo = !_hasSnap ? `<div style="font-size:.58rem;color:var(--ylw);margin-top:.1rem">⚠ defina saldo (⚖)</div>` : '';
+    var _txN = recM.filter(function(r){return r.card===card;}).length + dcM.filter(function(d){return d.card===card;}).length + dfM.filter(function(d){return d.card===card;}).length;
     return `<div class="kc" style="--_a:${col}">
       <div class="kc-hdr">
         <div class="klbl" style="margin:0">${card}</div>
-        <button class="ic" onclick="reconcileCard('${safeCard}')" title="Reconciliar com banco" style="font-size:.65rem;width:22px;height:22px">⚖</button>
+        <button class="ic" onclick="openReconcileModal('${safeCard}')" title="Reconciliar com banco" style="font-size:.65rem;width:22px;height:22px">⚖</button>
       </div>
       <div class="kval" style="color:${acumCol}">${fmt(acum)}</div>
       <div class="ksub" style="color:${netCol};font-weight:700">${net>=0?'+':''}${fmt(net)} este mês</div>
+      <div class="ksub" style="color:var(--mut)">${_txN} transação${_txN!==1?'ões':''}</div>
       ${snapInfo}
     </div>`;
   }).join('');
@@ -3582,10 +3575,10 @@ function calcFromTotal() {
 // ================================================================
 // MODALS
 // ================================================================
-var mType = null, mId = null;
+var mType = null, mId = null, _rcCard = null, _rcYm = null, _mToast = null;
 var MODAL_TITLES = {
   receita:'Receita', dfixa:'Despesa Fixa', dcorr:'Despesa Corrente',
-  carga:'Carga Elétrica', limp:'Despesa do Veículo', vehfix:'Despesa Fixa Veículo', parc:'Parcela', evt:'Evento', fund:'Fundo de Poupança', trf:'Transferência Interna', contrib:'Contribuição'
+  carga:'Carga Elétrica', limp:'Despesa do Veículo', vehfix:'Despesa Fixa Veículo', parc:'Parcela', evt:'Evento', fund:'Fundo de Poupança', trf:'Transferência Interna', contrib:'Contribuição', reconcile:'Reconciliação', fatmanual:'Fatura'
 };
 
 // Type → delRec key mapping
@@ -3835,6 +3828,22 @@ function buildForm(type, d) {
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
       </div>`;
     }
+    case 'reconcile': {
+      var _isFirst = d && d.isFirst;
+      var _appBal = (d && d.appBal !== null && d.appBal !== undefined) ? d.appBal : null;
+      var _rinfo = _isFirst
+        ? `<div class="inf" style="margin-bottom:.75rem">Ponto de partida para <strong>${_esc(d.card)}</strong>. As transações futuras ajustam a partir daqui.</div>`
+        : `<div class="inf" style="margin-bottom:.75rem">App calcula: <strong>${fmt(_appBal)}</strong></div>`;
+      return `<div class="fg">${_rinfo}<div class="ff full"><label class="fl">Saldo real no banco (€)</label><input class="fi fiu" id="f_real_bal" type="number" step="0.01" placeholder="${_appBal !== null ? _appBal.toFixed(2) : '0.00'}" autofocus></div></div>`;
+    }
+    case 'fatmanual': {
+      var _hasCur = d && d.cur != null;
+      return `<div class="fg">
+        <div class="inf" style="margin-bottom:.75rem">Cálculo automático: <strong>${fmt(d.fatCalc)}</strong>${_hasCur ? ' · manual activo: <strong>'+fmt(d.cur)+'</strong>' : ''}</div>
+        <div class="ff full"><label class="fl">Valor manual da fatura (€)</label><input class="fi fiu" id="f_fat_val" type="number" step="0.01" placeholder="${d.fatCalc.toFixed(2)}" value="${_hasCur ? d.cur : ''}" autofocus></div>
+        <div class="tmut" style="font-size:.72rem;margin-top:.35rem">Deixe vazio para voltar ao cálculo automático.</div>
+      </div>`;
+    }
     default: return '';
   }
 }
@@ -3892,6 +3901,16 @@ function validateForm(type) {
     case 'contrib':
       if (!(ff('f_contrib') > 0)) return 'Valor deve ser maior que zero.';
       return null;
+    case 'reconcile': {
+      var _rv = parseFloat((document.getElementById('f_real_bal')||{}).value);
+      if (isNaN(_rv)) return 'Introduza o saldo real.';
+      return null;
+    }
+    case 'fatmanual': {
+      var _fv = ((document.getElementById('f_fat_val')||{}).value||'').trim();
+      if (_fv !== '' && (isNaN(parseFloat(_fv)) || parseFloat(_fv) < 0)) return 'Valor inválido.';
+      return null;
+    }
     case 'trf':
       if (!fv('f_date')) return 'Data obrigatória.';
       if (!(ff('f_val') > 0)) return 'Valor deve ser maior que zero.';
@@ -4004,6 +4023,42 @@ function saveModal() {
       if (_cf) _cf.saved = fromCents(toCents(_cf.saved||0) + toCents(gf('f_contrib')));
       break;
     }
+    case 'reconcile': {
+      var _rcard = _rcCard, _today2 = todayStr();
+      var _rsnap = getCardSnap(_rcard, _today2), _risFirst = _rsnap.date === '0000-01-01';
+      var _real = parseFloat((document.getElementById('f_real_bal')||{}).value);
+      if (!_risFirst) {
+        var _rsd = _rsnap.date;
+        var _rAppBal = _rsnap.val
+          + sumVal(S.rec.filter(function(r){return r.card===_rcard&&r.date>_rsd&&r.date<=_today2;}))
+          - sumVal(S.dc.filter(function(d){return d.card===_rcard&&d.date>_rsd&&d.date<=_today2;}))
+          + sumVal((S.trf||[]).filter(function(t){return t.to===_rcard&&t.date>_rsd&&t.date<=_today2;}))
+          - sumVal((S.trf||[]).filter(function(t){return t.from===_rcard&&t.date>_rsd&&t.date<=_today2;}));
+        var _rdiff = parseFloat((_real - _rAppBal).toFixed(2));
+        if (Math.abs(_rdiff) >= 0.01) {
+          if (_rdiff > 0) S.rec.push({id:nid(),date:_today2,src:'Ajuste',val:_rdiff,card:_rcard,notes:'Reconciliação ('+fmt(_rAppBal)+' → '+fmt(_real)+')',_src:'recon'});
+          else S.dc.push({id:nid(),date:_today2,name:'Ajuste',cat:'Ajuste',val:Math.abs(_rdiff),card:_rcard,notes:'Reconciliação ('+fmt(_rAppBal)+' → '+fmt(_real)+')',_src:'recon'});
+          _mToast = (_rdiff>0?'↑ +':'↓ ')+fmt(Math.abs(_rdiff))+' ajustado — saldo: '+fmt(_real);
+        } else { _mToast = '✓ Saldo já correcto'; }
+      } else { _mToast = '✓ Saldo inicial definido: ' + fmt(_real); }
+      if (!S.cfg.balSnap) S.cfg.balSnap = {};
+      var _rarr = S.cfg.balSnap[_rcard];
+      if (!Array.isArray(_rarr)) _rarr = _rarr ? [_rarr] : [];
+      var _ridx = _rarr.findIndex ? _rarr.findIndex(function(s){return s.date===_today2;}) : -1;
+      if (_ridx >= 0) { _rarr[_ridx] = {val:_real,date:_today2}; } else { _rarr.push({val:_real,date:_today2}); }
+      S.cfg.balSnap[_rcard] = _rarr;
+      globalMonth = _today2.slice(0,7); S.cfg.lastMonth = globalMonth;
+      break;
+    }
+    case 'fatmanual': {
+      var _fcard2 = _rcCard, _fym2 = _rcYm;
+      var _fval2 = ((document.getElementById('f_fat_val')||{}).value||'').trim();
+      if (!S.cfg.fatManual) S.cfg.fatManual = {};
+      if (!S.cfg.fatManual[_fcard2]) S.cfg.fatManual[_fcard2] = {};
+      if (_fval2 === '') { delete S.cfg.fatManual[_fcard2][_fym2]; _mToast = '✓ Reposto para cálculo automático'; }
+      else { S.cfg.fatManual[_fcard2][_fym2] = parseFloat(_fval2); _mToast = '✓ Fatura manual: ' + fmt(parseFloat(_fval2)); }
+      break;
+    }
     case 'trf': {
       var o = {date:gv('f_date'),from:gv('f_from'),to:gv('f_to'),val:gf('f_val'),notes:gv('f_notes')};
       if (!S.trf) S.trf = [];
@@ -4025,7 +4080,9 @@ function saveModal() {
   saveState();
   closeModal();
   renderTab(CUR);
-  showToast('✓ Guardado');
+  if (mType === 'reconcile') updateGlobalNav();
+  showToast(_mToast || '✓ Guardado');
+  _mToast = null;
 }
 
 function _initSwipe(tbodyId, type) {
