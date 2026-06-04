@@ -876,10 +876,6 @@ var _fbDb = null;
       });
     }
     var _fbPw = localStorage.getItem('_fbPw');
-    if (!_fbPw) {
-      _fbPw = prompt('Senha de sincronização cloud (guardada apenas neste browser):');
-      if (_fbPw) localStorage.setItem('_fbPw', _fbPw);
-    }
     if (_fbPw) {
       firebase.auth().signInWithEmailAndPassword('qf@orgfinanceira.local', _fbPw).then(function() {
         _fbDb = firebase.database();
@@ -887,10 +883,69 @@ var _fbDb = null;
       }).catch(function(e){
         console.warn('[FB auth]', e);
         localStorage.removeItem('_fbPw');
+        _fbShowLoginModal();
       });
+    } else {
+      _fbShowLoginModal();
     }
   } catch(e) { console.warn('[FB init]', e); }
 })();
+
+function _fbShowLoginModal() {
+  var el = document.getElementById('_fbLoginModal');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = '_fbLoginModal';
+    el.className = 'mover';
+    el.style.zIndex = '2000';
+    document.body.appendChild(el);
+  }
+  el.innerHTML =
+    '<div class="mbox" style="max-width:380px">' +
+      '<div class="mhdr"><div class="mttl">☁ Sincronização Cloud</div></div>' +
+      '<div class="ff" style="margin-bottom:1rem">' +
+        '<label class="fl">Senha de sincronização</label>' +
+        '<input id="_fbPwInput" class="fi" type="password" placeholder="Senha..." autocomplete="current-password">' +
+        '<div id="_fbPwErr" style="font-size:.72rem;color:var(--red);margin-top:.25rem;display:none">Senha incorrecta. Tenta novamente.</div>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:.45rem">' +
+        '<button class="btn pri" style="justify-content:center" onclick="_fbLoginSubmit()">Ligar ao Firebase</button>' +
+        '<button class="btn sec" style="justify-content:center" onclick="_fbLoginSkip()">Continuar sem sincronização</button>' +
+      '</div>' +
+      '<div style="margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--brd);font-size:.72rem;color:var(--mut);line-height:1.6">' +
+        '💡 Esqueceste a senha? Vai a <strong style="color:var(--txt)">console.firebase.google.com</strong> → Authentication → Users → <code>qf@orgfinanceira.local</code> → Reset password.' +
+      '</div>' +
+    '</div>';
+  el.classList.add('on');
+  setTimeout(function(){ var i=document.getElementById('_fbPwInput'); if(i) i.focus(); }, 150);
+  var inp = document.getElementById('_fbPwInput');
+  if (inp) inp.addEventListener('keydown', function(e){ if(e.key==='Enter') _fbLoginSubmit(); });
+}
+
+function _fbLoginSubmit() {
+  var pw = (document.getElementById('_fbPwInput')||{}).value || '';
+  if (!pw) return;
+  var errEl = document.getElementById('_fbPwErr');
+  firebase.auth().signInWithEmailAndPassword('qf@orgfinanceira.local', pw).then(function() {
+    localStorage.setItem('_fbPw', pw);
+    _fbDb = firebase.database();
+    var el = document.getElementById('_fbLoginModal');
+    if (el) el.classList.remove('on');
+    _fbSync(false);
+    showToast('☁ Ligado ao Firebase');
+  }).catch(function(e) {
+    console.warn('[FB auth]', e);
+    if (errEl) errEl.style.display = '';
+    var inp = document.getElementById('_fbPwInput');
+    if (inp) { inp.value=''; inp.focus(); }
+  });
+}
+
+function _fbLoginSkip() {
+  var el = document.getElementById('_fbLoginModal');
+  if (el) el.classList.remove('on');
+  _fbMarkUnsaved(true);
+}
 
 // Dot vermelho no botão 🔄 quando há dados não sincronizados
 var _fbRetryTimer = null;
