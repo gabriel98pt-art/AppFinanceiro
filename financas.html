@@ -1848,6 +1848,16 @@ function setCatColor(type, cat, color) {
   saveState();
   renderTab(CUR);
 }
+function _kpiC(key, def) { return (S.cfg.kpiColors||{})[key] || def; }
+function setKpiColor(key, val) {
+  if (!S.cfg.kpiColors) S.cfg.kpiColors = {};
+  S.cfg.kpiColors[key] = val;
+  saveState();
+  renderTab(CUR);
+  document.querySelectorAll('[data-ks="'+key+'"]').forEach(function(b){
+    b.style.outline = b.dataset.kv === val ? '2px solid var(--txt)' : 'none';
+  });
+}
 
 // Zero-pad helper — padStart args were reversed, use this instead
 function pad2(n){return n<10?'0'+String(n):String(n);}
@@ -2319,10 +2329,10 @@ function renderReceitas() {
   var _prevMaxRec = _prevMnRecs.length ? Math.max.apply(null, _prevMnRecs.map(function(r){return r.val;})) : 0;
   var kEl = document.getElementById('recKpis');
   if (kEl) kEl.innerHTML =
-    `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Total</div><div class="kval-row"><div class="kval tgrn">${fmt(mnTot)}</div>${trendHtml(mnTot,prevTot,false)}</div></div>` +
-    `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Vencimento</div><div class="kval-row"><div class="kval tblu">${fmt(_recVenc)}</div>${trendHtml(_recVenc,_prevRecVenc,false)}</div></div>` +
-    `<div class="kc" style="--_a:var(--pur)"><div class="klbl">Transferências</div><div class="kval-row"><div class="kval tpur">${fmt(_trfIn)}</div>${trendHtml(_trfIn,_prevTrfIn,false)}</div></div>` +
-    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">Maior receita</div><div class="kval-row"><div class="kval tylw">${fmt(_maxRec)}</div>${trendHtml(_maxRec,_prevMaxRec,false)}</div></div>`;
+    `<div class="kc" style="--_a:${_kpiC('rec-total','var(--grn)')}"><div class="klbl">Total</div><div class="kval-row"><div class="kval" style="color:${_kpiC('rec-total','var(--grn)')}">${fmt(mnTot)}</div>${trendHtml(mnTot,prevTot,false)}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('rec-venc','var(--blu)')}"><div class="klbl">Vencimento</div><div class="kval-row"><div class="kval" style="color:${_kpiC('rec-venc','var(--blu)')}">${fmt(_recVenc)}</div>${trendHtml(_recVenc,_prevRecVenc,false)}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('rec-trf','var(--pur)')}"><div class="klbl">Transferências</div><div class="kval-row"><div class="kval" style="color:${_kpiC('rec-trf','var(--pur)')}">${fmt(_trfIn)}</div>${trendHtml(_trfIn,_prevTrfIn,false)}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('rec-max','var(--ylw)')}"><div class="klbl">Maior receita</div><div class="kval-row"><div class="kval" style="color:${_kpiC('rec-max','var(--ylw)')}">${fmt(_maxRec)}</div>${trendHtml(_maxRec,_prevMaxRec,false)}</div></div>`;
 
   // Mini 6-month evolution chart (R2)
   var _miniEl = document.getElementById('recMiniChart');
@@ -2382,10 +2392,10 @@ function renderDespesas() {
   var dkEl = document.getElementById('despKpis');
   var _parcCol = (S.cfg.catColors||{})['ccat:Parcelas'] || CAT_SEMANTIC['Parcelas'] || '#f43f5e';
   if (dkEl) dkEl.innerHTML =
-    `<div class="kc" style="--_a:var(--red)"><div class="klbl">Total</div><div class="kval-row"><div class="kval tred">${fmt(_dTot)}</div>${trendHtml(_dTot,_pdTot,true)}</div></div>` +
-    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">Fixas</div><div class="kval tylw">${fmt(_dFix)}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('desp-total','var(--red)')}"><div class="klbl">Total</div><div class="kval-row"><div class="kval" style="color:${_kpiC('desp-total','var(--red)')}">${fmt(_dTot)}</div>${trendHtml(_dTot,_pdTot,true)}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('desp-fix','var(--ylw)')}"><div class="klbl">Fixas</div><div class="kval" style="color:${_kpiC('desp-fix','var(--ylw)')}">${fmt(_dFix)}</div></div>` +
     `<div class="kc" style="--_a:${_parcCol}"><div class="klbl">Parcelas</div><div class="kval" style="color:${_parcCol}">${fmt(_dParc)}</div></div>` +
-    `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Variáveis</div><div class="kval-row"><div class="kval tblu">${fmt(_dCorr)}</div>${trendHtml(_dCorr,_pdCorr,true)}</div></div>`;
+    `<div class="kc" style="--_a:${_kpiC('desp-corr','var(--blu)')}"><div class="klbl">Variáveis</div><div class="kval-row"><div class="kval" style="color:${_kpiC('desp-corr','var(--blu)')}">${fmt(_dCorr)}</div>${trendHtml(_dCorr,_pdCorr,true)}</div></div>`;
 
   // Widget — próximos pagamentos (só mês actual)
   var proxEl = document.getElementById('despProx');
@@ -2599,10 +2609,10 @@ function renderVeiculo() {
   var _prevAll = _prevCg + _prevLp + _prevFix;
   var kEl = document.getElementById('vehKpis');
   if (kEl) kEl.innerHTML =
-    `<div class="kc" style="--_a:var(--pur)"><div class="klbl">Total</div><div class="kval-row"><div class="kval tpur">${fmt(totAll)}</div>${trendHtml(totAll,_prevAll,true)}</div></div>` +
-    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">⚡ Carga</div><div class="kval-row"><div class="kval tylw">${fmt(totCg)}</div>${trendHtml(totCg,_prevCg,true)}</div></div>` +
-    `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Fixas</div><div class="kval tgrn">${fmt(totFix)}</div></div>` +
-    `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Variáveis</div><div class="kval tblu">${fmt(totLp)}</div></div>`;
+    `<div class="kc" style="--_a:${_kpiC('veh-total','var(--pur)')}"><div class="klbl">Total</div><div class="kval-row"><div class="kval" style="color:${_kpiC('veh-total','var(--pur)')}">${fmt(totAll)}</div>${trendHtml(totAll,_prevAll,true)}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('veh-cg','var(--ylw)')}"><div class="klbl">⚡ Carga</div><div class="kval-row"><div class="kval" style="color:${_kpiC('veh-cg','var(--ylw)')}">${fmt(totCg)}</div>${trendHtml(totCg,_prevCg,true)}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('veh-fix','var(--grn)')}"><div class="klbl">Fixas</div><div class="kval" style="color:${_kpiC('veh-fix','var(--grn)')}">${fmt(totFix)}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('veh-var','var(--blu)')}"><div class="klbl">Variáveis</div><div class="kval" style="color:${_kpiC('veh-var','var(--blu)')}">${fmt(totLp)}</div></div>`;
 
   // Carga — filtered by month
   var cg = S.veh.cg.filter(function(d){return inMonth(d.date, ym);}).sort(function(a,b){return b.date>a.date?1:-1;});
@@ -2739,10 +2749,10 @@ function renderParcelas() {
   if (badge) badge.textContent = _parcAtivas ? _parcAtivas + ' ativas' : '';
   var kEl = document.getElementById('parcKpis');
   if (kEl) kEl.innerHTML =
-    `<div class="kc" style="--_a:var(--pur)"><div class="klbl">Total mensal</div><div class="kval tpur">${fmt(totM)}</div></div>` +
-    `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Pago</div><div class="kval tgrn">${fmt(totMPaid)}</div></div>` +
-    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">Em aberto</div><div class="kval tylw">${fmt(totMPending)}</div></div>` +
-    `<div class="kc" style="--_a:var(--red)"><div class="klbl">Dívida restante</div><div class="kval tred">${fmt(totDiv)}</div></div>`;
+    `<div class="kc" style="--_a:${_kpiC('par-total','var(--pur)')}"><div class="klbl">Total mensal</div><div class="kval" style="color:${_kpiC('par-total','var(--pur)')}">${fmt(totM)}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('par-pago','var(--grn)')}"><div class="klbl">Pago</div><div class="kval" style="color:${_kpiC('par-pago','var(--grn)')}">${fmt(totMPaid)}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('par-aberto','var(--ylw)')}"><div class="klbl">Em aberto</div><div class="kval" style="color:${_kpiC('par-aberto','var(--ylw)')}">${fmt(totMPending)}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('par-divida','var(--red)')}"><div class="klbl">Dívida restante</div><div class="kval" style="color:${_kpiC('par-divida','var(--red)')}">${fmt(totDiv)}</div></div>`;
 
   var h = '';
   if (!S.par.length) {
@@ -3378,10 +3388,10 @@ function renderMetas() {
 
   var mkEl = document.getElementById('metaKpis');
   if (mkEl) mkEl.innerHTML =
-    `<div class="kc" style="--_a:var(--grn)"><div class="klbl">Meta Mensal</div><div class="kval tgrn">${fmt(goal)}</div><div class="ksub">${pct}% atingido</div></div>` +
-    `<div class="kc" style="--_a:var(--blu)"><div class="klbl">Taxa de Poupança</div><div class="kval tblu">${_txPoupanca}%</div><div class="ksub">${rec > 0 ? fmt(Math.max(0,sld)) + ' guardado' : 'sem receitas'}</div></div>` +
-    `<div class="kc" style="--_a:var(--pur)"><div class="klbl">Total em Fundos</div><div class="kval tpur">${fmt(_totalFunds)}</div><div class="ksub">${S.fnds.length} fundo${S.fnds.length!==1?'s':''}</div></div>` +
-    `<div class="kc" style="--_a:var(--ylw)"><div class="klbl">Poupado (12m)</div><div class="kval" style="color:var(--ylw)">${fmt(_annSav)}</div><div class="ksub">últimos 12 meses</div></div>`;
+    `<div class="kc" style="--_a:${_kpiC('meta-goal','var(--grn)')}"><div class="klbl">Meta Mensal</div><div class="kval" style="color:${_kpiC('meta-goal','var(--grn)')}">${fmt(goal)}</div><div class="ksub">${pct}% atingido</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('meta-taxa','var(--blu)')}"><div class="klbl">Taxa de Poupança</div><div class="kval" style="color:${_kpiC('meta-taxa','var(--blu)')}">${_txPoupanca}%</div><div class="ksub">${rec > 0 ? fmt(Math.max(0,sld)) + ' guardado' : 'sem receitas'}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('meta-funds','var(--pur)')}"><div class="klbl">Total em Fundos</div><div class="kval" style="color:${_kpiC('meta-funds','var(--pur)')}">${fmt(_totalFunds)}</div><div class="ksub">${S.fnds.length} fundo${S.fnds.length!==1?'s':''}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('meta-ann','var(--ylw)')}"><div class="klbl">Poupado (12m)</div><div class="kval" style="color:${_kpiC('meta-ann','var(--ylw)')}">${fmt(_annSav)}</div><div class="ksub">últimos 12 meses</div></div>`;
 
   var ms = document.getElementById('metaSav');
   if (ms) ms.innerHTML = `
@@ -4202,6 +4212,32 @@ function openSettings() {
     + _cp('scol_blu', _cols.blu||_COLOR_ACC_DEF.blu, 'Azul')
     + _cp('scol_pur', _cols.pur||_COLOR_ACC_DEF.pur, 'Roxo')
     + '</div></div>';
+  // KPI colors section
+  var _KPI_PAL = ['var(--grn)','var(--red)','var(--blu)','var(--pur)','var(--ylw)','var(--mut)'];
+  var _KPI_PAL_LBL = ['Verde','Vermelho','Azul','Roxo','Amarelo','Cinza'];
+  var _KPI_GROUPS = [
+    {lbl:'Receitas',  keys:[['rec-total','Total','var(--grn)'],['rec-venc','Vencimento','var(--blu)'],['rec-trf','Transferências','var(--pur)'],['rec-max','Maior receita','var(--ylw)']]},
+    {lbl:'Despesas',  keys:[['desp-total','Total','var(--red)'],['desp-fix','Fixas','var(--ylw)'],['desp-corr','Variáveis','var(--blu)']]},
+    {lbl:'Veículo',   keys:[['veh-total','Total','var(--pur)'],['veh-cg','⚡ Carga','var(--ylw)'],['veh-fix','Fixas','var(--grn)'],['veh-var','Variáveis','var(--blu)']]},
+    {lbl:'Parcelas',  keys:[['par-total','Total mensal','var(--pur)'],['par-pago','Pago','var(--grn)'],['par-aberto','Em aberto','var(--ylw)'],['par-divida','Dívida restante','var(--red)']]},
+    {lbl:'Metas',     keys:[['meta-goal','Meta Mensal','var(--grn)'],['meta-taxa','Taxa Poupança','var(--blu)'],['meta-funds','Total Fundos','var(--pur)'],['meta-ann','Poupado (12m)','var(--ylw)']]}
+  ];
+  h += '<div class="ss" style="margin-bottom:.55rem"><h4>Cores dos KPIs</h4><div style="margin-top:.5rem">';
+  _KPI_GROUPS.forEach(function(g) {
+    h += '<div style="font-size:.68rem;font-weight:700;color:var(--mut);margin:.5rem 0 .2rem;text-transform:uppercase;letter-spacing:.04em">'+g.lbl+'</div>';
+    g.keys.forEach(function(k) {
+      var key = k[0], lbl = k[1], def = k[2];
+      var cur = _kpiC(key, def);
+      h += '<div class="srow" style="padding:.22rem 0"><span class="srow-label" style="font-size:.75rem">'+lbl+'</span><span style="display:flex;gap:.3rem;align-items:center">';
+      _KPI_PAL.forEach(function(col, ci) {
+        var sel = cur === col;
+        h += '<button data-ks="'+key+'" data-kv="'+col+'" onclick="setKpiColor(\''+key+'\',\''+col+'\')" title="'+_KPI_PAL_LBL[ci]+'" style="width:18px;height:18px;border-radius:50%;background:'+col+';border:none;cursor:pointer;flex-shrink:0;outline:'+(sel?'2px solid var(--txt)':'none')+';outline-offset:2px"></button>';
+      });
+      h += '</span></div>';
+    });
+  });
+  h += '</div></div>';
+
   var _thLbls = {bg:'Fundo',s1:'Cards',s2:'Sub-área',s3:'Hover/sel.',txt:'Texto',mut:'Texto sec.',brd:'Borda'};
   function _thSection(themeKey, defs, tcols) {
     var ico = themeKey === 'dark' ? '🌙' : '☀️';
