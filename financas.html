@@ -424,6 +424,18 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 .qsave.qte{background:var(--red);color:#fff;box-shadow:0 4px 16px rgba(255,84,112,.3)}
 .qsave.qti{background:var(--grn);color:#0d0f18;box-shadow:0 4px 16px rgba(0,212,160,.24)}
 .qsave.qtv{background:var(--ylw);color:#0d0f18;box-shadow:0 4px 16px rgba(245,166,35,.3)}
+.qvsub{display:flex;gap:.3rem;margin-bottom:.75rem}
+.qvspill{flex:1;border-radius:7px;padding:.42rem;font-size:.74rem;font-weight:700;
+         text-align:center;color:var(--mut);border:1px solid var(--brd);cursor:pointer;
+         background:var(--s2);touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+         transition:all .16s}
+.qvspill.on-dep{background:var(--ylw);color:#0d0f18;border-color:var(--ylw);box-shadow:0 2px 8px rgba(245,166,35,.32)}
+.qvspill.on-cg{background:var(--blu);color:#fff;border-color:var(--blu);box-shadow:0 2px 8px rgba(77,143,255,.32)}
+.qcginp{width:100%;background:var(--s2);border:1.5px solid var(--brd);border-radius:10px;
+        padding:.55rem .8rem;font-size:.9rem;color:var(--txt);outline:none;
+        font-family:inherit;box-sizing:border-box;margin-bottom:.85rem;-webkit-appearance:none}
+.qcginp:focus{border-color:rgba(77,143,255,.5)}
+.qsave.on-cg{background:var(--blu);color:#fff;box-shadow:0 4px 16px rgba(77,143,255,.3)}
 /* search + card filter bar */
 .srch-bar{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;padding:.55rem 1rem;border-bottom:1px solid var(--brd);background:var(--s2)}
 .srch-bar input{flex:1;min-width:120px;background:var(--bg);border:1px solid var(--brd);border-radius:var(--r-sm);padding:.32rem .65rem;font-size:.8rem;color:var(--txt);outline:none}
@@ -6326,14 +6338,16 @@ window.addEventListener('resize', fixStickyOffsets);
 // ================================================================
 // QUICK-ADD FAB
 // ================================================================
-var _qT='e', _qCat='', _qAcc='';
+var _qT='e', _qCat='', _qAcc='', _qVSub='dep';
 
 function qOpen() {
-  _qCat=''; _qAcc='';
+  _qCat=''; _qAcc=''; _qVSub='dep';
   var ai=document.getElementById('qAmt'); if(ai) ai.value='';
   var ni=document.getElementById('qNote'); if(ni) ni.value='';
   var di=document.getElementById('qDate'); if(di) di.value=todayStr();
   var ll=document.getElementById('qDateLbl'); if(ll) ll.textContent='Hoje';
+  var lo=document.getElementById('qLocal'); if(lo) lo.value='';
+  var kw=document.getElementById('qKwh'); if(kw) kw.value='';
   _qRender();
   document.getElementById('qOv').classList.add('on');
   document.getElementById('qSh').classList.add('on');
@@ -6343,29 +6357,61 @@ function qClose() {
   document.getElementById('qOv').classList.remove('on');
   document.getElementById('qSh').classList.remove('on');
 }
-function qType(t) { _qT=t; _qCat=''; _qRender(); }
+function qType(t) { _qT=t; _qCat=''; _qVSub='dep'; _qRender(); }
+function qVSub(s) { _qVSub=s; _qCat=''; _qRender(); }
 
 function _qRender() {
   var isE=_qT==='e', isV=_qT==='v', isI=_qT==='i';
+  var isCg=isV&&_qVSub==='cg';
+
+  // type pills
   var pe=document.getElementById('qtE'), pi=document.getElementById('qtI'), pv=document.getElementById('qtV');
   if(pe) pe.className='qtpill'+(isE?' qte':'');
   if(pi) pi.className='qtpill'+(isI?' qti':'');
   if(pv) pv.className='qtpill'+(isV?' qtv':'');
-  var aw=document.getElementById('qAmtWrap'); if(aw) aw.className='qamt-wrap '+(isV?'qtv':_qT);
+
+  // vehicle sub-type row
+  var vsr=document.getElementById('qVSubRow');
+  if(vsr) vsr.style.display=isV?'':'none';
+  var vsd=document.getElementById('qvsD'), vsc=document.getElementById('qvsCg');
+  if(vsd) vsd.className='qvspill'+(isCg?'':' on-dep');
+  if(vsc) vsc.className='qvspill'+(isCg?' on-cg':'');
+
+  // amount wrap colour
+  var aw=document.getElementById('qAmtWrap');
+  if(aw) aw.className='qamt-wrap '+(isCg?'qtv':isV?'qtv':_qT);
+
+  // save button
   var sb=document.getElementById('qSaveBtn');
-  if(sb){ sb.className='qsave '+(isV?'qtv':_qT); sb.textContent='Guardar '+(isE?'despesa':isV?'despesa veículo':'receita'); }
-  var cl=document.getElementById('qCatLbl'); if(cl) cl.textContent=isE?'Categoria':isV?'Categoria':'Fonte';
+  if(sb){
+    sb.className='qsave '+(isCg?'on-cg':isV?'qtv':_qT);
+    sb.textContent='Guardar '+(isE?'despesa':isCg?'carga':isV?'despesa veículo':'receita');
+  }
 
-  var cats=isE?(S.cfg.ccat||[]):isV?(S.cfg.vcat||[]):(S.cfg.src||[]);
-  if(!_qCat && cats.length) _qCat=cats[0];
-  var chipCls=isE?'qce':isV?'qcv':'qci';
+  // category section — hidden for carga
+  var cl=document.getElementById('qCatLbl');
   var cc=document.getElementById('qCatChips');
-  if(cc) cc.innerHTML=cats.map(function(c){
-    var sel=_qCat===c;
-    return '<div class="qchip'+(sel?' '+chipCls:'')
-      +'" onclick="qPickCat('+JSON.stringify(c).replace(/"/g,'&quot;')+')">'+_esc(c)+'</div>';
-  }).join('');
+  if(isCg){
+    if(cl) cl.style.display='none';
+    if(cc) { cc.innerHTML=''; cc.style.display='none'; }
+  } else {
+    if(cl){ cl.style.display=''; cl.textContent=isE?'Categoria':isV?'Categoria':'Fonte'; }
+    if(cc) cc.style.display='';
+    var cats=isE?(S.cfg.ccat||[]):isV?(S.cfg.vcat||[]):(S.cfg.src||[]);
+    if(!_qCat && cats.length) _qCat=cats[0];
+    var chipCls=isE?'qce':isV?'qcv':'qci';
+    if(cc) cc.innerHTML=cats.map(function(c){
+      var sel=_qCat===c;
+      return '<div class="qchip'+(sel?' '+chipCls:'')
+        +'" onclick="qPickCat('+JSON.stringify(c).replace(/"/g,'&quot;')+')">'+_esc(c)+'</div>';
+    }).join('');
+  }
 
+  // carga fields (Local + kWh)
+  var cgw=document.getElementById('qCgWrap');
+  if(cgw) cgw.style.display=isCg?'':'none';
+
+  // accounts
   var accs=S.cfg.pay||[];
   if(!_qAcc && accs.length) _qAcc=accs[0];
   var ac=document.getElementById('qAccChips');
@@ -6413,6 +6459,16 @@ function qSave(){
   snapshot();
   if(_qT==='i'){
     S.rec.push({id:nid(),date:date,src:cat,val:amt,card:acc,notes:notes});
+  } else if(_qT==='v' && _qVSub==='cg'){
+    if(!S.veh) S.veh={cg:[],lp:[],df:[]};
+    if(!S.veh.cg) S.veh.cg=[];
+    var local=((document.getElementById('qLocal')||{}).value||'').trim().slice(0,80);
+    var kwhRaw=(document.getElementById('qKwh')||{}).value||'';
+    var kwh=kwhRaw?Math.round(parseFloat(kwhRaw)*100)/100:null;
+    var cgId=nid();
+    S.veh.cg.push({id:cgId,date:date,local:local,kwh:kwh,val:amt,card:acc,notes:notes});
+    var cgNotes=local?'⚡ '+local+(kwh?' ('+kwh+' kWh)':''):'Carga Elétrica';
+    S.dc.push({id:nid(),date:date,cat:'Carga Elétrica',val:amt,card:acc,notes:cgNotes,_src:'veh',_vid:cgId,_vtype:'carga'});
   } else if(_qT==='v'){
     if(!S.veh) S.veh={cg:[],lp:[],df:[]};
     if(!S.veh.lp) S.veh.lp=[];
@@ -6421,7 +6477,8 @@ function qSave(){
     S.dc.push({id:nid(),date:date,name:cat,cat:cat,val:amt,card:acc,notes:notes});
   }
   saveState(); renderTab(CUR); qClose();
-  showToast('✓ '+(_qT==='i'?'Receita':_qT==='v'?'Despesa veículo':'Despesa')+' guardada — '+amt.toFixed(2)+' €');
+  var _toastLabel=_qT==='i'?'Receita':(_qT==='v'&&_qVSub==='cg')?'Carga elétrica':_qT==='v'?'Despesa veículo':'Despesa';
+  showToast('✓ '+_toastLabel+' guardada — '+amt.toFixed(2)+' €');
 }
 
 // ================================================================
@@ -6545,6 +6602,10 @@ function _impBankFile(bank) {
     <button class="qtpill" id="qtI" onclick="qType('i')">↗ Receita</button>
     <button class="qtpill" id="qtV" onclick="qType('v')">🚗 Veículo</button>
   </div>
+  <div class="qvsub" id="qVSubRow" style="display:none">
+    <button class="qvspill on-dep" id="qvsD" onclick="qVSub('dep')">🚘 Despesa</button>
+    <button class="qvspill" id="qvsCg" onclick="qVSub('cg')">⚡ Carga</button>
+  </div>
   <div class="qamt-wrap qte" id="qAmtWrap">
     <div class="qaml">Valor</div>
     <div class="qamr">
@@ -6555,6 +6616,12 @@ function _impBankFile(bank) {
   </div>
   <div class="qsl" id="qCatLbl">Categoria</div>
   <div class="qchips" id="qCatChips"></div>
+  <div id="qCgWrap" style="display:none">
+    <div class="qsl">Local</div>
+    <input class="qcginp" id="qLocal" type="text" placeholder="ex: LIDL, Casa..." autocomplete="off" maxlength="80">
+    <div class="qsl">kWh <span style="font-weight:400;opacity:.5">(opcional)</span></div>
+    <input class="qcginp" id="qKwh" type="number" step="0.01" placeholder="0.00" inputmode="decimal">
+  </div>
   <div class="qsl">Conta</div>
   <div class="qchips" id="qAccChips"></div>
   <div class="qdetail">
