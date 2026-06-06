@@ -6667,6 +6667,8 @@ function qOpen() {
   _qCat=''; _qAcc='';
   var ai=document.getElementById('qAmt'); if(ai) ai.value='';
   var ni=document.getElementById('qNote'); if(ni) ni.value='';
+  var vl=document.getElementById('qVehLocal'); if(vl) vl.value='';
+  var vk=document.getElementById('qVehKwh'); if(vk) vk.value='';
   var di=document.getElementById('qDate'); if(di) di.value=todayStr();
   var ll=document.getElementById('qDateLbl'); if(ll) ll.textContent='Hoje';
   _qRender();
@@ -6709,6 +6711,9 @@ function _qRender() {
     return '<button type="button" class="qchip'+(sel?' qca':'')
       +'" data-val="'+_esc(a)+'" onclick="qPickAcc(this.dataset.val)">'+_esc(a)+'</button>';
   }).join('');
+
+  var vx=document.getElementById('qVehExtra');
+  if(vx) vx.style.display=(isV && _qCat==='Carga Elétrica')?'flex':'none';
 }
 function qPickCat(c){ _qCat=c; _qRender(); }
 function qPickAcc(a){ _qAcc=a; _qRender(); }
@@ -6751,9 +6756,13 @@ function qSave(){
   } else if(_qT==='v'){
     var vid=nid();
     if(cat==='Carga Elétrica'){
-      S.veh.cg.push({id:vid,date:date,local:notes||'',kwh:null,val:amt,card:acc,notes:''});
+      var local=((document.getElementById('qVehLocal')||{}).value||'').trim();
+      var kwhRaw=((document.getElementById('qVehKwh')||{}).value||'').replace(',','.');
+      var kwh=parseFloat(kwhRaw)||null;
+      S.veh.cg.push({id:vid,date:date,local:local,kwh:kwh,val:amt,card:acc,notes:notes});
       S.dc.push({id:nid(),date:date,cat:'Carga Elétrica',
-        val:amt,card:acc,notes:'⚡ '+(notes||'Carga Elétrica'),
+        val:amt,card:acc,
+        notes:'⚡ '+(local||'Carga Elétrica')+(kwh?' ('+kwh+' kWh)':''),
         _src:'veh',_vid:vid,_vtype:'carga'});
     } else {
       S.veh.lp.push({id:vid,date:date,tipo:cat,val:amt,card:acc,notes:notes});
@@ -6902,6 +6911,18 @@ function _impBankFile(bank) {
   <div class="qchips" id="qCatChips"></div>
   <div class="qsl">Conta</div>
   <div class="qchips" id="qAccChips"></div>
+  <div id="qVehExtra" style="display:none;gap:.45rem;margin-bottom:.9rem;flex-direction:column">
+    <div style="display:flex;gap:.45rem">
+      <div class="qdet" style="flex:2">
+        <span>📍</span>
+        <input type="text" id="qVehLocal" placeholder="Local / Posto..." autocomplete="off" maxlength="80">
+      </div>
+      <div class="qdet" style="flex:1">
+        <span style="font-size:.7rem;color:var(--mut);font-weight:700">kWh</span>
+        <input type="text" id="qVehKwh" inputmode="decimal" placeholder="0.0" autocomplete="off">
+      </div>
+    </div>
+  </div>
   <div class="qdetail">
     <div class="qdet" onclick="qPickDate()" style="flex:.85">
       <span>📅</span><span id="qDateLbl">Hoje</span>
