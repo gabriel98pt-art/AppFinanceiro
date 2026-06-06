@@ -6712,9 +6712,10 @@ function _qRender() {
   if(pCg) pCg.className='qtpill'+(isCg?' qtv':'');
   if(pLp) pLp.className='qtpill'+(!isCg&&isV?' qtv':'');
 
-  var aw=document.getElementById('qAmtWrap'); if(aw) aw.className='qamt-wrap '+(isV?'qtv':_qT);
+  var qcls=isV?'qtv':'qt'+_qT;
+  var aw=document.getElementById('qAmtWrap'); if(aw) aw.className='qamt-wrap '+qcls;
   var sb=document.getElementById('qSaveBtn');
-  if(sb){ sb.className='qsave '+(isV?'qtv':_qT); sb.textContent='GUARDAR'; }
+  if(sb){ sb.className='qsave '+qcls; sb.textContent='GUARDAR'; }
 
   // label + chips categorias (escondidos para carga)
   var cl=document.getElementById('qCatLbl');
