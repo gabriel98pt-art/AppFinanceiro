@@ -7026,10 +7026,17 @@ function qSave(){
     S.rec.push({id:nid(),date:date,src:cat,val:amt,card:acc,notes:notes});
   } else if(_qT==='v'){
     var vid=nid();
-    S.veh.lp.push({id:vid,date:date,tipo:cat,val:amt,card:acc,notes:notes});
-    S.dc.push({id:nid(),date:date,cat:cat||((S.cfg.vcat&&S.cfg.vcat[0])||'Veículo'),
-      val:amt,card:acc,notes:'🚘 '+(cat||'Veículo')+(notes?' — '+notes:''),
-      _src:'veh',_vid:vid,_vtype:'limp'});
+    if(cat==='Carga Elétrica'){
+      S.veh.cg.push({id:vid,date:date,local:notes||'',kwh:null,val:amt,card:acc,notes:''});
+      S.dc.push({id:nid(),date:date,cat:'Carga Elétrica',
+        val:amt,card:acc,notes:'⚡ '+(notes||'Carga Elétrica'),
+        _src:'veh',_vid:vid,_vtype:'carga'});
+    } else {
+      S.veh.lp.push({id:vid,date:date,tipo:cat,val:amt,card:acc,notes:notes});
+      S.dc.push({id:nid(),date:date,cat:cat||((S.cfg.vcat&&S.cfg.vcat[0])||'Veículo'),
+        val:amt,card:acc,notes:'🚘 '+(cat||'Veículo')+(notes?' — '+notes:''),
+        _src:'veh',_vid:vid,_vtype:'limp'});
+    }
     globalMonth=date.slice(0,7); S.cfg.lastMonth=globalMonth;
   } else {
     S.dc.push({id:nid(),date:date,name:cat,cat:cat,val:amt,card:acc,notes:notes});
