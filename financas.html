@@ -151,7 +151,9 @@ tbody.anim tr:nth-child(n+6){animation-delay:.14s}
 
 /* ALERTS */
 .alist{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.8rem}
-.alrt{display:flex;align-items:center;gap:.5rem;padding:.45rem .75rem;border-radius:var(--r-sm);font-size:.75rem;font-weight:500}
+.alrt{display:flex;align-items:center;gap:.5rem;padding:.45rem .75rem;border-radius:var(--r-sm);font-size:.75rem;font-weight:500;cursor:pointer;user-select:none}
+.alrt:hover{opacity:.75}
+.alrt:active{opacity:.5}
 .ar{background:rgba(255,84,112,.1);border:1px solid rgba(255,84,112,.2);color:var(--red)}
 .ay{background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.2);color:var(--ylw)}
 
@@ -2115,13 +2117,17 @@ function renderDashboard() {
   var ae = document.getElementById('dAlerts');
   if (ae) {
     var html = '';
+    var _today = todayStr();
+    var _dis = _alertGetDismissed();
     S.df.forEach(function(d) {
       if (!isActiveForYm(d, ym)) return;
       var dy = daysUntil(d.day);
-      if (dy <= 10 && !isPaidInYm(d, ym) && !d.autoRenew) {
-        var cls = dy <= 3 ? 'ar' : 'ay';
-        var ico = dy <= 5 ? '⚠' : '⏱';
-        html += `<div class="alrt ${cls}">${ico} <strong>${d.name}</strong> — vence ${dy===0?'hoje':dy===1?'amanhã':'em '+dy+' dias'} — ${fmt(d.val)}</div>`;
+      if (dy <= 3 && !isPaidInYm(d, ym) && !d.autoRenew) {
+        if (_dis[d.id] === _today) return;
+        var cls = dy <= 1 ? 'ar' : 'ay';
+        var ico = dy <= 1 ? '⚠' : '⏱';
+        var when = dy===0?'hoje':dy===1?'amanhã':'em '+dy+' dias';
+        html += `<div class="alrt ${cls}" onclick="_dismissAlert('${d.id}')" title="Clica para dispensar até amanhã">${ico} <strong>${_esc(d.name)}</strong> — vence ${when} — ${fmt(d.val)}</div>`;
       }
     });
     ae.innerHTML = html;
@@ -6845,14 +6851,57 @@ function exportPDF() {
 // ================================================================
 // FEATURE 8 — Badge de alertas na aba Dashboard
 // ================================================================
+function _alertGetDismissed() {
+  try {
+    var raw = localStorage.getItem('_alertDismiss');
+    var obj = raw ? JSON.parse(raw) : {};
+    var today = todayStr();
+    var cleaned = {};
+    Object.keys(obj).forEach(function(k){ if(obj[k] >= today) cleaned[k] = obj[k]; });
+    if (Object.keys(cleaned).length !== Object.keys(obj).length)
+      localStorage.setItem('_alertDismiss', JSON.stringify(cleaned));
+    return cleaned;
+  } catch(e) { return {}; }
+}
+function _dismissAlert(id) {
+  try {
+    var obj = _alertGetDismissed();
+    obj[id] = todayStr();
+    localStorage.setItem('_alertDismiss', JSON.stringify(obj));
+  } catch(e) {}
+  var ym = globalMonth;
+  var ae = document.getElementById('dAlerts');
+  if (ae) {
+    var html = '';
+    var _today = todayStr();
+    var _dis = _alertGetDismissed();
+    S.df.forEach(function(d) {
+      if (!isActiveForYm(d, ym)) return;
+      var dy = daysUntil(d.day);
+      if (dy <= 3 && !isPaidInYm(d, ym) && !d.autoRenew) {
+        if (_dis[d.id] === _today) return;
+        var cls = dy <= 1 ? 'ar' : 'ay';
+        var ico = dy <= 1 ? '⚠' : '⏱';
+        var when = dy===0?'hoje':dy===1?'amanhã':'em '+dy+' dias';
+        html += `<div class="alrt ${cls}" onclick="_dismissAlert('${d.id}')" title="Clica para dispensar até amanhã">${ico} <strong>${_esc(d.name)}</strong> — vence ${when} — ${fmt(d.val)}</div>`;
+      }
+    });
+    ae.innerHTML = html;
+  }
+  _updateAlertBadge();
+}
+
 function _updateAlertBadge() {
   var tab = document.querySelector('.tb[onclick*="dashboard"]');
   if (!tab) return;
   var old = tab.querySelector('.tb-badge');
   var ym = globalMonth;
+  var _today = todayStr();
+  var _dis = _alertGetDismissed();
   var count = S.df.filter(function(d) {
     if (!isActiveForYm(d, ym) || d.autoRenew || isPaidInYm(d, ym)) return false;
-    return daysUntil(d.day) <= 5;
+    if (_dis[d.id] === _today) return false;
+    return daysUntil(d.day) <= 3;
   }).length;
   if (count > 0) {
     if (!old) { var b = document.createElement('span'); b.className = 'tb-badge'; tab.appendChild(b); old = b; }
