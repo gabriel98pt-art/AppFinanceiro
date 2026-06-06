@@ -1676,6 +1676,14 @@ function totRec(ym) {
   return sumVal(S.rec.filter(function(r) { return inMonth(r.date, ym); }));
 }
 function totDesp(ym) { return totFixas(ym) + totCorrManual(ym) + totParcMonth(ym) + totVeh(ym); }
+function totDespRealized(ym) {
+  var today = todayStr(), curYm = today.slice(0,7);
+  if (ym !== curYm) return totDesp(ym);
+  var todayDay = parseInt(today.slice(8));
+  var fix = sumVal(S.df.filter(function(d){ return isActiveForYm(d,ym) && (isPaidInYm(d,ym) || d.day <= todayDay); }));
+  var prc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(ym)>=0 && p.py[ym] ? s+p.vp : s; }, 0);
+  return fix + totCorrManual(ym) + prc + totVeh(ym);
+}
 
 function trendHtml(curr, prev, inverseGood) {
   if (prev === 0 && curr === 0) return '';
@@ -2052,7 +2060,7 @@ function renderMiniAnnual() {
     var m = yr + '-' + pad2(mi);
     var isFuture = m > curYm;
     var r = totRec(m);
-    var d = isFuture ? totCorrManual(m) : totDesp(m);
+    var d = isFuture ? totCorrManual(m) : totDespRealized(m);
     var s = r - d;
     if (!isFuture) { totRecACents += toCents(r); totDespACents += toCents(d); }
     var bg = isFuture ? 'var(--s2)' : s > 0 ? 'rgba(0,212,160,.15)' : s < 0 ? 'rgba(255,84,112,.1)' : 'var(--s2)';
@@ -3477,13 +3485,13 @@ function renderMetas() {
   var ann = document.getElementById('annT');
   if (ann) ann.innerHTML = '<table><thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Saldo</th></tr></thead><tbody>' +
     months.map(function(m){
-      var r=totRec(m),d=totDesp(m),s=r-d;
+      var r=totRec(m),d=totDespRealized(m),s=r-d;
       return `<tr><td>${monthLabel(m)}</td><td class="tgrn">${fmt(r)}</td><td class="tred">${fmt(d)}</td><td style="color:${s>=0?'var(--grn)':'var(--red)'};font-weight:700">${fmt(s)}</td></tr>`;
     }).join('') + '</tbody></table>';
 
   makeChart('chAnn','bar',months.map(monthLabel),[
     {label:'Receitas',data:months.map(totRec),backgroundColor:'rgba(0,212,160,.18)',borderColor:'#00d4a0',borderWidth:2,borderRadius:4,borderSkipped:false},
-    {label:'Despesas',data:months.map(totDesp),backgroundColor:'rgba(255,84,112,.18)',borderColor:'#ff5470',borderWidth:2,borderRadius:4,borderSkipped:false}
+    {label:'Despesas',data:months.map(totDespRealized),backgroundColor:'rgba(255,84,112,.18)',borderColor:'#ff5470',borderWidth:2,borderRadius:4,borderSkipped:false}
   ]);
 }
 
