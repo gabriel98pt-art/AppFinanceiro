@@ -51,8 +51,9 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 [data-theme="light"] .tgl::after{transform:translateX(18px);background:#fff}
 
 /* TABS */
-.tabs{background:var(--s1);border-bottom:1px solid var(--brd);display:flex;justify-content:center;align-items:center;gap:.2rem;overflow-x:auto;padding:.45rem .75rem;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tabs{background:var(--s1);border-bottom:1px solid var(--brd);display:flex;justify-content:center;align-items:center;gap:.2rem;overflow-x:auto;padding:.45rem .75rem;scrollbar-width:none;-webkit-overflow-scrolling:touch;position:relative}
 .tabs::-webkit-scrollbar{display:none}
+@media(max-width:700px){.tabs::after{content:'';position:absolute;right:0;top:0;bottom:0;width:36px;background:linear-gradient(to left,var(--s1),transparent);pointer-events:none;z-index:1}}
 .tb{background:none;border:1px solid transparent;border-radius:8px;color:var(--mut);cursor:pointer;padding:.38rem .85rem;font-size:.73rem;font-weight:600;white-space:nowrap;transition:background var(--tr),color var(--tr),border-color var(--tr),box-shadow var(--tr);line-height:1.4}
 .tb.on{background:linear-gradient(135deg,var(--blu) 0%,var(--pur) 100%);color:#fff;border-color:transparent;box-shadow:0 2px 12px rgba(77,143,255,.4)}
 .tb:hover:not(.on){background:var(--s2);color:var(--txt);border-color:var(--brd)}
@@ -63,7 +64,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 @media(min-width:600px){.pnl{padding:1.25rem 1.5rem}}
 
 /* LABELS */
-.slbl{font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--txt);opacity:.7;margin-bottom:.5rem}
+.slbl{font-size:.76rem;font-weight:700;letter-spacing:.01em;color:var(--txt);opacity:.85;margin-bottom:.5rem}
 
 /* KPI */
 .kg{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;margin-bottom:1rem}
@@ -118,6 +119,8 @@ tbody tr[data-cc] td:first-child{border-left-color:var(--cc)}
 .empty-sub{font-size:.72rem;color:var(--mut)}
 /* ROW FADE-IN */
 @keyframes _rowIn{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+@keyframes _shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+.shake{animation:_shake .35s ease}
 @keyframes _kpiIn{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:none}}
 .kg.anim .kc{animation:_kpiIn .22s ease both}
 .kg.anim .kc:nth-child(2){animation-delay:.05s}
@@ -164,8 +167,11 @@ tbody.anim tr:nth-child(n+6){animation-delay:.14s}
 
 /* MONTH NAV */
 .nav-pair{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.9rem}
-.gmnav-bar{display:flex;align-items:center;justify-content:center;gap:.5rem;padding:.4rem .75rem;background:var(--s1);border-bottom:1px solid var(--brd);position:sticky;z-index:90;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.gmnav-bar{display:flex;align-items:center;justify-content:center;gap:0;padding:.4rem .75rem;background:var(--s1);border-bottom:1px solid var(--brd);position:sticky;z-index:90;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.gmnav-bar>#todayBtn{margin-left:.6rem}
 .mnav{display:inline-flex;align-items:center;background:var(--s2);border:1px solid var(--brd);border-radius:10px;overflow:hidden}
+.gmnav-bar .mnav:first-of-type{border-radius:10px 0 0 10px;border-right:none}
+.gmnav-bar .mnav+.mnav{border-radius:0 10px 10px 0;box-shadow:-1px 0 0 var(--brd)}
 .mnav button{background:none;border:none;cursor:pointer;color:var(--txt);padding:.38rem .85rem;font-size:1.1rem;font-weight:700;transition:background var(--tr);line-height:1;font-family:inherit}
 .mnav button:hover{background:var(--brd)}
 .mnav-lbl{font-weight:700;font-size:.84rem;padding:.35rem .5rem;min-width:112px;text-align:center;white-space:nowrap;color:var(--txt);transition:color var(--tr)}
@@ -232,8 +238,10 @@ tbody.anim tr:nth-child(n+6){animation-delay:.14s}
 /* CALENDAR */
 .cagrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
 .cahdr{text-align:center;padding:.3rem;font-size:.62rem;font-weight:700;color:var(--mut);text-transform:uppercase}
-.caday{background:var(--s2);border-radius:7px;min-height:66px;padding:.28rem;font-size:.68rem;border:1px solid transparent}
-.caday.om{opacity:.4}.caday.td{border-color:var(--blu)}
+.caday{background:var(--s2);border-radius:7px;min-height:66px;padding:.28rem;font-size:.68rem;border:1px solid var(--brd);cursor:pointer;transition:background var(--tr),border-color var(--tr)}
+.caday:hover:not(.om){background:var(--s3);border-color:rgba(77,143,255,.3)}
+.caday.om{opacity:.28;pointer-events:none}
+.caday.td{border-color:var(--blu);background:rgba(77,143,255,.08)}
 .cadn{font-weight:700;margin-bottom:.15rem;font-size:.7rem}
 .caev{border-radius:3px;padding:.07rem .25rem;font-size:.55rem;font-weight:600;margin-bottom:.07rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .evg{background:rgba(0,212,160,.2);color:var(--grn)}
@@ -3259,13 +3267,24 @@ function renderCartoes() {
     </div>`;
   }).join('');
 
-  makeChart('chCt', 'bar', methods, [{
+  var _ctData = methods.map(function(c){
+    if ((S.cfg.cardType||{})[c]==='transit') return 0;
+    return sumVal(dfM.filter(function(d){return d.card===c;})) + sumVal(dcM.filter(function(d){return d.card===c;}));
+  });
+  var _ctCanvas = document.getElementById('chCt');
+  var _ctParent = _ctCanvas && _ctCanvas.parentElement;
+  var _ctIsEmpty = _ctData.every(function(v){return v===0;});
+  if (_ctCanvas) _ctCanvas.style.display = _ctIsEmpty ? 'none' : '';
+  var _ctEmptyEl = _ctParent && _ctParent.querySelector('.ct-empty-state');
+  if (_ctIsEmpty) {
+    if (!_ctEmptyEl && _ctParent) { _ctParent.insertAdjacentHTML('beforeend','<div class="ct-empty-state empty"><span class="ei">📊</span><div class="empty-msg">Sem gastos no período</div><div class="empty-sub">Registos aparecerão aqui quando existirem transações</div></div>'); }
+    else if (_ctEmptyEl) _ctEmptyEl.style.display = '';
+  } else {
+    if (_ctEmptyEl) _ctEmptyEl.style.display = 'none';
+  }
+  if (!_ctIsEmpty) makeChart('chCt', 'bar', methods, [{
     label:'Gastos',
-    data: methods.map(function(c){
-      if ((S.cfg.cardType||{})[c]==='transit') return 0;
-      return sumVal(dfM.filter(function(d){return d.card===c;}))
-           + sumVal(dcM.filter(function(d){return d.card===c;}));
-    }),
+    data: _ctData,
     backgroundColor: methods.map(function(c,i){ return CARD_RGBA[i % CARD_RGBA.length]; }),
     borderColor:     methods.map(function(c,i){ return CARD_HEX[i % CARD_HEX.length]; }),
     borderWidth: 2, borderRadius: 6, borderSkipped: false
@@ -7064,8 +7083,9 @@ function qSave(){
   var raw=(document.getElementById('qAmt')||{}).value||'';
   var amt=parseFloat(String(raw).replace(',','.'));
   if(!amt||!isFinite(amt)||amt<=0){
-    showToast('⚠ Valor inválido',true);
-    var a=document.getElementById('qAmt'); if(a) a.focus(); return;
+    var a=document.getElementById('qAmt');
+    if(a){a.focus();a.classList.remove('shake');void a.offsetWidth;a.classList.add('shake');}
+    return;
   }
   amt=Math.round(amt*100)/100;
   var date=(document.getElementById('qDate')||{}).value||todayStr();
