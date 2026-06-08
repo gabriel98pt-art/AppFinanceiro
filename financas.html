@@ -2372,7 +2372,8 @@ function renderDashboard() {
     .forEach(function(d) { ct['Veículo'] = (ct['Veículo']||0) + d.val; });
   (S.veh.df||[]).filter(function(d){ return isActiveForYm(d, ym); })
     .forEach(function(d) { ct['Veículo'] = (ct['Veículo']||0) + d.val; });
-  if (prc > 0) ct['Parcelas'] = (ct['Parcelas'] || 0) + prc;
+  S.dc.filter(function(d){ return inMonth(d.date, ym) && d._src === 'parc'; })
+    .forEach(function(d){ var c = d.cat||'Parcelas'; ct[c] = (ct[c]||0) + d.val; });
   var ks = Object.keys(ct).sort(function(a,b){ return ct[b]-ct[a]; });
   if (ks.length) {
     var dntColors = ks.map(function(k){ return (S.cfg.catColors||{})['ccat:'+k] || getDefaultCatColor('ccat', k); });
@@ -2403,7 +2404,7 @@ function renderDashboard() {
     bEl.innerHTML = '<table><thead><tr><th>Categoria</th><th>Orçamento</th><th>Real</th><th>Restante</th><th>%</th></tr></thead><tbody>' +
       (S.cfg.budShow || S.cfg.ccat || []).map(function(cat) {
         var bud = (S.cfg.bud || {})[cat] || 0;
-        var real = sumVal(S.dc.filter(function(d){return inMonth(d.date,ym)&&d.cat===cat&&!d._src;}));
+        var real = sumVal(S.dc.filter(function(d){return inMonth(d.date,ym)&&d.cat===cat&&(!d._src||d._src==='parc');}));
         var rest = bud - real, pct = bud>0?Math.min(100,Math.round(real/bud*100)):0;
         var col = pct>=100?'var(--red)':pct>=80?'var(--ylw)':'var(--grn)';
         var realStyle = real > 0 ? `color:${col};font-weight:700` : `color:var(--mut)`;
