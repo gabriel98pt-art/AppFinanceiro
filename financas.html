@@ -7103,6 +7103,7 @@ function qOpen() {
   _qCat=''; _qAcc=''; _qVSub='cg';
   var ai=document.getElementById('qAmt'); if(ai) ai.value='';
   var ni=document.getElementById('qNote'); if(ni) ni.value='';
+  var nm=document.getElementById('qName'); if(nm) nm.value='';
   var vl=document.getElementById('qVehLocal'); if(vl) vl.value='';
   var vk=document.getElementById('qVehKwh'); if(vk) vk.value='';
   var di=document.getElementById('qDate'); if(di) di.value=todayStr();
@@ -7237,6 +7238,10 @@ function _qRender() {
       +'" data-val="'+_esc(a)+'" onclick="qPickAcc(this.dataset.val)">'+_esc(a)+'</button>';
   }).join('');
 
+  // campo nome (só despesas correntes)
+  var nr=document.getElementById('qNameRow');
+  if(nr) nr.style.display=isE?'block':'none';
+
   // campos extra carga
   var vx=document.getElementById('qVehExtra');
   if(vx) vx.style.display=isCg?'flex':'none';
@@ -7276,6 +7281,7 @@ function qSave(){
   var date=(document.getElementById('qDate')||{}).value||todayStr();
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) date=todayStr();
   var notes=((document.getElementById('qNote')||{}).value||'').trim().slice(0,120);
+  var name=((document.getElementById('qName')||{}).value||'').trim().slice(0,80);
   var cat=_qCat||''; var acc=_qAcc||'';
   snapshot();
   if(_qT==='i'){
@@ -7299,7 +7305,7 @@ function qSave(){
     }
     globalMonth=date.slice(0,7); S.cfg.lastMonth=globalMonth;
   } else {
-    S.dc.push({id:nid(),date:date,name:cat,cat:cat,val:amt,card:acc,notes:notes});
+    S.dc.push({id:nid(),date:date,name:name||cat,cat:cat,val:amt,card:acc,notes:notes});
   }
   saveState(); renderTab(CUR); qClose();
   showToast('✓ '+(_qT==='i'?'Receita':_qT==='v'?(_qVSub==='cg'?'Carga Elétrica':'Veículo'):'Despesa')+' guardada — '+amt.toFixed(2)+' €');
@@ -7673,6 +7679,12 @@ function _impBankFile(bank) {
   <div class="qchips" id="qCatChips"></div>
   <div class="qsl">Conta</div>
   <div class="qchips" id="qAccChips"></div>
+  <div id="qNameRow" style="display:none;margin-bottom:.75rem">
+    <div class="qdet" style="width:100%">
+      <span style="font-size:.9rem;opacity:.55">📝</span>
+      <input type="text" id="qName" placeholder="Nome / descrição..." autocomplete="off" maxlength="80">
+    </div>
+  </div>
   <div id="qVehExtra" style="display:none;gap:.45rem;margin-bottom:.9rem;flex-direction:column">
     <div style="display:flex;gap:.45rem">
       <div class="qdet" style="flex:2">
