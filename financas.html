@@ -2182,6 +2182,22 @@ function renderDashboard() {
   var prevRec = totRec(prevYm), prevDesp = totDesp(prevYm);
   var prevSld = prevRec - prevDesp;
 
+  // Comparação same-period: se estamos no mês atual, compara até ao mesmo dia do mês anterior
+  var _cmpRec, _cmpDesp, _cmpLabel;
+  if (isCurrentYm) {
+    _cmpRec = sumVal(S.rec.filter(function(r){ return inMonth(r.date, prevYm) && parseInt(r.date.slice(8)) <= _todayDay; }));
+    var _cmpCorr = sumVal(S.dc.filter(function(d){ return inMonth(d.date, prevYm) && parseInt(d.date.slice(8)) <= _todayDay && !d._src; }));
+    var _cmpFix  = sumVal(S.df.filter(function(d){ return isActiveForYm(d, prevYm) && (d.day||1) <= _todayDay; }));
+    var _cmpParc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(prevYm)>=0 && parseInt((p.fd||'').slice(8)||0) <= _todayDay ? s+p.vp : s; }, 0);
+    var _cmpVeh  = sumVal(S.veh.cg.filter(function(d){ return inMonth(d.date, prevYm) && parseInt(d.date.slice(8)) <= _todayDay; }))
+                 + sumVal(S.veh.lp.filter(function(d){ return inMonth(d.date, prevYm) && parseInt(d.date.slice(8)) <= _todayDay; }));
+    _cmpDesp = _cmpCorr + _cmpFix + _cmpParc + _cmpVeh;
+    _cmpLabel = 'dia ' + _todayDay + ' ' + monthLabel(prevYm);
+  } else {
+    _cmpRec = prevRec; _cmpDesp = prevDesp;
+    _cmpLabel = monthLabel(prevYm);
+  }
+
   // Acumulado do ANO do mês visualizado — fixo ao ano, não muda ao navegar meses
   var year = globalMonth.slice(0, 4);
   var acum = 0;
@@ -2207,8 +2223,8 @@ function renderDashboard() {
         var _showPartial = isCurrentYm && _pendente>0 && !_monthClosed;
         var _pendCol = _pendente>0 ? 'var(--ylw)' : 'var(--mut)';
         return [
-          {l:'Receitas',  v:rec,  c:'var(--grn)', a:'var(--grn)', tr:trendHtml(rec,prevRec,false)},
-          {l:'Despesas',  v:desp, c:'var(--red)', a:'var(--red)', tr:trendHtml(desp,prevDesp,true)},
+          {l:'Receitas',  v:rec,  c:'var(--grn)', a:'var(--grn)', tr:trendHtml(rec,_cmpRec,false)},
+          {l:'Despesas',  v:desp, c:'var(--red)', a:'var(--red)', tr:trendHtml(desp,_cmpDesp,true)},
           {l:_showPartial?'Saldo parcial':'Saldo', v:sld, c:sld>=0?'var(--grn)':'var(--red)', a:sld>=0?'var(--grn)':'var(--red)'},
           {l:'Pendente', v:_pendente, c:_pendCol, a:_pendCol}
         ];
@@ -2222,12 +2238,11 @@ function renderDashboard() {
     var futureBanner = isFutureYm
       ? `<div style="grid-column:1/-1;background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:8px;padding:.45rem .8rem;font-size:.72rem;color:var(--ylw);margin-bottom:.1rem">📅 Mês futuro — valores previstos com base em despesas fixas e parcelas agendadas</div>`
       : '';
-    var _prevLabel = monthLabel(addMonths(ym, -1));
     kEl.innerHTML = futureBanner + kpis.map(function(k) {
       var valStr = k.raw ? k.v : fmt(k.v);
       var fs = valStr.length > 9 ? '1rem' : valStr.length > 7 ? '1.1rem' : '1.2rem';
       var subHtml = k.sub ? `<div style="font-size:.6rem;color:var(--ylw);margin-top:.1rem">${k.sub}</div>` : '';
-      var compHtml = k.tr ? `<div class="ksub" style="margin-top:.3rem">${k.tr} <span style="opacity:.6">vs ${_prevLabel}</span></div>` : '';
+      var compHtml = k.tr ? `<div class="ksub" style="margin-top:.3rem">${k.tr} <span style="opacity:.6">vs ${_cmpLabel}</span></div>` : '';
       return `<div class="kc" style="--_a:${k.a};${isFutureYm?'opacity:.6':''}"><div class="klbl">${k.l}</div><div class="kval" style="${k.kc?'color:'+k.kc+';':''}font-size:${fs}">${valStr}</div>${compHtml}${subHtml}</div>`;
     }).join('');
   }
