@@ -2422,19 +2422,27 @@ function renderDashboard() {
     _savBadge = sld >= goal ? '🟢 Na meta' : '🔴 Fora da meta';
     _savBadgeCls = sld >= goal ? 'gg' : 'gr';
   }
-  var _restTxt = _remain > 0 ? 'faltam '+fmt(_remain) : 'excesso '+fmt(-_remain);
   var savEl = document.getElementById('dSav');
   if (savEl) savEl.innerHTML = `
-    <div style="display:flex;align-items:baseline;gap:.45rem;margin-bottom:.18rem">
-      <span style="font-size:1.35rem;font-weight:800;color:${sc};line-height:1">${fmt(sld)}</span>
-      <span style="font-size:.78rem;color:var(--mut);font-weight:500">/ ${fmt(goal)}</span>
-      <span class="bdg ${_savBadgeCls}" style="font-size:.68rem;margin-left:auto">${_savBadge}</span>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.5rem">
+      <div style="text-align:left">
+        <div style="font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin-bottom:.15rem">Meta</div>
+        <div style="font-size:.95rem;font-weight:600;color:var(--mut)">${fmt(goal)}</div>
+      </div>
+      <div style="text-align:center;flex:1">
+        <div style="font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin-bottom:.15rem">Actual</div>
+        <div style="font-size:1.45rem;font-weight:800;color:${sc};line-height:1">${fmt(sld)}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin-bottom:.15rem">Estado</div>
+        <span class="bdg ${_savBadgeCls}" style="font-size:.68rem">${_savBadge}</span>
+      </div>
     </div>
-    <div style="display:flex;justify-content:space-between;font-size:.68rem;color:var(--mut);margin-bottom:.45rem">
-      <span>${_restTxt}</span><span>${pct2}%</span>
+    <div style="height:6px;background:var(--s3);border-radius:3px;overflow:hidden;margin-bottom:.25rem">
+      <div style="height:100%;width:${pct2}%;background:${sc};border-radius:3px;transition:width .6s ease"></div>
     </div>
-    <div style="height:8px;background:var(--s3);border-radius:4px;overflow:hidden">
-      <div style="height:100%;width:${pct2}%;background:${sc};border-radius:4px;transition:width .6s ease"></div>
+    <div style="display:flex;justify-content:space-between;font-size:.62rem;color:var(--mut)">
+      <span>${_remain>0?'faltam '+fmt(_remain):'excesso '+fmt(-_remain)}</span><span>${pct2}%</span>
     </div>`;
   renderMiniAnnual();
 }
