@@ -640,6 +640,9 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 
 <!-- RECEITAS -->
 <div class="pnl" id="p-receitas">
+  <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:.4rem">
+    <button class="cmp-btn" id="recCmpBtn" onclick="toggleCmp('recKpis','recCmpBtn')">≈ Comparar</button>
+  </div>
   <div class="kg mb2" id="recKpis"></div>
   <div class="cc mb2" id="recMiniChart" style="display:none"><div class="slbl">📈 Evolução — últimos 6 meses</div><canvas id="chRecMini" style="max-height:130px"></canvas></div>
   <div class="tc">
@@ -663,6 +666,9 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 
 <!-- DESPESAS -->
 <div class="pnl" id="p-despesas">
+  <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:.4rem">
+    <button class="cmp-btn" id="despCmpBtn" onclick="toggleCmp('despKpis','despCmpBtn')">≈ Comparar</button>
+  </div>
   <div class="kg mb2" id="despKpis"></div>
   <div id="despProx"></div>
   <div class="tc mb2">
@@ -720,6 +726,9 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 
 <!-- VEÍCULO -->
 <div class="pnl" id="p-veiculo">
+  <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:.4rem">
+    <button class="cmp-btn" id="vehCmpBtn" onclick="toggleCmp('vehKpis','vehCmpBtn')">≈ Comparar</button>
+  </div>
   <div class="kg mb2" id="vehKpis"></div>
 
   <div class="tc mb2">
@@ -2415,12 +2424,13 @@ function renderReceitas() {
   var _prevRecVenc = sumVal(_prevMnRecs.filter(function(r){ return r.src && r.src.toLowerCase().indexOf('vencimento') >= 0; }));
   var _prevTrfIn = sumVal(_prevMnRecs.filter(function(r){ return r.src && r.src.toLowerCase().indexOf('transfer') >= 0; }));
   var _prevMaxRec = _prevMnRecs.length ? Math.max.apply(null, _prevMnRecs.map(function(r){return r.val;})) : 0;
+  var _recPrevLbl = '<span style="opacity:.6">vs ' + monthLabel(prevYm) + '</span>';
   var kEl = document.getElementById('recKpis');
   if (kEl) kEl.innerHTML =
-    `<div class="kc" style="--_a:${_kpiC('rec-total','var(--grn)')}"><div class="klbl">Total</div><div class="kval-row"><div class="kval">${fmt(mnTot)}</div>${trendHtml(mnTot,prevTot,false)}</div></div>` +
-    `<div class="kc" style="--_a:${_kpiC('rec-venc','var(--blu)')}"><div class="klbl">Vencimento</div><div class="kval-row"><div class="kval">${fmt(_recVenc)}</div>${trendHtml(_recVenc,_prevRecVenc,false)}</div></div>` +
-    `<div class="kc" style="--_a:${_kpiC('rec-trf','var(--pur)')}"><div class="klbl">Transferências</div><div class="kval-row"><div class="kval">${fmt(_trfIn)}</div>${trendHtml(_trfIn,_prevTrfIn,false)}</div></div>` +
-    `<div class="kc" style="--_a:${_kpiC('rec-max','var(--ylw)')}"><div class="klbl">Maior receita</div><div class="kval-row"><div class="kval">${fmt(_maxRec)}</div>${trendHtml(_maxRec,_prevMaxRec,false)}</div></div>`;
+    `<div class="kc" style="--_a:${_kpiC('rec-total','var(--grn)')}"><div class="klbl">Total</div><div class="kval">${fmt(mnTot)}</div><div class="ksub kc-cmp">${trendHtml(mnTot,prevTot,false)} ${_recPrevLbl}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('rec-venc','var(--blu)')}"><div class="klbl">Vencimento</div><div class="kval">${fmt(_recVenc)}</div><div class="ksub kc-cmp">${trendHtml(_recVenc,_prevRecVenc,false)} ${_recPrevLbl}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('rec-trf','var(--pur)')}"><div class="klbl">Transferências</div><div class="kval">${fmt(_trfIn)}</div><div class="ksub kc-cmp">${trendHtml(_trfIn,_prevTrfIn,false)} ${_recPrevLbl}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('rec-max','var(--ylw)')}"><div class="klbl">Maior receita</div><div class="kval">${fmt(_maxRec)}</div><div class="ksub kc-cmp">${trendHtml(_maxRec,_prevMaxRec,false)} ${_recPrevLbl}</div></div>`;
 
   // Mini 6-month evolution chart (R2)
   var _miniEl = document.getElementById('recMiniChart');
@@ -2479,11 +2489,12 @@ function renderDespesas() {
   var _pdTot = totDesp(_prevDym);
   var dkEl = document.getElementById('despKpis');
   var _parcCol = (S.cfg.catColors||{})['ccat:Parcelas'] || CAT_SEMANTIC['Parcelas'] || '#f43f5e';
+  var _despPrevLbl = '<span style="opacity:.6">vs ' + monthLabel(_prevDym) + '</span>';
   if (dkEl) dkEl.innerHTML =
-    `<div class="kc" style="--_a:${_kpiC('desp-total','var(--red)')}"><div class="klbl">Total</div><div class="kval-row"><div class="kval">${fmt(_dTot)}</div>${trendHtml(_dTot,_pdTot,true)}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('desp-total','var(--red)')}"><div class="klbl">Total</div><div class="kval">${fmt(_dTot)}</div><div class="ksub kc-cmp">${trendHtml(_dTot,_pdTot,true)} ${_despPrevLbl}</div></div>` +
     `<div class="kc" style="--_a:${_kpiC('desp-fix','var(--ylw)')}"><div class="klbl">Fixas</div><div class="kval">${fmt(_dFix)}</div></div>` +
     `<div class="kc" style="--_a:${_parcCol}"><div class="klbl">Parcelas</div><div class="kval">${fmt(_dParc)}</div></div>` +
-    `<div class="kc" style="--_a:${_kpiC('desp-corr','var(--blu)')}"><div class="klbl">Variáveis</div><div class="kval-row"><div class="kval">${fmt(_dCorr)}</div>${trendHtml(_dCorr,_pdCorr,true)}</div></div>`;
+    `<div class="kc" style="--_a:${_kpiC('desp-corr','var(--blu)')}"><div class="klbl">Variáveis</div><div class="kval">${fmt(_dCorr)}</div><div class="ksub kc-cmp">${trendHtml(_dCorr,_pdCorr,true)} ${_despPrevLbl}</div></div>`;
 
   // Widget — próximos pagamentos (só mês actual)
   var proxEl = document.getElementById('despProx');
@@ -2695,10 +2706,11 @@ function renderVeiculo() {
   var _prevLp  = sumVal(S.veh.lp.filter(function(d){ return inMonth(d.date,_prevVym); }));
   var _prevFix = sumVal((S.veh.df||[]).filter(function(d){ return isActiveForYm(d,_prevVym); }));
   var _prevAll = _prevCg + _prevLp + _prevFix;
+  var _vehPrevLbl = '<span style="opacity:.6">vs ' + monthLabel(_prevVym) + '</span>';
   var kEl = document.getElementById('vehKpis');
   if (kEl) kEl.innerHTML =
-    `<div class="kc" style="--_a:${_kpiC('veh-total','var(--pur)')}"><div class="klbl">Total</div><div class="kval-row"><div class="kval">${fmt(totAll)}</div>${trendHtml(totAll,_prevAll,true)}</div></div>` +
-    `<div class="kc" style="--_a:${_kpiC('veh-cg','var(--ylw)')}"><div class="klbl">⚡ Carga</div><div class="kval-row"><div class="kval">${fmt(totCg)}</div>${trendHtml(totCg,_prevCg,true)}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('veh-total','var(--pur)')}"><div class="klbl">Total</div><div class="kval">${fmt(totAll)}</div><div class="ksub kc-cmp">${trendHtml(totAll,_prevAll,true)} ${_vehPrevLbl}</div></div>` +
+    `<div class="kc" style="--_a:${_kpiC('veh-cg','var(--ylw)')}"><div class="klbl">⚡ Carga</div><div class="kval">${fmt(totCg)}</div><div class="ksub kc-cmp">${trendHtml(totCg,_prevCg,true)} ${_vehPrevLbl}</div></div>` +
     `<div class="kc" style="--_a:${_kpiC('veh-fix','var(--grn)')}"><div class="klbl">Fixas</div><div class="kval">${fmt(totFix)}</div></div>` +
     `<div class="kc" style="--_a:${_kpiC('veh-var','var(--blu)')}"><div class="klbl">Variáveis</div><div class="kval">${fmt(totLp)}</div></div>`;
 
@@ -7188,8 +7200,17 @@ document.addEventListener('click', function(e) {
 });
 
 // ================================================================
-// DASHBOARD — COMPARAÇÃO TOGGLE
+// COMPARAÇÃO TOGGLE — genérico e dashboard
 // ================================================================
+function toggleCmp(kgId, btnId) {
+  var kg = document.getElementById(kgId);
+  var btn = document.getElementById(btnId);
+  if (!kg || !btn) return;
+  var on = kg.classList.toggle('cmp-on');
+  btn.classList.toggle('on', on);
+  btn.textContent = on ? '≈ Comparar ✓' : '≈ Comparar';
+}
+
 function toggleDashCmp() {
   var kg = document.getElementById('dKpis');
   var btn = document.getElementById('cmpToggleBtn');
