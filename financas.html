@@ -461,6 +461,10 @@ tr.swipe-row{cursor:default}
 tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15s}
 /* month comparison */
 .cmp-row{display:none}
+.kc-cmp{display:none;margin-top:.3rem}
+.kg.cmp-on .kc-cmp{display:block}
+.cmp-btn{background:none;border:1px solid var(--brd);border-radius:20px;color:var(--mut);font-size:.65rem;font-weight:600;padding:.22rem .65rem;cursor:pointer;transition:all var(--tr);white-space:nowrap}
+.cmp-btn.on{background:rgba(77,143,255,.12);border-color:rgba(77,143,255,.4);color:var(--blu)}
 .cmp-chip{font-size:.7rem;padding:.2rem .55rem;border-radius:20px;background:var(--s2);display:flex;align-items:center;gap:.3rem}
 .cmp-up{color:#00d4a0}.cmp-dn{color:#ff5470}.cmp-eq{color:var(--mut)}
 /* alert badge on tab */
@@ -565,6 +569,9 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 <div class="pnl on" id="p-dashboard">
   <div id="backupAlert"></div>
   <div id="dAlerts" class="alist"></div>
+  <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:.4rem">
+    <button class="cmp-btn" id="cmpToggleBtn" onclick="toggleDashCmp()">≈ Comparar</button>
+  </div>
   <div class="kg" id="dKpis"></div>
   <div id="dComp" class="cmp-row"></div>
   <div class="dash-grid">
@@ -2242,7 +2249,7 @@ function renderDashboard() {
       var valStr = k.raw ? k.v : fmt(k.v);
       var fs = valStr.length > 9 ? '1rem' : valStr.length > 7 ? '1.1rem' : '1.2rem';
       var subHtml = k.sub ? `<div style="font-size:.6rem;color:var(--ylw);margin-top:.1rem">${k.sub}</div>` : '';
-      var compHtml = k.tr ? `<div class="ksub" style="margin-top:.3rem">${k.tr} <span style="opacity:.6">vs ${_cmpLabel}</span></div>` : '';
+      var compHtml = k.tr ? `<div class="ksub kc-cmp">${k.tr} <span style="opacity:.6">vs ${_cmpLabel}</span></div>` : '';
       return `<div class="kc" style="--_a:${k.a};${isFutureYm?'opacity:.6':''}"><div class="klbl">${k.l}</div><div class="kval" style="${k.kc?'color:'+k.kc+';':''}font-size:${fs}">${valStr}</div>${compHtml}${subHtml}</div>`;
     }).join('');
   }
@@ -6877,6 +6884,18 @@ document.addEventListener('click', function(e) {
   var wrap = document.getElementById('hdrMoreWrap');
   if (wrap && !wrap.contains(e.target)) _hdrMoreClose();
 });
+
+// ================================================================
+// DASHBOARD — COMPARAÇÃO TOGGLE
+// ================================================================
+function toggleDashCmp() {
+  var kg = document.getElementById('dKpis');
+  var btn = document.getElementById('cmpToggleBtn');
+  if (!kg || !btn) return;
+  var on = kg.classList.toggle('cmp-on');
+  btn.classList.toggle('on', on);
+  btn.textContent = on ? '≈ Comparar ✓' : '≈ Comparar';
+}
 
 // ================================================================
 // SETTINGS TABS
