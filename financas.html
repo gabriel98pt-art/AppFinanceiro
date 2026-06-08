@@ -703,6 +703,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     <div class="srch-bar">
       <input id="dcSearch" type="search" placeholder="🔍 Pesquisar…" oninput="DC_SEARCH=this.value;DC_PG=1;renderDespesas()" value="">
       <select id="dcCardFilt" onchange="DC_CARD=this.value;DC_PG=1;renderDespesas()"><option value="all">Todos os cartões</option></select>
+      <button class="srch-pin" id="dcWeekBtn" onclick="toggleDcWeek()" title="Semana actual (Seg–Dom)">📅 Sem</button>
       <button class="srch-pin" id="dcPin" onclick="_togglePin('dc')" title="Manter filtro ao mudar de mês">📌</button>
       <button class="srch-clr" onclick="DC_SEARCH='';DC_CARD='all';document.getElementById('dcSearch').value='';DC_PG=1;renderDespesas()" title="Limpar filtros">✕</button>
     </div>
@@ -738,6 +739,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     <div class="tch">
       <span class="slbl" style="margin:0">⚡ Carga Elétrica</span>
       <div class="row g2">
+        <button class="srch-pin" id="vehWeekBtn" onclick="toggleVehWeek()" title="Semana actual (Seg–Dom)">📅 Sem</button>
         <button class="ic tip" id="eyeBtn_cg" data-tip="Mostrar/esconder" onclick="_toggleVis('cgCollapse','eyeBtn_cg')" style="font-size:.8rem;width:28px;height:28px"></button>
         <button class="btn pri sm" onclick="openModal('carga')">+ Adicionar</button>
       </div>
@@ -1550,6 +1552,7 @@ function toggleDcFilter() {
 }
 
 function applyDcPreset(days) {
+  DC_WEEK = false;
   var to = new Date(), from = new Date(to);
   from.setDate(from.getDate() - days + 1);
   DC_FROM = from.getFullYear() + '-' + pad2(from.getMonth()+1) + '-' + pad2(from.getDate());
@@ -1558,12 +1561,14 @@ function applyDcPreset(days) {
 }
 
 function applyDcPresetYear() {
+  DC_WEEK = false;
   DC_FROM = new Date().getFullYear() + '-01-01';
   DC_TO   = todayStr();
   _syncDcInputs(); DC_PG = 1; renderDespesas();
 }
 
 function applyDcCustomRange() {
+  DC_WEEK = false;
   var f = (document.getElementById('dcFrom')||{}).value;
   var t = (document.getElementById('dcTo')||{}).value;
   if (!f || !t) return;
@@ -1573,12 +1578,44 @@ function applyDcCustomRange() {
 }
 
 function clearDcRange() {
-  DC_FROM = null; DC_TO = null;
+  DC_FROM = null; DC_TO = null; DC_WEEK = false;
   var df = document.getElementById('dcFrom'); if (df) df.value = '';
   var dt = document.getElementById('dcTo');   if (dt) dt.value = '';
   var cb = document.getElementById('dcClearBtn'); if (cb) cb.style.display = 'none';
   var lb = document.getElementById('dcFilterLbl'); if (lb) lb.style.display = 'none';
   DC_PG = 1; renderDespesas();
+}
+
+function _getWeekRange() {
+  var today = new Date();
+  var dow = today.getDay();
+  var daysFromMon = (dow === 0) ? 6 : dow - 1;
+  var mon = new Date(today); mon.setDate(today.getDate() - daysFromMon);
+  var sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  var pad = function(n){ return n < 10 ? '0'+n : ''+n; };
+  var iso = function(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
+  var lbl = function(d){ return pad(d.getDate())+' '+['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][d.getMonth()]; };
+  return { from: iso(mon), to: iso(sun), label: lbl(mon)+' – '+lbl(sun) };
+}
+
+function toggleDcWeek() {
+  DC_WEEK = !DC_WEEK;
+  if (DC_WEEK) {
+    var wr = _getWeekRange();
+    DC_FROM = wr.from; DC_TO = wr.to;
+    var df = document.getElementById('dcFrom'); if (df) df.value = DC_FROM;
+    var dt = document.getElementById('dcTo');   if (dt) dt.value = DC_TO;
+  } else {
+    DC_FROM = null; DC_TO = null;
+    var df2 = document.getElementById('dcFrom'); if (df2) df2.value = '';
+    var dt2 = document.getElementById('dcTo');   if (dt2) dt2.value = '';
+  }
+  DC_PG = 1; renderDespesas();
+}
+
+function toggleVehWeek() {
+  VEH_WEEK = !VEH_WEEK;
+  renderVeiculo();
 }
 
 function _syncDcInputs() {
@@ -1593,6 +1630,7 @@ function _syncDcInputs() {
 var globalMonth = '2026-05';
 var DC_SORT='date',DC_DIR=-1,DC_PG=1,DC_PGS=15;
 var DC_FROM=null,DC_TO=null,_dcFilterOpen=false;
+var DC_WEEK=false,VEH_WEEK=false;
 var REC_SEARCH='',REC_CARD='all',REC_PIN=false;
 var DC_SEARCH='',DC_CARD='all',DC_PIN=false;
 var CT_SORT='date',CT_DIR=-1,CT_PG=1,CT_PGS=15;
@@ -2028,7 +2066,7 @@ function makeChart(id, type, labels, datasets, opts) {
 function _resetListFilters() {
   if (!REC_PIN) { REC_SEARCH=''; REC_CARD='all'; var rs=document.getElementById('recSearch'); if(rs) rs.value=''; }
   if (!DC_PIN) {
-    DC_SEARCH=''; DC_CARD='all'; var ds=document.getElementById('dcSearch'); if(ds) ds.value='';
+    DC_SEARCH=''; DC_CARD='all'; DC_WEEK=false; var ds=document.getElementById('dcSearch'); if(ds) ds.value='';
     DC_FROM=null; DC_TO=null; _dcFilterOpen=false;
     var bar=document.getElementById('dcFilterBar'); if(bar) bar.style.display='none';
     var btn=document.getElementById('dcFilterBtn'); if(btn){btn.classList.remove('pri');btn.classList.add('sec');}
@@ -2628,6 +2666,7 @@ function renderDespesas() {
   _setTwTall(document.querySelector('#p-despesas .tw:last-of-type'), corrPage.length);
   _initSwipe('dcBody', 'dc');
   var dp=document.getElementById('dcPin'); if(dp) dp.classList.toggle('on',DC_PIN);
+  var _dwb=document.getElementById('dcWeekBtn'); if(_dwb) _dwb.classList.toggle('on',DC_WEEK);
   var totV = sumVal(corr.filter(function(d){return d._src==='veh';}));
   var totFat = sumVal(corr.filter(function(d){return d._src==='fat';}));
   var totAll = totM + totP + totV + totFat;
@@ -2717,22 +2756,35 @@ function renderVeiculo() {
     `<div class="kc" style="--_a:${_kpiC('veh-fix','var(--grn)')}"><div class="klbl">Fixas</div><div class="kval">${fmt(totFix)}</div></div>` +
     `<div class="kc" style="--_a:${_kpiC('veh-var','var(--blu)')}"><div class="klbl">Variáveis</div><div class="kval">${fmt(totLp)}</div></div>`;
 
-  // Carga — filtered by month
-  var cg = S.veh.cg.filter(function(d){return inMonth(d.date, ym);}).sort(function(a,b){return b.date>a.date?1:-1;});
+  // Semana actual (cross-month) ou mês
+  var _vehWr = VEH_WEEK ? _getWeekRange() : null;
+  var _vbtn = document.getElementById('vehWeekBtn'); if (_vbtn) _vbtn.classList.toggle('on', VEH_WEEK);
+
+  var cg = S.veh.cg.filter(function(d){
+    if (VEH_WEEK) return d.date >= _vehWr.from && d.date <= _vehWr.to;
+    return inMonth(d.date, ym);
+  }).sort(function(a,b){return b.date>a.date?1:-1;});
+  var _cgPeriodLbl = VEH_WEEK ? ('Semana ' + _vehWr.label) : monthLabel(ym);
+  var _cgTotWeek = sumVal(cg);
   var cgEl = document.getElementById('cgBody');
   if (cgEl) cgEl.innerHTML = cg.length ? cg.map(function(d) {
     return `<tr><td title="${fmtDate(d.date)}">${fmtDateShort(d.date)}</td><td>${d.local||'—'}</td><td>${d.kwh||'—'}</td><td class="tylw bold">${fmt(d.val)}</td><td>${d.card||'—'}</td><td>${d.notes||'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('carga',${d.id})">✏</button><button class="ic d" onclick="delRec('cg',${d.id})">🗑</button></div></td></tr>`;
-  }).join('') : _emptyRow(7,'⚡','Nenhuma carga em '+monthLabel(ym),'Regista sessões de carregamento com o botão +');
+  }).join('') : _emptyRow(7,'⚡', VEH_WEEK ? 'Nenhuma carga esta semana' : 'Nenhuma carga em '+monthLabel(ym),'Regista sessões de carregamento com o botão +');
   var cgFt = document.getElementById('cgFoot');
-  if (cgFt) cgFt.innerHTML = `<tr><td colspan="3">Total ${monthLabel(ym)}</td><td class="tylw">${fmt(totCg)}</td><td colspan="3"></td></tr>`;
+  if (cgFt) cgFt.innerHTML = `<tr><td colspan="3">Total ${_cgPeriodLbl}</td><td class="tylw">${fmt(_cgTotWeek)}</td><td colspan="3"></td></tr>`;
 
-  var lp = S.veh.lp.filter(function(d){return inMonth(d.date, ym);}).sort(function(a,b){return b.date>a.date?1:-1;});
+  var lp = S.veh.lp.filter(function(d){
+    if (VEH_WEEK) return d.date >= _vehWr.from && d.date <= _vehWr.to;
+    return inMonth(d.date, ym);
+  }).sort(function(a,b){return b.date>a.date?1:-1;});
+  var _lpPeriodLbl = VEH_WEEK ? ('Semana ' + _vehWr.label) : monthLabel(ym);
+  var _lpTotWeek = sumVal(lp);
   var lpEl = document.getElementById('lpBody');
   if (lpEl) lpEl.innerHTML = lp.length ? lp.map(function(d) {
     return `<tr><td title="${fmtDate(d.date)}">${fmtDateShort(d.date)}</td><td>${d.tipo||'—'}</td><td class="bold">${fmt(d.val)}</td><td>${d.card||'—'}</td><td>${d.notes||'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('limp',${d.id})">✏</button><button class="ic d" onclick="delRec('lp',${d.id})">🗑</button></div></td></tr>`;
-  }).join('') : _emptyRow(6,'🧼','Nenhuma limpeza em '+monthLabel(ym),'Regista lavagens e manutenções com o botão +');
+  }).join('') : _emptyRow(6,'🧼', VEH_WEEK ? 'Nenhuma despesa esta semana' : 'Nenhuma limpeza em '+monthLabel(ym),'Regista lavagens e manutenções com o botão +');
   var lpFt = document.getElementById('lpFoot');
-  if (lpFt) lpFt.innerHTML = `<tr><td colspan="2">Total ${monthLabel(ym)}</td><td>${fmt(totLp)}</td><td colspan="3"></td></tr>`;
+  if (lpFt) lpFt.innerHTML = `<tr><td colspan="2">Total ${_lpPeriodLbl}</td><td>${fmt(_lpTotWeek)}</td><td colspan="3"></td></tr>`;
 
   // Fixed vehicle expenses
   var vdf = (S.veh.df||[]).slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'');});
