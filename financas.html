@@ -398,7 +398,10 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      transform:translateY(105%);transition:transform .3s cubic-bezier(.32,1,.23,1);
      max-height:90vh;overflow-y:auto;box-shadow:0 -6px 40px rgba(0,0,0,.45)}
 .qsh.on{transform:translateY(0)}
+.qsh._drag{transition:none!important;will-change:transform}
 .qhandle{width:42px;height:5px;background:linear-gradient(90deg,var(--blu),var(--pur));border-radius:3px;margin:.75rem auto 1rem;opacity:.7}
+.qsh-drag-zone{position:absolute;top:0;left:0;right:0;height:52px;cursor:grab;touch-action:none;z-index:1}
+.qsh-drag-zone:active{cursor:grabbing}
 .qtype{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.38rem;
        background:var(--s2);border-radius:10px;padding:.28rem;margin-bottom:1rem}
 .qtpill{border-radius:7px;padding:.52rem;font-size:.8rem;font-weight:700;
@@ -7061,6 +7064,74 @@ function qClose() {
   document.getElementById('qOv').classList.remove('on');
   document.getElementById('qSh').classList.remove('on');
 }
+
+// ── DRAG TO CLOSE ────────────────────────────────────────────────
+(function() {
+  var _sh, _ov, _sy, _st, _dy = 0, _live = false;
+
+  function _cy(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
+
+  function _start(e) {
+    var sh = document.getElementById('qSh');
+    if (!sh || !sh.classList.contains('on')) return;
+    var t = e.target;
+    // Allow drag from the dedicated drag zone or from the handle
+    var fromZone = t.closest && (t.closest('#qDragZone') || t.closest('.qhandle'));
+    // Also allow drag from body area when sheet is scrolled to top
+    var fromBody = !fromZone && sh.contains(t) && sh.scrollTop === 0
+                   && !/^(INPUT|BUTTON|SELECT|TEXTAREA)$/.test(t.tagName);
+    if (!fromZone && !fromBody) return;
+    _sh = sh; _ov = document.getElementById('qOv');
+    _sy = _cy(e); _st = Date.now(); _dy = 0; _live = true;
+    sh.classList.add('_drag');
+  }
+
+  function _move(e) {
+    if (!_live) return;
+    _dy = Math.max(0, _cy(e) - _sy);
+    if (_dy > 3 && e.cancelable) e.preventDefault();
+    _sh.style.transform = 'translateY(' + _dy + 'px)';
+    if (_ov) {
+      var fade = Math.max(0, 1 - _dy / (window.innerHeight * 0.4));
+      _ov.style.opacity = (fade * 0.6).toFixed(3);
+    }
+  }
+
+  function _end() {
+    if (!_live) return;
+    _live = false;
+    var sh = _sh, ov = _ov, dy = _dy;
+    sh.classList.remove('_drag');
+    var vel = dy / Math.max(1, Date.now() - _st);
+
+    if (dy > 80 || vel > 0.4) {
+      // fechar: animar para fora e depois chamar qClose
+      sh.style.transform = 'translateY(110%)';
+      if (ov) ov.style.opacity = '0';
+      setTimeout(function() {
+        sh.style.transform = '';
+        if (ov) ov.style.opacity = '';
+        qClose();
+      }, 300);
+    } else {
+      // snap back com efeito elástico
+      sh.style.transition = 'transform .38s cubic-bezier(.34,1.56,.64,1)';
+      sh.style.transform = 'translateY(0)';
+      if (ov) ov.style.opacity = '';
+      setTimeout(function() { sh.style.transform = ''; sh.style.transition = ''; }, 400);
+    }
+    _sh = null; _ov = null;
+  }
+
+  document.addEventListener('touchstart', _start, {passive: true});
+  document.addEventListener('touchmove',  _move,  {passive: false});
+  document.addEventListener('touchend',   _end,   {passive: true});
+  document.addEventListener('mousedown',  _start);
+  document.addEventListener('mousemove',  _move);
+  document.addEventListener('mouseup',    _end);
+})();
+// ────────────────────────────────────────────────────────────────
+
 function qType(t) { _qT=t; _qCat=''; if(t==='v') _qVSub='cg'; _qRender(); }
 function qVSub(s) { _qVSub=s; _qCat=''; _qRender(); }
 
@@ -7527,6 +7598,7 @@ function _impBankFile(bank) {
 <button class="qfab" id="qFab" onclick="qOpen()" title="Registo rápido">＋</button>
 <div class="qov" id="qOv" onclick="qClose()"></div>
 <div class="qsh" id="qSh">
+  <div class="qsh-drag-zone" id="qDragZone"></div>
   <div class="qhandle"></div>
   <div class="qtype">
     <button class="qtpill qte" id="qtE" onclick="qType('e')">↘ Despesa</button>
