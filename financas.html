@@ -917,6 +917,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
       <button class="btn sec sm" onclick="exportData()">📤 Exportar JSON</button>
       <button class="btn sec sm" onclick="document.getElementById('impFile').click()">📥 Importar</button>
       <button class="btn sec sm" onclick="_fbRestoreBackup()">🛡 Restaurar backup</button>
+      <button class="btn sec sm" onclick="openLocalBackups()">🕐 Backups locais</button>
       <input type="file" id="impFile" accept=".json" style="display:none" onchange="importData(this)">
       <button class="btn dan sm" onclick="clearData()">🗑 Limpar tudo</button>
       <button class="btn pri" onclick="saveSet()">Guardar</button>
@@ -1382,13 +1383,22 @@ function loadState() {
 var S = loadState();
 computeYearRange();
 
+var SK_BK = 'fin_v4_bk';
 function saveState() {
   var _ok = false;
   try {
     S._savedAt = Date.now();
-    localStorage.setItem(SK, JSON.stringify(S));
+    var _str = JSON.stringify(S);
+    localStorage.setItem(SK, _str);
     _fbSave(S);
     _ok = true;
+    // Rolling backup — últimas 3 versões
+    try {
+      var _bks = JSON.parse(localStorage.getItem(SK_BK) || '[]');
+      _bks.push({ts: S._savedAt, data: _str});
+      if (_bks.length > 3) _bks = _bks.slice(-3);
+      localStorage.setItem(SK_BK, JSON.stringify(_bks));
+    } catch(e2) { /* silently ignore if backup fails (quota) */ }
   } catch(e) {
     var isQuota = e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
                   (e.code && (e.code === 22 || e.code === 1014));
@@ -1398,6 +1408,47 @@ function saveState() {
   computeYearRange();
   updateUR();
   return _ok;
+}
+
+function restoreBackup(idx) {
+  try {
+    var _bks = JSON.parse(localStorage.getItem(SK_BK) || '[]');
+    var _bk = _bks[idx];
+    if (!_bk) return;
+    var _ts = new Date(_bk.ts).toLocaleString('pt-PT');
+    if (!confirm('Restaurar backup de ' + _ts + '?\nOs dados actuais serão substituídos.')) return;
+    localStorage.setItem(SK, _bk.data);
+    showToast('✓ Backup restaurado — a recarregar…');
+    setTimeout(function(){ location.reload(); }, 800);
+  } catch(e) { showToast('⚠ Erro ao restaurar: ' + e.message, true); }
+}
+
+function openLocalBackups() {
+  var _bks = [];
+  try { _bks = JSON.parse(localStorage.getItem(SK_BK) || '[]'); } catch(e) {}
+  var m = document.getElementById('mainModal');
+  var title = document.getElementById('modalTitle');
+  var body  = document.getElementById('modalBody');
+  var delArea = document.getElementById('modalDelArea');
+  if (!m || !title || !body) return;
+  title.textContent = '🕐 Backups automáticos locais';
+  if (delArea) delArea.innerHTML = '';
+  if (!_bks.length) {
+    body.innerHTML = '<div style="padding:1rem;color:var(--mut);font-size:.85rem">Ainda não existem backups locais.<br>São criados automaticamente a cada guardado.</div>';
+  } else {
+    body.innerHTML = '<div style="font-size:.78rem;color:var(--mut);padding:.5rem 0 .75rem">Últimos ' + _bks.length + ' guardado(s) automático(s). Restaurar substitui os dados actuais.</div>'
+      + _bks.slice().reverse().map(function(bk, ri) {
+          var idx = _bks.length - 1 - ri;
+          var ts = new Date(bk.ts).toLocaleString('pt-PT');
+          var sz = Math.round(bk.data.length / 1024);
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--brd)">'
+            + '<div><div style="font-weight:600;font-size:.85rem">' + ts + '</div>'
+            + '<div style="font-size:.72rem;color:var(--mut)">' + sz + ' KB</div></div>'
+            + '<button class="btn sec sm" onclick="restoreBackup(' + idx + ')">↩ Restaurar</button>'
+            + '</div>';
+        }).join('');
+  }
+  m.classList.add('on');
 }
 
 function nid() { S._id = (S._id || 10) + 1; return S._id; }
@@ -2409,8 +2460,9 @@ function renderDashboard() {
     bEl.innerHTML = '<table><thead><tr><th>Categoria</th><th>Orçamento</th><th>Real</th><th>Restante</th><th>%</th></tr></thead><tbody>' +
       (S.cfg.budShow || S.cfg.ccat || []).map(function(cat) {
         var bud = (S.cfg.bud || {})[cat] || 0;
-        var real = sumVal(S.dc.filter(function(d){return inMonth(d.date,ym)&&d.cat===cat&&(!d._src||d._src==='parc');}))
-                 + sumVal(S.df.filter(function(d){return isActiveForYm(d,ym)&&d.cat===cat;}));
+        var real = sumVal(S.dc.filter(function(d){return inMonth(d.date,ym)&&d.cat===cat&&(!d._src||d._src==='parc'||d._src==='veh');}))
+                 + sumVal(S.df.filter(function(d){return isActiveForYm(d,ym)&&d.cat===cat;}))
+                 + sumVal((S.veh.df||[]).filter(function(d){return isActiveForYm(d,ym)&&d.cat===cat;}));
         var rest = bud - real, pct = bud>0?Math.min(100,Math.round(real/bud*100)):0;
         var col = pct>=100?'var(--red)':pct>=80?'var(--ylw)':'var(--grn)';
         var realStyle = real > 0 ? `color:${col};font-weight:700` : `color:var(--mut)`;
@@ -3381,7 +3433,12 @@ function renderCartoes() {
     if (isTransit) {
       var acumColT = acum >= 0 ? 'var(--grn)' : 'var(--red)';
       var _hasSnapT = snap.date !== '0000-01-01';
-      var snapInfoT = !_hasSnapT ? `<div style="font-size:.58rem;color:var(--ylw);margin-top:.1rem">⚠ defina saldo (⚖)</div>` : '';
+      var _snapAgeT = _hasSnapT ? Math.floor((Date.now() - new Date(snap.date).getTime()) / 86400000) : 0;
+      var snapInfoT = !_hasSnapT
+        ? `<div style="font-size:.58rem;color:var(--ylw);margin-top:.1rem">⚠ defina saldo (⚖)</div>`
+        : _snapAgeT > 90
+          ? `<div style="font-size:.58rem;color:var(--ylw);margin-top:.1rem">⚠ saldo há ${_snapAgeT} dias — reconciliar (⚖)</div>`
+          : '';
       return `<div class="kc" style="--_a:${col}">
         <div class="kc-hdr">
           <div class="klbl" style="margin:0">⇄ ${card}</div>
@@ -3427,7 +3484,12 @@ function renderCartoes() {
     var acumCol = acum >= 0 ? 'var(--grn)' : 'var(--red)';
     var netCol  = net  >= 0 ? 'var(--grn)' : 'var(--red)';
     var _hasSnap = snap.date !== '0000-01-01';
-    var snapInfo = !_hasSnap ? `<div style="font-size:.58rem;color:var(--ylw);margin-top:.1rem">⚠ defina saldo (⚖)</div>` : '';
+    var _snapAge = _hasSnap ? Math.floor((Date.now() - new Date(snap.date).getTime()) / 86400000) : 0;
+    var snapInfo = !_hasSnap
+      ? `<div style="font-size:.58rem;color:var(--ylw);margin-top:.1rem">⚠ defina saldo (⚖)</div>`
+      : _snapAge > 90
+        ? `<div style="font-size:.58rem;color:var(--ylw);margin-top:.1rem">⚠ saldo há ${_snapAge} dias — reconciliar (⚖)</div>`
+        : '';
     var _txN = recM.filter(function(r){return r.card===card;}).length + dcM.filter(function(d){return d.card===card;}).length + dfM.filter(function(d){return d.card===card;}).length;
     return `<div class="kc" style="--_a:${col}">
       <div class="kc-hdr">
@@ -4320,8 +4382,15 @@ function delRec(type, id) {
   var msg = 'Eliminar este registo?';
   if (type === 'par') {
     var _p = S.par.find(function(x){return x.id===id;});
-    var _n = _p ? Object.keys(_p.py||{}).filter(function(m){return _p.py[m];}).length : 0;
-    msg = 'Eliminar esta parcela' + (_n > 0 ? ' e as ' + _n + ' entrada(s) de Despesas Correntes associadas?' : '?');
+    var _pms = _p ? parcMonths(_p) : [];
+    var _nTotal = _pms.length;
+    var _nPaid  = _p ? _pms.filter(function(m){return _p.py[m];}).length : 0;
+    var _nRem   = _nTotal - _nPaid;
+    var _pName  = _p ? '"' + (_p.name||'parcela') + '"' : 'esta parcela';
+    msg = 'Eliminar ' + _pName + '?\n\n'
+        + _nTotal + ' prestação(ões) no total'
+        + (_nPaid > 0 ? '\n• ' + _nPaid + ' já paga(s) — entradas em Despesas Correntes serão removidas' : '')
+        + (_nRem  > 0 ? '\n• ' + _nRem  + ' ainda por pagar' : '') + '.';
   } else if (type === 'cg' || type === 'lp') {
     msg = 'Eliminar este registo e a entrada automática em Despesas Correntes?';
   }
