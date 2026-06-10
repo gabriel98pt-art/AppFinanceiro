@@ -714,7 +714,8 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
         <button class="srch-pin" onclick="_dcWeekNav(1)" style="padding:.18rem .38rem">›</button>
       </div>
       <button class="srch-pin" id="dcPin" onclick="_togglePin('dc')" title="Manter filtro ao mudar de mês">📌</button>
-      <button class="srch-clr" onclick="DC_SEARCH='';DC_CARD='all';document.getElementById('dcSearch').value='';DC_PG=1;renderDespesas()" title="Limpar filtros">✕</button>
+      <button class="srch-clr" onclick="DC_SEARCH='';DC_CARD='all';DC_CAT='';document.getElementById('dcSearch').value='';DC_PG=1;renderDespesas()" title="Limpar filtros">✕</button>
+      <span id="dcCatBadge" style="display:none;font-size:.74rem;background:rgba(77,143,255,.12);color:var(--blu);border:1px solid rgba(77,143,255,.25);border-radius:6px;padding:.2rem .55rem;font-weight:600"></span>
     </div>
     <div id="dcFilterBar" style="display:none;padding:.55rem 1rem;border-bottom:1px solid var(--brd);background:var(--s2)">
       <div class="row wrap" style="gap:.35rem;align-items:center">
@@ -1592,11 +1593,12 @@ function applyDcCustomRange() {
 }
 
 function clearDcRange() {
-  DC_FROM = null; DC_TO = null; DC_WEEK = false;
+  DC_FROM = null; DC_TO = null; DC_WEEK = false; DC_CAT = '';
   var df = document.getElementById('dcFrom'); if (df) df.value = '';
   var dt = document.getElementById('dcTo');   if (dt) dt.value = '';
   var cb = document.getElementById('dcClearBtn'); if (cb) cb.style.display = 'none';
   var lb = document.getElementById('dcFilterLbl'); if (lb) lb.style.display = 'none';
+  var catB = document.getElementById('dcCatBadge'); if (catB) catB.style.display = 'none';
   DC_PG = 1; renderDespesas();
 }
 
@@ -1654,6 +1656,13 @@ function _syncDcInputs() {
   var cb = document.getElementById('dcClearBtn'); if (cb) cb.style.display = (DC_FROM && DC_TO) ? '' : 'none';
 }
 
+function goToCatFilter(cat) {
+  DC_CAT = cat; DC_SEARCH = ''; DC_PG = 1;
+  var si = document.getElementById('dcSearch'); if (si) si.value = '';
+  var tb = document.querySelector('.tb[onclick*="despesas"]');
+  sw('despesas', tb);
+}
+
 // ================================================================
 // GLOBAL MONTH
 // ================================================================
@@ -1662,7 +1671,7 @@ var DC_SORT='date',DC_DIR=-1,DC_PG=1,DC_PGS=15;
 var DC_FROM=null,DC_TO=null,_dcFilterOpen=false;
 var DC_WEEK=false,VEH_WEEK=false,_dcWeekOffset=0,_vehWeekOffset=0;
 var REC_SEARCH='',REC_CARD='all',REC_PIN=false;
-var DC_SEARCH='',DC_CARD='all',DC_PIN=false;
+var DC_SEARCH='',DC_CARD='all',DC_CAT='',DC_PIN=false;
 var CT_SORT='date',CT_DIR=-1,CT_PG=1,CT_PGS=15;
 
 // ================================================================
@@ -2319,11 +2328,6 @@ function renderDashboard() {
     acum += totRec(_m) - totDesp(_m);
   }
 
-  // Total em dívida das parcelas (todas as parcelas não pagas)
-  var totalDiv = S.par.reduce(function(s, p) {
-    return s + parcMonths(p).filter(function(m) { return !p.py[m]; }).length * p.vp;
-  }, 0);
-
   var parcCol = (S.cfg.catColors||{})['ccat:Parcelas'] || CAT_SEMANTIC['Parcelas'] || '#f43f5e';
   var isFutureYm = ym > _curYm;
   var kpis = isFutureYm
@@ -2350,6 +2354,7 @@ function renderDashboard() {
   if (kEl) {
     var futureBanner = isFutureYm
       ? `<div style="grid-column:1/-1;background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:8px;padding:.45rem .8rem;font-size:.72rem;color:var(--ylw);margin-bottom:.1rem">📅 Mês futuro — valores previstos com base em despesas fixas e parcelas agendadas</div>`
+        + (rec === 0 && desp > 0 ? `<div style="grid-column:1/-1;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:.45rem .8rem;font-size:.72rem;color:var(--red);margin-bottom:.1rem">⚠ Sem receita prevista — confirma se o salário já foi lançado</div>` : '')
       : '';
     kEl.innerHTML = futureBanner + kpis.map(function(k) {
       var valStr = k.raw ? k.v : fmt(k.v);
@@ -2383,7 +2388,7 @@ function renderDashboard() {
     if (dCat) dCat.innerHTML = ks.map(function(k,i){
       var pct = dntTotal>0 ? Math.round(ct[k]/dntTotal*100) : 0;
       var col = dntColors[i];
-      return `<div style="display:flex;align-items:center;gap:.6rem;padding:.3rem 0;border-bottom:1px solid var(--brd)">
+      return `<div onclick="goToCatFilter('${k.replace(/'/g,"\\'")}')" style="display:flex;align-items:center;gap:.6rem;padding:.3rem 0;border-bottom:1px solid var(--brd);cursor:pointer" title="Ver transações de ${k.replace(/'/g,"&#39;")}">
         <span style="width:9px;height:9px;border-radius:50%;background:${col};flex-shrink:0"></span>
         <span style="flex:1;font-size:.76rem">${k}</span>
         <span style="font-size:.74rem;color:var(--mut);min-width:32px;text-align:right">${pct}%</span>
@@ -2404,7 +2409,8 @@ function renderDashboard() {
     bEl.innerHTML = '<table><thead><tr><th>Categoria</th><th>Orçamento</th><th>Real</th><th>Restante</th><th>%</th></tr></thead><tbody>' +
       (S.cfg.budShow || S.cfg.ccat || []).map(function(cat) {
         var bud = (S.cfg.bud || {})[cat] || 0;
-        var real = sumVal(S.dc.filter(function(d){return inMonth(d.date,ym)&&d.cat===cat&&(!d._src||d._src==='parc');}));
+        var real = sumVal(S.dc.filter(function(d){return inMonth(d.date,ym)&&d.cat===cat&&(!d._src||d._src==='parc');}))
+                 + sumVal(S.df.filter(function(d){return isActiveForYm(d,ym)&&d.cat===cat;}));
         var rest = bud - real, pct = bud>0?Math.min(100,Math.round(real/bud*100)):0;
         var col = pct>=100?'var(--red)':pct>=80?'var(--ylw)':'var(--grn)';
         var realStyle = real > 0 ? `color:${col};font-weight:700` : `color:var(--mut)`;
@@ -2650,6 +2656,7 @@ function renderDespesas() {
       if (dcard !== DC_CARD) return false;
     }
     if (_dcq && !((d.name||'').toLowerCase().includes(_dcq) || (d.cat||'').toLowerCase().includes(_dcq) || (d.notes||'').toLowerCase().includes(_dcq) || (d.card||'').toLowerCase().includes(_dcq))) return false;
+    if (DC_CAT && d.cat !== DC_CAT) return false;
     return true;
   }).map(function(d) {
     if (d._src === 'parc' && !d.card && d._pid) {
@@ -2668,8 +2675,17 @@ function renderDespesas() {
       _lb.style.display = 'none';
     }
   }
+  var _catBadge = document.getElementById('dcCatBadge');
+  if (_catBadge) {
+    if (DC_CAT) {
+      _catBadge.style.display = '';
+      _catBadge.innerHTML = '🏷 ' + _esc(DC_CAT) + ' <span onclick="DC_CAT=\'\';DC_PG=1;renderDespesas()" style="cursor:pointer;margin-left:.3rem;opacity:.7" title="Limpar filtro">✕</span>';
+    } else {
+      _catBadge.style.display = 'none';
+    }
+  }
   var _cb = document.getElementById('dcClearBtn');
-  if (_cb) _cb.style.display = _dcRangeActive ? '' : 'none';
+  if (_cb) _cb.style.display = (_dcRangeActive || DC_CAT) ? '' : 'none';
 
   corr = _sortArr(corr, DC_SORT, DC_DIR);
   // Entradas de veículo ficam fora da tabela — os totais são calculados via aba Veículo
