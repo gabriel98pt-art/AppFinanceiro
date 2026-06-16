@@ -2085,7 +2085,10 @@ function sw(id, btn) {
   if (panel) panel.classList.add('on');
   if (btn) {
     btn.classList.add('on');
-    btn.scrollIntoView({behavior:'smooth', block:'nearest', inline:'center'});
+    var tabsEl = document.querySelector('.tabs');
+    if (tabsEl) {
+      tabsEl.scrollLeft = btn.offsetLeft - (tabsEl.offsetWidth - btn.offsetWidth) / 2;
+    }
   }
   window.scrollTo(0, 0);
   renderTab(id);
