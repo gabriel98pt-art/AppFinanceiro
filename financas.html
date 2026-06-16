@@ -2087,7 +2087,9 @@ function sw(id, btn) {
     btn.classList.add('on');
     var tabsEl = document.querySelector('.tabs');
     if (tabsEl) {
-      tabsEl.scrollLeft = btn.offsetLeft - (tabsEl.offsetWidth - btn.offsetWidth) / 2;
+      var tr = tabsEl.getBoundingClientRect();
+      var br = btn.getBoundingClientRect();
+      tabsEl.scrollLeft += br.left - tr.left - (tabsEl.offsetWidth - btn.offsetWidth) / 2;
     }
   }
   window.scrollTo(0, 0);
