@@ -1,10 +1,10 @@
 {
-  "name": "Quick€",
-  "short_name": "Quick€",
-  "description": "Registo rápido de movimentos financeiros",
-  "start_url": "./quick.html",
+  "name": "Finanças.",
+  "short_name": "Finanças",
+  "description": "Gestão financeira pessoal",
+  "start_url": "./financas.html",
   "display": "standalone",
-  "background_color": "#0d0d12",
-  "theme_color": "#0d0d12",
+  "background_color": "#0d0f18",
+  "theme_color": "#0d0f18",
   "orientation": "portrait-primary"
 }

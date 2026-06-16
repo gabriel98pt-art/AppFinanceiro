@@ -1,6 +1,6 @@
-var CACHE = 'qf-v2';
-var FILES = ['./quick.html', './manifest.json'];
-var NO_CACHE = ['financas.html', 'OrgFinan'];
+var CACHE = 'qf-v3';
+var FILES = ['./financas.html', './manifest.json'];
+var NO_CACHE = ['quick.html', 'OrgFinan'];
 
 self.addEventListener('install', function(e) {
   e.waitUntil(
