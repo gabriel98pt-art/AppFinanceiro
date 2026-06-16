@@ -2075,6 +2075,15 @@ var PAL = CCAT_PAL.map(function(p){return p.c;});
 // ================================================================
 var CUR = 'dashboard';
 
+function _centerActiveTab() {
+  var tabsEl = document.querySelector('.tabs');
+  var btn = tabsEl && tabsEl.querySelector('.tb.on');
+  if (!tabsEl || !btn) return;
+  var tr = tabsEl.getBoundingClientRect();
+  var br = btn.getBoundingClientRect();
+  tabsEl.scrollLeft += br.left - tr.left - (tabsEl.offsetWidth - btn.offsetWidth) / 2;
+}
+
 function sw(id, btn) {
   CUR = id;
   var panels = document.querySelectorAll('.pnl');
@@ -2083,16 +2092,9 @@ function sw(id, btn) {
   for (var j = 0; j < tabs.length; j++) tabs[j].classList.remove('on');
   var panel = document.getElementById('p-' + id);
   if (panel) panel.classList.add('on');
-  if (btn) {
-    btn.classList.add('on');
-    var tabsEl = document.querySelector('.tabs');
-    if (tabsEl) {
-      var tr = tabsEl.getBoundingClientRect();
-      var br = btn.getBoundingClientRect();
-      tabsEl.scrollLeft += br.left - tr.left - (tabsEl.offsetWidth - btn.offsetWidth) / 2;
-    }
-  }
+  if (btn) btn.classList.add('on');
   window.scrollTo(0, 0);
+  _centerActiveTab();
   renderTab(id);
   updateGlobalNav();
 }
@@ -6984,6 +6986,7 @@ function fixStickyOffsets() {
   var hh = hdr.offsetHeight;
   tabs.style.top = hh + 'px';
   gnav.style.top = (hh + tabs.offsetHeight) + 'px';
+  _centerActiveTab();
 }
 window.addEventListener('resize', fixStickyOffsets);
 
