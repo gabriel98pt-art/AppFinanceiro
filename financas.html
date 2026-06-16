@@ -2084,6 +2084,7 @@ function sw(id, btn) {
   var panel = document.getElementById('p-' + id);
   if (panel) panel.classList.add('on');
   if (btn) btn.classList.add('on');
+  window.scrollTo(0, 0);
   renderTab(id);
   updateGlobalNav();
 }
