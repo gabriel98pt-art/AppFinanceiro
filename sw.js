@@ -26,12 +26,12 @@ self.addEventListener('fetch', function(e) {
     return;
   }
   e.respondWith(
-    caches.match(e.request).then(function(cached) {
-      return cached || fetch(e.request).then(function(res) {
-        var clone = res.clone();
-        caches.open(CACHE).then(function(c){ c.put(e.request, clone); });
-        return res;
-      });
+    fetch(e.request).then(function(res) {
+      var clone = res.clone();
+      caches.open(CACHE).then(function(c){ c.put(e.request, clone); });
+      return res;
+    }).catch(function() {
+      return caches.match(e.request);
     })
   );
 });
