@@ -7579,11 +7579,13 @@ function qPickDate(){
   var inp=document.getElementById('qDate'); if(!inp) return;
   inp.style.position=''; inp.style.opacity='1';
   inp.style.width=''; inp.style.height=''; inp.style.pointerEvents='';
-  try{ inp.showPicker(); } catch(e){ inp.click(); }
-  setTimeout(function(){
+  var rehide=function(){
     inp.style.position='absolute'; inp.style.opacity='0';
     inp.style.width='1px'; inp.style.height='1px'; inp.style.pointerEvents='none';
-  },200);
+  };
+  inp.addEventListener('blur', rehide, {once:true});
+  inp.addEventListener('change', rehide, {once:true});
+  try{ inp.showPicker(); } catch(e){ inp.click(); }
 }
 function qOnDateChange(){
   var inp=document.getElementById('qDate');
