@@ -746,6 +746,20 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 
   <div class="tc mb2">
     <div class="tch">
+      <span class="slbl" style="margin:0">🛣️ Km & Tempo Semanal</span>
+      <div class="row g2">
+        <button class="ic tip" id="eyeBtn_km" data-tip="Mostrar/esconder" onclick="_toggleVis('kmCollapse','eyeBtn_km')" style="font-size:.8rem;width:28px;height:28px"></button>
+        <button class="btn pri sm" onclick="openModal('vehkm')">+ Adicionar</button>
+      </div>
+    </div>
+    <div id="kmCollapse"><div class="tw"><table>
+      <thead><tr><th>Semana</th><th>Km</th><th>Tempo</th><th>Vel. Média</th><th>Notas</th><th></th></tr></thead>
+      <tbody id="kmBody" class="anim"></tbody><tfoot id="kmFoot"></tfoot>
+    </table></div></div>
+  </div>
+
+  <div class="tc mb2">
+    <div class="tch">
       <span class="slbl" style="margin:0">⚡ Carga Elétrica</span>
       <div class="row g2">
         <button class="srch-pin" id="vehWeekBtn" onclick="toggleVehWeek()" title="Semana actual (Seg–Dom)">📅 Sem</button>
@@ -1079,8 +1093,8 @@ function _fbSave(s) {
 
 function _fbNormalizeState(fb) {
   ['rec','df','dc','par','evt','fnds','trf'].forEach(function(k){ if (!Array.isArray(fb[k])) fb[k] = []; });
-  if (!fb.veh || typeof fb.veh !== 'object' || Array.isArray(fb.veh)) fb.veh = { cg:[], lp:[], df:[] };
-  ['cg','lp','df'].forEach(function(k){ if (!Array.isArray(fb.veh[k])) fb.veh[k] = []; });
+  if (!fb.veh || typeof fb.veh !== 'object' || Array.isArray(fb.veh)) fb.veh = { cg:[], lp:[], df:[], km:[] };
+  ['cg','lp','df','km'].forEach(function(k){ if (!Array.isArray(fb.veh[k])) fb.veh[k] = []; });
   if (typeof fb._id !== 'number' || fb._id < 10) fb._id = 10;
   if (!fb.cfg || typeof fb.cfg !== 'object') fb.cfg = {};
   return fb;
@@ -1092,7 +1106,7 @@ function _stateWeight(s) {
   return (s.rec||[]).length + (s.df||[]).length + (s.dc||[]).length +
          (s.par||[]).length + (s.evt||[]).length + (s.fnds||[]).length +
          (s.trf||[]).length + ((s.veh||{}).cg||[]).length +
-         ((s.veh||{}).lp||[]).length + ((s.veh||{}).df||[]).length;
+         ((s.veh||{}).lp||[]).length + ((s.veh||{}).df||[]).length + ((s.veh||{}).km||[]).length;
 }
 
 // Guarda snapshot no localStorage antes de qualquer operação destrutiva
@@ -1221,7 +1235,7 @@ var DEFAULTS = {
     bud: {Mercado:300,Restaurante:200,'Contas de Casa':150,Saúde:100,Lazer:100},
     bal: {'Revolut (D)':0,'AB (D)':0,'AB Gold (C)':0}
   },
-  rec:[], df:[], dc:[], veh:{cg:[],lp:[],df:[]}, par:[], evt:[], fnds:[], trf:[], _id:10
+  rec:[], df:[], dc:[], veh:{cg:[],lp:[],df:[],km:[]}, par:[], evt:[], fnds:[], trf:[], _id:10
 };
 
 // ================================================================
@@ -1368,10 +1382,11 @@ function loadState() {
         if (!Array.isArray(saved[key])) saved[key] = [];
       });
       if (!saved.veh || typeof saved.veh !== 'object' || Array.isArray(saved.veh))
-        saved.veh = { cg:[], lp:[], df:[] };
+        saved.veh = { cg:[], lp:[], df:[], km:[] };
       if (!Array.isArray(saved.veh.cg)) saved.veh.cg = [];
       if (!Array.isArray(saved.veh.lp)) saved.veh.lp = [];
       if (!Array.isArray(saved.veh.df)) saved.veh.df = [];
+      if (!Array.isArray(saved.veh.km)) saved.veh.km = [];
       if (typeof saved._id !== 'number' || saved._id < 10) saved._id = 10;
       return saved;
     }
@@ -1540,6 +1555,7 @@ var _VIS_SECTIONS = [
   ['lpCollapse','eyeBtn_lp'],
   ['vehDfCollapse','eyeBtn_vehDf'],
   ['vehDcCollapse','eyeBtn_vehDc'],
+  ['kmCollapse','eyeBtn_km'],
   ['parcContent','eyeBtn_parc']
 ];
 function _applyAllVis() {
@@ -1662,6 +1678,19 @@ function _getWeekRange(offset) {
   var iso = function(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); };
   var lbl = function(d){ return pad(d.getDate())+' '+['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][d.getMonth()]; };
   return { from: iso(mon), to: iso(sun), label: lbl(mon)+' – '+lbl(sun) };
+}
+
+// Semana (Seg–Dom) que contém uma data arbitrária (usado no registo de Km/Tempo semanal)
+function _weekRangeOfDate(dateStr) {
+  var d = dateStr ? new Date(dateStr+'T00:00:00') : new Date();
+  if (isNaN(d.getTime())) d = new Date();
+  var dow = d.getDay();
+  var daysFromMon = (dow === 0) ? 6 : dow - 1;
+  var mon = new Date(d); mon.setDate(d.getDate() - daysFromMon);
+  var sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  var pad = function(n){ return n < 10 ? '0'+n : ''+n; };
+  var iso = function(x){ return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate()); };
+  return { from: iso(mon), to: iso(sun) };
 }
 
 function toggleDcWeek() {
@@ -2871,6 +2900,25 @@ function renderVeiculo() {
     `<div class="kc" style="--_a:${_kpiC('veh-fix','var(--grn)')}"><div class="klbl">Fixas</div><div class="kval">${fmt(totFix)}</div></div>` +
     `<div class="kc" style="--_a:${_kpiC('veh-var','var(--blu)')}"><div class="klbl">Variáveis</div><div class="kval">${fmt(totLp)}</div></div>`;
 
+  // Km & Tempo semanal
+  var _curWkr = _getWeekRange(0);
+  var kmRows = (S.veh.km||[]).slice().sort(function(a,b){ return b.weekFrom>a.weekFrom?1:-1; });
+  var kmEl = document.getElementById('kmBody');
+  if (kmEl) kmEl.innerHTML = kmRows.length ? kmRows.map(function(d) {
+    var mins = (d.h||0)*60+(d.m||0);
+    var avgSp = mins>0 ? Math.round(d.km/(mins/60)) : null;
+    var isCur = d.weekFrom === _curWkr.from;
+    var lbl = fmtDateShort(d.weekFrom)+' – '+fmtDateShort(d.weekTo);
+    return `<tr><td>${lbl}${isCur?' <span class="tmut" style="font-size:.62rem;border:1px solid var(--brd);border-radius:99px;padding:.05rem .35rem;margin-left:.25rem">atual</span>':''}</td><td>${d.km||0} km</td><td>${d.h||0}h ${pad2(d.m||0)}m</td><td>${avgSp!=null?avgSp+' km/h':'—'}</td><td>${d.notes||'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('vehkm',${d.id})">✏</button><button class="ic d" onclick="delRec('vehkm',${d.id})">🗑</button></div></td></tr>`;
+  }).join('') : _emptyRow(6,'🛣️','Sem registos de km/tempo','Regista os km e o tempo da semana com o botão +');
+  var kmFt = document.getElementById('kmFoot');
+  if (kmFt) {
+    var totKmAll = kmRows.reduce(function(s,d){ return s+(d.km||0); }, 0);
+    var totMinsAll = kmRows.reduce(function(s,d){ return s+(d.h||0)*60+(d.m||0); }, 0);
+    var avgAll = totMinsAll>0 ? Math.round(totKmAll/(totMinsAll/60)) : null;
+    kmFt.innerHTML = kmRows.length ? `<tr><td>Total (${kmRows.length} semana${kmRows.length>1?'s':''})</td><td>${totKmAll} km</td><td>${Math.floor(totMinsAll/60)}h ${pad2(totMinsAll%60)}m</td><td>${avgAll!=null?avgAll+' km/h':'—'}</td><td colspan="2"></td></tr>` : '';
+  }
+
   // Semana (com offset de navegação) ou mês
   var _vehWr = VEH_WEEK ? _getWeekRange(_vehWeekOffset) : null;
   var _vbtn = document.getElementById('vehWeekBtn'); if (_vbtn) _vbtn.classList.toggle('on', VEH_WEEK);
@@ -2885,7 +2933,7 @@ function renderVeiculo() {
   var _cgTotWeek = sumVal(cg);
   var cgEl = document.getElementById('cgBody');
   if (cgEl) cgEl.innerHTML = cg.length ? cg.map(function(d) {
-    return `<tr><td title="${fmtDate(d.date)}">${fmtDateShort(d.date)}</td><td>${d.local||'—'}</td><td>${d.kwh||'—'}</td><td class="tylw bold">${fmt(d.val)}</td><td>${d.card||'—'}</td><td>${d.notes||'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('carga',${d.id})">✏</button><button class="ic d" onclick="delRec('cg',${d.id})">🗑</button></div></td></tr>`;
+    return `<tr><td title="${fmtDate(d.date)}">${fmtDateShort(d.date)}</td><td>${d.local||'—'}${d.frota?' <span class="tmut" style="font-size:.62rem;border:1px solid var(--brd);border-radius:99px;padding:.05rem .35rem;margin-left:.25rem">🚗 frota</span>':''}</td><td>${d.kwh||'—'}</td><td class="tylw bold">${fmt(d.val)}</td><td>${d.card||'—'}</td><td>${d.notes||'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('carga',${d.id})">✏</button><button class="ic d" onclick="delRec('cg',${d.id})">🗑</button></div></td></tr>`;
   }).join('') : _emptyRow(7,'⚡', VEH_WEEK ? 'Nenhuma carga esta semana' : 'Nenhuma carga em '+monthLabel(ym),'Regista sessões de carregamento com o botão +');
   var cgFt = document.getElementById('cgFoot');
   if (cgFt) cgFt.innerHTML = `<tr><td colspan="3">Total ${_cgPeriodLbl}</td><td class="tylw">${fmt(_cgTotWeek)}</td><td colspan="3"></td></tr>`;
@@ -3835,24 +3883,43 @@ function calcFromTotal() {
   onParcValChange();
 }
 
+// Carga Elétrica — modo "Frota": calcula o valor a partir do tarifário em Definições
+function toggleFrotaCarga() {
+  var chk = document.getElementById('f_frota');
+  var on = !!(chk && chk.checked);
+  var row = document.getElementById('f_minsRow'); if (row) row.style.display = on ? '' : 'none';
+  var val = document.getElementById('f_val');
+  if (val) { val.readOnly = on; val.style.background = on ? 'var(--s3)' : ''; }
+  if (on) calcFrotaVal();
+}
+function calcFrotaVal() {
+  var chk = document.getElementById('f_frota');
+  if (!chk || !chk.checked) return;
+  var kwh = parseFloat((document.getElementById('f_kwh')||{}).value) || 0;
+  var mins = parseFloat((document.getElementById('f_mins')||{}).value) || 0;
+  var total = (S.cfg.frotaSessao||0) + mins*(S.cfg.frotaMin||0) + kwh*(S.cfg.frotaKwh||0);
+  var val = document.getElementById('f_val');
+  if (val) val.value = (Math.round(total*100)/100).toFixed(2);
+}
+
 // ================================================================
 // MODALS
 // ================================================================
 var mType = null, mId = null, _rcCard = null, _rcYm = null, _mToast = null;
 var MODAL_TITLES = {
   receita:'Receita', dfixa:'Despesa Fixa', dcorr:'Despesa Corrente',
-  carga:'Carga Elétrica', limp:'Despesa do Veículo', vehfix:'Despesa Fixa Veículo', parc:'Parcela', evt:'Evento', fund:'Fundo de Poupança', trf:'Transferência Interna', contrib:'Contribuição', reconcile:'Reconciliação', fatmanual:'Fatura'
+  carga:'Carga Elétrica', limp:'Despesa do Veículo', vehfix:'Despesa Fixa Veículo', vehkm:'Km & Tempo Semanal', parc:'Parcela', evt:'Evento', fund:'Fundo de Poupança', trf:'Transferência Interna', contrib:'Contribuição', reconcile:'Reconciliação', fatmanual:'Fatura'
 };
 
 // Type → delRec key mapping
-var DEL_TYPE_MAP = {receita:'rec',dfixa:'df',dcorr:'dc',carga:'cg',limp:'lp',vehfix:'vehdf',parc:'par',evt:'evt',fund:'fnd',trf:'trf'};
+var DEL_TYPE_MAP = {receita:'rec',dfixa:'df',dcorr:'dc',carga:'cg',limp:'lp',vehfix:'vehdf',vehkm:'vehkm',parc:'par',evt:'evt',fund:'fnd',trf:'trf'};
 
 function openModal(type, id) {
   mType = type;
   mId = (id !== undefined && id !== null) ? id : null;
   var data = null;
   if (mId !== null) {
-    var src = {receita:S.rec,dfixa:S.df,dcorr:S.dc,carga:S.veh.cg,limp:S.veh.lp,vehfix:S.veh.df,parc:S.par,evt:S.evt,fund:S.fnds};
+    var src = {receita:S.rec,dfixa:S.df,dcorr:S.dc,carga:S.veh.cg,limp:S.veh.lp,vehfix:S.veh.df,vehkm:S.veh.km,parc:S.par,evt:S.evt,fund:S.fnds};
     data = (src[type]||[]).find(function(x){return x.id===mId;});
   }
   var title = document.getElementById('modalTitle');
@@ -3978,6 +4045,16 @@ function buildForm(type, d) {
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
       </div>`;
     }
+    case 'vehkm': {
+      var _kmDd = d ? d.weekFrom : _getWeekRange(0).from;
+      return `<div class="fg">
+        <div class="ff full"><label class="fl">Dia de referência da semana</label><input class="fi fiu" id="f_kmdate" type="date" value="${_kmDd}"><span class="tmut" style="font-size:.7rem">A semana (Seg–Dom) é calculada automaticamente a partir desta data.</span></div>
+        <div class="ff"><label class="fl">Km percorridos</label><input class="fi fiu" id="f_km" type="number" step="1" min="0" value="${d&&d.km?d.km:''}"></div>
+        <div class="ff"><label class="fl">Horas</label><input class="fi fiu" id="f_h" type="number" step="1" min="0" value="${d&&d.h?d.h:''}"></div>
+        <div class="ff"><label class="fl">Minutos</label><input class="fi fiu" id="f_m" type="number" step="1" min="0" max="59" value="${d&&d.m?d.m:''}"></div>
+        <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
+      </div>`;
+    }
     case 'dcorr': return `<div class="fg">
       <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" placeholder="ex: Supermercado, Farmácia..." value="${d?_esc(d.name||''):''}"></div>
       <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
@@ -3988,11 +4065,21 @@ function buildForm(type, d) {
     </div>`;
     case 'carga': {
       var poC = selOpts(S.cfg.pay, d&&d.card);
+      var _isFrota = !!(d && d.frota);
       return `<div class="fg">
         <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
         <div class="ff"><label class="fl">Local</label><input class="fi" id="f_local" placeholder="ex: LIDL, Casa..." value="${d?_esc(d.local||''):''}"></div>
-        <div class="ff"><label class="fl">kWh</label><input class="fi" id="f_kwh" type="number" step="0.01" value="${d?d.kwh||'':''}"></div>
-        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}"></div>
+        <div class="ff"><label class="fl">kWh</label><input class="fi" id="f_kwh" type="number" step="0.01" value="${d?d.kwh||'':''}" oninput="calcFrotaVal()"></div>
+        <div class="ff full"><label class="fl" style="display:flex;align-items:center;gap:.55rem;cursor:pointer;font-weight:400">
+          <input type="checkbox" id="f_frota" ${_isFrota?'checked':''} style="width:15px;height:15px;accent-color:var(--grn);flex-shrink:0" onchange="toggleFrotaCarga()">
+          <span style="font-weight:600">🚗 Carga da Frota</span>
+          <span class="tmut" style="font-size:.72rem">(calcula o valor a partir do tarifário em Definições)</span>
+        </label></div>
+        <div class="ff" id="f_minsRow" style="display:${_isFrota?'':'none'}">
+          <label class="fl">Minutos</label>
+          <input class="fi fiu" id="f_mins" type="number" step="1" min="0" value="${d&&d.mins?d.mins:''}" oninput="calcFrotaVal()">
+        </div>
+        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}" ${_isFrota?'readonly':''} style="${_isFrota?'background:var(--s3)':''}"></div>
         <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${poC}</select></div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
       </div>`;
@@ -4190,6 +4277,10 @@ function validateForm(type) {
         var at2=(_vatY2&&_vatM2)?_vatY2+'-'+_vatM2:null;
         if(af2&&at2&&at2<af2) return '"Encerrar em" deve ser igual ou posterior a "Ativo a partir de".'; }
       return null;
+    case 'vehkm':
+      if (!fv('f_kmdate')) return 'Data obrigatória.';
+      if (!(ff('f_km') > 0)) return 'Km percorridos deve ser maior que zero.';
+      return null;
   }
   return null;
 }
@@ -4223,21 +4314,23 @@ function saveModal() {
       break;
     }
     case 'carga': {
-      var o = {date:gv('f_date'),local:gv('f_local'),kwh:gf('f_kwh')||null,val:gf('f_val'),card:gv('f_card'),notes:gv('f_notes')};
+      var _isFrotaSave = !!(document.getElementById('f_frota') && document.getElementById('f_frota').checked);
+      var o = {date:gv('f_date'),local:gv('f_local'),kwh:gf('f_kwh')||null,val:gf('f_val'),card:gv('f_card'),notes:gv('f_notes'),frota:_isFrotaSave,mins:_isFrotaSave?(gf('f_mins')||null):null};
+      var _cgNotes = function(o2){ return (o2.local?'⚡ '+o2.local+(o2.kwh?' ('+o2.kwh+' kWh)':''):'Carga Elétrica') + (o2.frota?' 🚗 frota':''); };
       if (id!==null) {
         var existing = S.veh.cg.find(function(x){return x.id===id;});
         if (!existing) break;
         Object.assign(existing, o);
         // Update corresponding DC entry
         var dcEntry = S.dc.find(function(x){return x._src==='veh'&&x._vid===id&&x._vtype==='carga';});
-        if (dcEntry) { dcEntry.date=o.date; dcEntry.val=o.val; dcEntry.card=o.card; dcEntry.notes=(o.local?'⚡ '+o.local+(o.kwh?' ('+o.kwh+' kWh)':''):'Carga Elétrica'); }
+        if (dcEntry) { dcEntry.date=o.date; dcEntry.val=o.val; dcEntry.card=o.card; dcEntry.notes=_cgNotes(o); }
       } else {
         var newId = nid();
         S.veh.cg.push(Object.assign({id:newId}, o));
         // Create DC entry automatically
         S.dc.push({id:nid(), date:o.date, cat:'Carga Elétrica',
           val:o.val, card:o.card,
-          notes:(o.local?'⚡ '+o.local+(o.kwh?' ('+o.kwh+' kWh)':''):'Carga Elétrica'),
+          notes:_cgNotes(o),
           _src:'veh', _vid:newId, _vtype:'carga'});
         globalMonth = o.date.slice(0,7);
         S.cfg.lastMonth = globalMonth;
@@ -4341,6 +4434,19 @@ function saveModal() {
       else S.veh.df.push(Object.assign({id:nid()}, o));
       break;
     }
+    case 'vehkm': {
+      var _kmWr = _weekRangeOfDate(gv('f_kmdate'));
+      var o = {weekFrom:_kmWr.from, weekTo:_kmWr.to, km:gf('f_km'), h:gi('f_h')||0, m:gi('f_m')||0, notes:gv('f_notes')};
+      if (!S.veh.km) S.veh.km = [];
+      if (id!==null) { var _t=S.veh.km.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
+      else {
+        // Uma entrada por semana — se já existir registo para a mesma semana, atualiza em vez de duplicar
+        var _exist = S.veh.km.find(function(x){return x.weekFrom===_kmWr.from;});
+        if (_exist) Object.assign(_exist, o);
+        else S.veh.km.push(Object.assign({id:nid()}, o));
+      }
+      break;
+    }
   }
   saveState();
   closeModal();
@@ -4425,6 +4531,7 @@ function delRec(type, id) {
   else if (type==='fnd') S.fnds = S.fnds.filter(function(x){return x.id!==id;});
   else if (type==='trf') S.trf = (S.trf||[]).filter(function(x){return x.id!==id;});
   else if (type==='vehdf') S.veh.df = (S.veh.df||[]).filter(function(x){return x.id!==id;});
+  else if (type==='vehkm') S.veh.km = (S.veh.km||[]).filter(function(x){return x.id!==id;});
   saveState();
   renderTab(CUR);
   showToast('🗑 Eliminado');
@@ -4501,6 +4608,11 @@ function openSettings() {
   // ── 5. Veículo ──
   h += `<div class="sg" id="sg-veiculo"><div class="sgt">🚘 Veículo</div>`;
   h += `<div class="ss"><h4>Km Mensais (para custo/km)</h4><input class="fi fiu" id="si_km" type="number" step="1" value="${S.cfg.kmMensal||0}" style="max-width:120px;margin-top:.15rem" placeholder="ex: 1500"></div>`;
+  h += `<div class="ss"><h4>Tarifário Carga Frota <span class="tmut" style="font-weight:400;text-transform:none">(ex: Prio)</span></h4>
+    <div class="srow"><span class="srow-label">Taxa de sessão (€)</span><input class="fi fiu" id="si_frotaSessao" type="number" step="0.01" value="${S.cfg.frotaSessao||0}" style="max-width:90px;text-align:right"></div>
+    <div class="srow"><span class="srow-label">Preço por minuto (€)</span><input class="fi fiu" id="si_frotaMin" type="number" step="0.001" value="${S.cfg.frotaMin||0}" style="max-width:90px;text-align:right"></div>
+    <div class="srow"><span class="srow-label">Preço por kWh (€)</span><input class="fi fiu" id="si_frotaKwh" type="number" step="0.001" value="${S.cfg.frotaKwh||0}" style="max-width:90px;text-align:right"></div>
+  </div>`;
   h += `</div>`;
 
   // ── 6. Cores ──
@@ -4691,6 +4803,12 @@ function saveSet() {
   var _kmRaw = (document.getElementById('si_km')||{}).value||'';
   var km = _kmRaw ? parseMoney(_kmRaw) : 0;
   if (!isNaN(km) && km >= 0) S.cfg.kmMensal = km;
+  var _frSessao = parseFloat((document.getElementById('si_frotaSessao')||{}).value);
+  if (!isNaN(_frSessao) && _frSessao >= 0) S.cfg.frotaSessao = _frSessao;
+  var _frMin = parseFloat((document.getElementById('si_frotaMin')||{}).value);
+  if (!isNaN(_frMin) && _frMin >= 0) S.cfg.frotaMin = _frMin;
+  var _frKwh = parseFloat((document.getElementById('si_frotaKwh')||{}).value);
+  if (!isNaN(_frKwh) && _frKwh >= 0) S.cfg.frotaKwh = _frKwh;
   (S.cfg.ccat||[]).forEach(function(x) {
     var el = document.getElementById('sbud_' + x.replace(/\s+/g,'_'));
     if (el) { S.cfg.bud = S.cfg.bud||{}; S.cfg.bud[x] = parseFloat(el.value)||0; }
