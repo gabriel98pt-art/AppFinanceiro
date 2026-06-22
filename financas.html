@@ -1276,6 +1276,35 @@ function parseMoney(s) {
   return (isFinite(n) && !isNaN(n)) ? n : NaN;
 }
 
+// Máscara monetária tipo calculadora: dígitos entram da direita, a vírgula decimal
+// aparece sozinha — nunca é preciso digitá-la. dec = nº de casas decimais (2 ou 3).
+function _moneyFromDigits(digits, dec) {
+  while (digits.length <= dec) digits = '0' + digits;
+  var intP = digits.slice(0, digits.length - dec).replace(/^0+(?=\d)/, '') || '0';
+  var decP = digits.slice(digits.length - dec);
+  intP = intP.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return intP + ',' + decP;
+}
+// Handler de oninput para inputs mascarados: oninput="moneyMask(event,2)"
+function moneyMask(e, dec) {
+  var el = e.target;
+  var digits = el.value.replace(/\D/g, '').replace(/^0+/, '');
+  el.value = digits ? _moneyFromDigits(digits, dec || 2) : '';
+  el.setSelectionRange(el.value.length, el.value.length);
+}
+// Formata um valor já guardado (float) para preencher um input mascarado ao editar
+function moneyDisp(v, dec) {
+  var n = safeNum(v, 0);
+  if (!n) return '';
+  return _moneyFromDigits(String(Math.round(Math.abs(n) * Math.pow(10, dec || 2))), dec || 2);
+}
+// Lê de volta um input mascarado (vírgula decimal, ponto de milhares) para float
+function moneyVal(s) {
+  if (s == null || s === '') return 0;
+  var n = parseFloat(String(s).replace(/\./g, '').replace(',', '.'));
+  return isFinite(n) ? n : 0;
+}
+
 // Data segura: valida e normaliza string ISO YYYY-MM-DD
 function safeDate(s) {
   if (!s || typeof s !== 'string') return null;
@@ -3865,7 +3894,7 @@ function setParcMode(mode) {
 
 // Mode 1: user knows parcela value → show total
 function onParcValChange() {
-  var val = parseFloat(document.getElementById('f_val') ? document.getElementById('f_val').value : 0) || 0;
+  var val = moneyVal(document.getElementById('f_val') ? document.getElementById('f_val').value : 0);
   var num = parseInt(document.getElementById('f_num') ? document.getElementById('f_num').value : 0) || 0;
   var el = document.getElementById('pCalcVal');
   if (el) el.textContent = (val > 0 && num > 0) ? fmt(val * num) : '—';
@@ -3874,7 +3903,7 @@ function onParcValChange() {
 
 // Mode 2: user knows total → calculate parcela value
 function calcFromTotal() {
-  var total = parseFloat(document.getElementById('f_total') ? document.getElementById('f_total').value : 0) || 0;
+  var total = moneyVal(document.getElementById('f_total') ? document.getElementById('f_total').value : 0);
   var num = parseInt(document.getElementById('f_num') ? document.getElementById('f_num').value : 0) || 0;
   var calcEl = document.getElementById('pCalcVal');
   var valEl = document.getElementById('f_val');
@@ -3884,9 +3913,9 @@ function calcFromTotal() {
     // Write calculated value to f_val (hidden) so saveModal reads it
     if (!valEl) {
       var hidden = document.createElement('input');
-      hidden.type = 'hidden'; hidden.id = 'f_val'; hidden.value = perParc;
+      hidden.type = 'hidden'; hidden.id = 'f_val'; hidden.value = moneyDisp(perParc, 2);
       document.getElementById('f_total').parentNode.appendChild(hidden);
-    } else { valEl.value = perParc; }
+    } else { valEl.value = moneyDisp(perParc, 2); }
   } else {
     if (calcEl) { calcEl.textContent = '—'; calcEl.style.color = 'var(--mut)'; }
   }
@@ -3910,13 +3939,13 @@ function calcFrotaVal() {
   if (!chk || !chk.checked) return;
   var val = document.getElementById('f_val');
   if (val && val.dataset.manual === '1') return; // já digitaste o valor final — não sobrescrever
-  var kwh = parseFloat((document.getElementById('f_kwh')||{}).value) || 0;
+  var kwh = moneyVal((document.getElementById('f_kwh')||{}).value);
   var mins = parseFloat((document.getElementById('f_mins')||{}).value) || 0;
-  var sessao = parseFloat((document.getElementById('f_frSessao')||{}).value) || 0;
-  var perMin = parseFloat((document.getElementById('f_frPerMin')||{}).value) || 0;
-  var perKwh = parseFloat((document.getElementById('f_frPerKwh')||{}).value) || 0;
+  var sessao = moneyVal((document.getElementById('f_frSessao')||{}).value);
+  var perMin = moneyVal((document.getElementById('f_frPerMin')||{}).value);
+  var perKwh = moneyVal((document.getElementById('f_frPerKwh')||{}).value);
   var total = sessao + mins*perMin + kwh*perKwh;
-  if (val) val.value = (Math.round(total*100)/100).toFixed(2);
+  if (val) val.value = moneyDisp(total, 2);
 }
 
 // ================================================================
@@ -3984,7 +4013,7 @@ function buildForm(type, d) {
     case 'receita': return `<div class="fg">
       <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
       <div class="ff"><label class="fl">Fonte</label><select class="fi" id="f_src">${so}</select></div>
-      <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}"></div>
+      <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
       <div class="ff"><label class="fl">Conta de Destino</label><select class="fi" id="f_card">${po}</select></div>
       <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
     </div>`;
@@ -4003,7 +4032,7 @@ function buildForm(type, d) {
       return `<div class="fg">
         <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
         <div class="ff"><label class="fl">Categoria</label><select class="fi" id="f_cat">${fo}</select></div>
-        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}"></div>
+        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
         <div class="ff"><label class="fl">Dia Vencimento</label><select class="sel" id="f_day">${_dyOpts}</select></div>
         <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${po}</select></div>
         <div class="ff full"><label class="fl">Ativo a partir de</label>
@@ -4044,7 +4073,7 @@ function buildForm(type, d) {
       return `<div class="fg">
         <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
         <div class="ff"><label class="fl">Categoria</label><select class="fi" id="f_cat">${voV}</select></div>
-        <div class="ff"><label class="fl">Valor (€/mês)</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}"></div>
+        <div class="ff"><label class="fl">Valor (€/mês)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
         <div class="ff"><label class="fl">Dia Vencimento</label><select class="sel" id="f_day">${_vdyOpts}</select></div>
         <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${poV}</select></div>
         <div class="ff full"><label class="fl">Ativo a partir de</label>
@@ -4076,7 +4105,7 @@ function buildForm(type, d) {
       <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" placeholder="ex: Supermercado, Farmácia..." value="${d?_esc(d.name||''):''}"></div>
       <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
       <div class="ff"><label class="fl">Categoria</label><select class="fi" id="f_cat">${co}</select></div>
-      <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}"></div>
+      <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
       <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${po}</select></div>
       <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
     </div>`;
@@ -4089,7 +4118,7 @@ function buildForm(type, d) {
       return `<div class="fg">
         <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
         <div class="ff"><label class="fl">Local</label><input class="fi" id="f_local" placeholder="ex: LIDL, Casa..." value="${d?_esc(d.local||''):''}"></div>
-        <div class="ff"><label class="fl">kWh</label><input class="fi" id="f_kwh" type="number" step="0.01" value="${d?d.kwh||'':''}" oninput="calcFrotaVal()"></div>
+        <div class="ff"><label class="fl">kWh</label><input class="fi" id="f_kwh" type="text" inputmode="decimal" placeholder="0,000" value="${d?moneyDisp(d.kwh,3):''}" oninput="moneyMask(event,3);calcFrotaVal()"></div>
         <div class="ff full"><label class="fl" style="display:flex;align-items:center;gap:.55rem;cursor:pointer;font-weight:400">
           <input type="checkbox" id="f_frota" ${_isFrota?'checked':''} style="width:15px;height:15px;accent-color:var(--grn);flex-shrink:0" onchange="toggleFrotaCarga()">
           <span style="font-weight:600">🚗 Carga da Frota</span>
@@ -4098,12 +4127,12 @@ function buildForm(type, d) {
         <div class="ff full" id="f_frotaFields" style="display:${_isFrota?'':'none'}">
           <div class="fg" style="grid-template-columns:repeat(2,1fr)">
             <div class="ff"><label class="fl">Minutos <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_mins" type="number" step="1" min="0" value="${d&&d.mins?d.mins:''}" oninput="calcFrotaVal()"></div>
-            <div class="ff"><label class="fl">Taxa sessão (€) <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frSessao" type="number" step="0.01" min="0" value="${_frS}" oninput="calcFrotaVal()"></div>
-            <div class="ff"><label class="fl">€/minuto <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frPerMin" type="number" step="0.001" min="0" value="${_frM}" oninput="calcFrotaVal()"></div>
-            <div class="ff"><label class="fl">€/kWh <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frPerKwh" type="number" step="0.001" min="0" value="${_frK}" oninput="calcFrotaVal()"></div>
+            <div class="ff"><label class="fl">Taxa sessão (€) <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frSessao" type="text" inputmode="decimal" placeholder="0,00" value="${moneyDisp(_frS,2)}" oninput="moneyMask(event,2);calcFrotaVal()"></div>
+            <div class="ff"><label class="fl">€/minuto <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frPerMin" type="text" inputmode="decimal" placeholder="0,000" value="${moneyDisp(_frM,3)}" oninput="moneyMask(event,3);calcFrotaVal()"></div>
+            <div class="ff"><label class="fl">€/kWh <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frPerKwh" type="text" inputmode="decimal" placeholder="0,000" value="${moneyDisp(_frK,3)}" oninput="moneyMask(event,3);calcFrotaVal()"></div>
           </div>
         </div>
-        <div class="ff"><label class="fl">Valor (€) ${_isFrota?'<span class="tmut" style="font-weight:400">(auto, mas edita se já souberes o total)</span>':''}</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}" ${d?'data-manual="1"':''} oninput="this.dataset.manual='1'"></div>
+        <div class="ff"><label class="fl">Valor (€) ${_isFrota?'<span class="tmut" style="font-weight:400">(auto, mas edita se já souberes o total)</span>':''}</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" ${d?'data-manual="1"':''} oninput="moneyMask(event,2);this.dataset.manual='1'"></div>
         <div class="ff" id="f_cardRow" style="display:${_isFrota?'none':''}"><label class="fl">Cartão</label><select class="fi" id="f_card">${poC}</select></div>
         <div class="ff" id="f_frotaCardNote" style="display:${_isFrota?'':'none'};align-self:end"><span class="tmut" style="font-size:.72rem">💼 Descontado direto no vencimento — sem conta associada.</span></div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
@@ -4116,7 +4145,7 @@ function buildForm(type, d) {
       return `<div class="fg">
         <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
         <div class="ff"><label class="fl">Tipo de Despesa</label><select class="fi" id="f_tipo">${vcatOpts}</select></div>
-        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}"></div>
+        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
         <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${poL}</select></div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
       </div>`;
@@ -4148,13 +4177,13 @@ function buildForm(type, d) {
         <!-- MODE 1: direct parcela value -->
         <div class="ff" id="pMode1">
           <label class="fl">Valor Parcela (€)</label>
-          <input class="fi fiu" id="f_val" type="number" step="0.01" value="${vpVal}" oninput="onParcValChange()">
+          <input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${moneyDisp(vpVal,2)}" oninput="moneyMask(event,2);onParcValChange()">
         </div>
 
         <!-- MODE 2: total → calculates parcela -->
         <div class="ff" id="pMode2" style="display:none">
           <label class="fl">Valor Total (€)</label>
-          <input class="fi fiu" id="f_total" type="number" step="0.01" placeholder="ex: 619.70" oninput="calcFromTotal()">
+          <input class="fi fiu" id="f_total" type="text" inputmode="decimal" placeholder="0,00" oninput="moneyMask(event,2);calcFromTotal()">
         </div>
 
         <div class="ff">
@@ -4177,19 +4206,19 @@ function buildForm(type, d) {
     case 'evt': return `<div class="fg">
       <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
       <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
-      <div class="ff"><label class="fl">Valor (€, opcional)</label><input class="fi" id="f_val" type="number" step="0.01" value="${d?d.val||'':''}"></div>
+      <div class="ff"><label class="fl">Valor (€, opcional)</label><input class="fi" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
     </div>`;
     case 'fund': return `<div class="fg">
       <div class="ff full"><label class="fl">Nome do Fundo</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
-      <div class="ff"><label class="fl">Objetivo (€)</label><input class="fi fiu" id="f_goal" type="number" step="0.01" value="${d?d.goal||'':''}"></div>
-      <div class="ff"><label class="fl">Poupado (€)</label><input class="fi fiu" id="f_saved" type="number" step="0.01" value="${d?d.saved||0:0}"></div>
+      <div class="ff"><label class="fl">Objetivo (€)</label><input class="fi fiu" id="f_goal" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.goal,2):''}" oninput="moneyMask(event,2)"></div>
+      <div class="ff"><label class="fl">Poupado (€)</label><input class="fi fiu" id="f_saved" type="text" inputmode="decimal" placeholder="0,00" value="${moneyDisp(d?d.saved||0:0,2)}" oninput="moneyMask(event,2)"></div>
       <div class="ff"><label class="fl">Data Objetivo</label><input class="fi" id="f_dl" type="date" value="${d?d.deadline||'':''}"></div>
     </div>`;
     case 'contrib': {
       var _falta = d ? Math.max(0,(d.goal||0)-(d.saved||0)) : 0;
       return `<div class="fg">
         <div class="inf" style="margin-bottom:.75rem">Poupado: <strong>${fmt(d?d.saved||0:0)}</strong> de <strong>${fmt(d?d.goal||0:0)}</strong>${_falta>0?' · em falta: <strong>'+fmt(_falta)+'</strong>':' · <span style="color:var(--grn)">meta atingida</span>'}</div>
-        <div class="ff full"><label class="fl">Valor a contribuir (€)</label><input class="fi fiu" id="f_contrib" type="number" step="0.01" min="0.01" placeholder="0.00" autofocus></div>
+        <div class="ff full"><label class="fl">Valor a contribuir (€)</label><input class="fi fiu" id="f_contrib" type="text" inputmode="decimal" placeholder="0,00" autofocus oninput="moneyMask(event,2)"></div>
       </div>`;
     }
     case 'trf': {
@@ -4197,7 +4226,7 @@ function buildForm(type, d) {
       var po2 = selOpts(S.cfg.pay, d&&d.to);
       return `<div class="fg">
         <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${d?d.date:todayStr()}"></div>
-        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}"></div>
+        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
         <div class="ff"><label class="fl">De (origem)</label><select class="fi" id="f_from">${po1}</select></div>
         <div class="ff"><label class="fl">Para (destino)</label><select class="fi" id="f_to">${po2}</select></div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
@@ -4209,13 +4238,13 @@ function buildForm(type, d) {
       var _rinfo = _isFirst
         ? `<div class="inf" style="margin-bottom:.75rem">Ponto de partida para <strong>${_esc(d.card)}</strong>. As transações futuras ajustam a partir daqui.</div>`
         : `<div class="inf" style="margin-bottom:.75rem">App calcula: <strong>${fmt(_appBal)}</strong></div>`;
-      return `<div class="fg">${_rinfo}<div class="ff full"><label class="fl">Saldo real no banco (€)</label><input class="fi fiu" id="f_real_bal" type="number" step="0.01" placeholder="${_appBal !== null ? _appBal.toFixed(2) : '0.00'}" autofocus></div></div>`;
+      return `<div class="fg">${_rinfo}<div class="ff full"><label class="fl">Saldo real no banco (€)</label><input class="fi fiu" id="f_real_bal" type="text" inputmode="decimal" placeholder="${_appBal !== null ? _appBal.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2}) : '0,00'}" autofocus oninput="moneyMask(event,2)"></div></div>`;
     }
     case 'fatmanual': {
       var _hasCur = d && d.cur != null;
       return `<div class="fg">
         <div class="inf" style="margin-bottom:.75rem">Cálculo automático: <strong>${fmt(d.fatCalc)}</strong>${_hasCur ? ' · manual activo: <strong>'+fmt(d.cur)+'</strong>' : ''}</div>
-        <div class="ff full"><label class="fl">Valor manual da fatura (€)</label><input class="fi fiu" id="f_fat_val" type="number" step="0.01" placeholder="${d.fatCalc.toFixed(2)}" value="${_hasCur ? d.cur : ''}" autofocus></div>
+        <div class="ff full"><label class="fl">Valor manual da fatura (€)</label><input class="fi fiu" id="f_fat_val" type="text" inputmode="decimal" placeholder="${d.fatCalc.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2})}" value="${_hasCur ? moneyDisp(d.cur,2) : ''}" autofocus oninput="moneyMask(event,2)"></div>
         <div class="tmut" style="font-size:.72rem;margin-top:.35rem">Deixe vazio para voltar ao cálculo automático.</div>
       </div>`;
     }
@@ -4226,10 +4255,11 @@ function buildForm(type, d) {
 function gv(id) { var e = document.getElementById(id); return e ? e.value : ''; }
 function gf(id) { return parseFloat(gv(id)) || 0; }
 function gi(id) { return parseInt(gv(id)) || 0; }
+function gm(id) { return moneyVal(gv(id)); } // valor de um input mascarado (vírgula decimal)
 
 function validateForm(type) {
   function fv(id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; }
-  function ff(id) { return parseFloat(fv(id)); }
+  function ff(id) { return moneyVal(fv(id)); }
   switch(type) {
     case 'receita':
       if (!fv('f_date')) return 'Data obrigatória.';
@@ -4277,13 +4307,13 @@ function validateForm(type) {
       if (!(ff('f_contrib') > 0)) return 'Valor deve ser maior que zero.';
       return null;
     case 'reconcile': {
-      var _rv = parseFloat((document.getElementById('f_real_bal')||{}).value);
-      if (isNaN(_rv)) return 'Introduza o saldo real.';
+      var _rvRaw = ((document.getElementById('f_real_bal')||{}).value||'').trim();
+      if (_rvRaw === '') return 'Introduza o saldo real.';
       return null;
     }
     case 'fatmanual': {
       var _fv = ((document.getElementById('f_fat_val')||{}).value||'').trim();
-      if (_fv !== '' && (isNaN(parseFloat(_fv)) || parseFloat(_fv) < 0)) return 'Valor inválido.';
+      if (_fv !== '' && moneyVal(_fv) < 0) return 'Valor inválido.';
       return null;
     }
     case 'trf':
@@ -4317,7 +4347,7 @@ function saveModal() {
   var id = mId;
   switch(mType) {
     case 'receita': {
-      var o = {date:gv('f_date'),src:gv('f_src'),val:gf('f_val'),card:gv('f_card'),notes:gv('f_notes')};
+      var o = {date:gv('f_date'),src:gv('f_src'),val:gm('f_val'),card:gv('f_card'),notes:gv('f_notes')};
       if (id!==null) { var _t=S.rec.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.rec.push(Object.assign({id:nid()}, o));
       break;
@@ -4327,24 +4357,24 @@ function saveModal() {
       var _sm_af=(_sm_afY&&_sm_afM)?_sm_afY+'-'+_sm_afM:null;
       var _sm_at=(_sm_atY&&_sm_atM)?_sm_atY+'-'+_sm_atM:null;
       var _ar = !!(document.getElementById('f_autoRenew') && document.getElementById('f_autoRenew').checked);
-      var o = {name:gv('f_name'),cat:gv('f_cat'),val:gf('f_val'),day:gi('f_day'),card:gv('f_card'),notes:gv('f_notes'),activeFrom:_sm_af,activeTo:_sm_at,autoRenew:_ar};
+      var o = {name:gv('f_name'),cat:gv('f_cat'),val:gm('f_val'),day:gi('f_day'),card:gv('f_card'),notes:gv('f_notes'),activeFrom:_sm_af,activeTo:_sm_at,autoRenew:_ar};
       if (id!==null) { var _t=S.df.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.df.push(Object.assign({id:nid(),paidMonths:{}}, o));
       break;
     }
     case 'dcorr': {
-      var o = {date:gv('f_date'),name:gv('f_name'),cat:gv('f_cat'),val:gf('f_val'),card:gv('f_card'),notes:gv('f_notes')};
+      var o = {date:gv('f_date'),name:gv('f_name'),cat:gv('f_cat'),val:gm('f_val'),card:gv('f_card'),notes:gv('f_notes')};
       if (id!==null) { var _t=S.dc.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.dc.push(Object.assign({id:nid()}, o));
       break;
     }
     case 'carga': {
       var _isFrotaSave = !!(document.getElementById('f_frota') && document.getElementById('f_frota').checked);
-      var o = {date:gv('f_date'),local:gv('f_local'),kwh:gf('f_kwh')||null,val:gf('f_val'),card:_isFrotaSave?'Frota':gv('f_card'),notes:gv('f_notes'),frota:_isFrotaSave,
+      var o = {date:gv('f_date'),local:gv('f_local'),kwh:gm('f_kwh')||null,val:gm('f_val'),card:_isFrotaSave?'Frota':gv('f_card'),notes:gv('f_notes'),frota:_isFrotaSave,
         mins:_isFrotaSave?(gf('f_mins')||null):null,
-        frSessao:_isFrotaSave?(gf('f_frSessao')||0):null,
-        frPerMin:_isFrotaSave?(gf('f_frPerMin')||0):null,
-        frPerKwh:_isFrotaSave?(gf('f_frPerKwh')||0):null};
+        frSessao:_isFrotaSave?(gm('f_frSessao')||0):null,
+        frPerMin:_isFrotaSave?(gm('f_frPerMin')||0):null,
+        frPerKwh:_isFrotaSave?(gm('f_frPerKwh')||0):null};
       if (_isFrotaSave && (o.frSessao||o.frPerMin||o.frPerKwh)) { S.cfg.frotaSessao=o.frSessao; S.cfg.frotaMin=o.frPerMin; S.cfg.frotaKwh=o.frPerKwh; }
       var _cgNotes = function(o2){ return (o2.local?'⚡ '+o2.local+(o2.kwh?' ('+o2.kwh+' kWh)':''):'Carga Elétrica') + (o2.frota?' 🚗 frota':''); };
       if (id!==null) {
@@ -4368,7 +4398,7 @@ function saveModal() {
       break;
     }
     case 'limp': {
-      var o = {date:gv('f_date'),tipo:gv('f_tipo'),val:gf('f_val'),card:gv('f_card'),notes:gv('f_notes')};
+      var o = {date:gv('f_date'),tipo:gv('f_tipo'),val:gm('f_val'),card:gv('f_card'),notes:gv('f_notes')};
       if (id!==null) {
         var existing = S.veh.lp.find(function(x){return x.id===id;});
         if (!existing) break;
@@ -4389,32 +4419,32 @@ function saveModal() {
     }
     case 'parc': {
       var _ad2 = !!(document.getElementById('f_autoDebit') && document.getElementById('f_autoDebit').checked);
-      var o = {name:gv('f_name'),cat:gv('f_cat'),card:gv('f_card'),vp:gf('f_val'),num:gi('f_num'),fd:gv('f_fd'),autoDebit:_ad2};
+      var o = {name:gv('f_name'),cat:gv('f_cat'),card:gv('f_card'),vp:gm('f_val'),num:gi('f_num'),fd:gv('f_fd'),autoDebit:_ad2};
       if (id!==null) { var _t=S.par.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.par.push(Object.assign({id:nid(),py:{}}, o));
       break;
     }
     case 'evt': {
-      var o = {name:gv('f_name'),date:gv('f_date'),val:gf('f_val')||null};
+      var o = {name:gv('f_name'),date:gv('f_date'),val:gm('f_val')||null};
       if (id!==null) { var _t=S.evt.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.evt.push(Object.assign({id:nid()}, o));
       break;
     }
     case 'fund': {
-      var o = {name:gv('f_name'),goal:gf('f_goal'),saved:gf('f_saved'),deadline:gv('f_dl')};
+      var o = {name:gv('f_name'),goal:gm('f_goal'),saved:gm('f_saved'),deadline:gv('f_dl')};
       if (id!==null) { var _t=S.fnds.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.fnds.push(Object.assign({id:nid()}, o));
       break;
     }
     case 'contrib': {
       var _cf = S.fnds.find(function(x){return x.id===id;});
-      if (_cf) _cf.saved = fromCents(toCents(_cf.saved||0) + toCents(gf('f_contrib')));
+      if (_cf) _cf.saved = fromCents(toCents(_cf.saved||0) + toCents(gm('f_contrib')));
       break;
     }
     case 'reconcile': {
       var _rcard = _rcCard, _today2 = todayStr();
       var _rsnap = getCardSnap(_rcard, _today2), _risFirst = _rsnap.date === '0000-01-01';
-      var _real = parseFloat((document.getElementById('f_real_bal')||{}).value);
+      var _real = moneyVal((document.getElementById('f_real_bal')||{}).value);
       if (!_risFirst) {
         var _rsd = _rsnap.date;
         var _rAppBal = _rsnap.val
@@ -4444,11 +4474,11 @@ function saveModal() {
       if (!S.cfg.fatManual) S.cfg.fatManual = {};
       if (!S.cfg.fatManual[_fcard2]) S.cfg.fatManual[_fcard2] = {};
       if (_fval2 === '') { delete S.cfg.fatManual[_fcard2][_fym2]; _mToast = '✓ Reposto para cálculo automático'; }
-      else { S.cfg.fatManual[_fcard2][_fym2] = parseFloat(_fval2); _mToast = '✓ Fatura manual: ' + fmt(parseFloat(_fval2)); }
+      else { S.cfg.fatManual[_fcard2][_fym2] = moneyVal(_fval2); _mToast = '✓ Fatura manual: ' + fmt(moneyVal(_fval2)); }
       break;
     }
     case 'trf': {
-      var o = {date:gv('f_date'),from:gv('f_from'),to:gv('f_to'),val:gf('f_val'),notes:gv('f_notes')};
+      var o = {date:gv('f_date'),from:gv('f_from'),to:gv('f_to'),val:gm('f_val'),notes:gv('f_notes')};
       if (!S.trf) S.trf = [];
       if (id!==null) { var _t=S.trf.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.trf.push(Object.assign({id:nid()}, o));
@@ -4458,7 +4488,7 @@ function saveModal() {
       var _sm2_afM=gv('f_afM'),_sm2_afY=gv('f_afY'),_sm2_atM=gv('f_atM'),_sm2_atY=gv('f_atY');
       var _sm2_af=(_sm2_afY&&_sm2_afM)?_sm2_afY+'-'+_sm2_afM:null;
       var _sm2_at=(_sm2_atY&&_sm2_atM)?_sm2_atY+'-'+_sm2_atM:null;
-      var o = {name:gv('f_name'),cat:gv('f_cat'),val:gf('f_val'),day:gi('f_day'),card:gv('f_card'),notes:gv('f_notes'),activeFrom:_sm2_af,activeTo:_sm2_at};
+      var o = {name:gv('f_name'),cat:gv('f_cat'),val:gm('f_val'),day:gi('f_day'),card:gv('f_card'),notes:gv('f_notes'),activeFrom:_sm2_af,activeTo:_sm2_at};
       if (!S.veh.df) S.veh.df = [];
       if (id!==null) { var _t=S.veh.df.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.veh.df.push(Object.assign({id:nid()}, o));
@@ -4628,10 +4658,10 @@ function openSettings() {
 
   // ── 4. Metas & Orçamento ──
   h += `<div class="sg" id="sg-metas"><div class="sgt">💰 Metas &amp; Orçamento</div><div class="sgrid">`;
-  h += `<div class="ss"><h4>Meta de Poupança Mensal (€)</h4><input class="fi fiu" id="si_sgoal" type="number" step="0.01" value="${c.sgoal||500}" style="max-width:140px;margin-top:.15rem"></div>`;
+  h += `<div class="ss"><h4>Meta de Poupança Mensal (€)</h4><input class="fi fiu" id="si_sgoal" type="text" inputmode="decimal" value="${moneyDisp(c.sgoal||500,2)}" oninput="moneyMask(event,2)" style="max-width:140px;margin-top:.15rem"></div>`;
   h += `<div class="ss"><h4>Orçamento por Categoria (€/mês)</h4>`;
   (c.ccat||[]).forEach(function(x){
-    h += `<div class="srow"><span class="srow-label">${x}</span><input class="fi fiu" id="sbud_${x.replace(/\s+/g,'_')}" type="number" step="0.01" value="${(c.bud||{})[x]||0}" style="max-width:90px;text-align:right"></div>`;
+    h += `<div class="srow"><span class="srow-label">${x}</span><input class="fi fiu" id="sbud_${x.replace(/\s+/g,'_')}" type="text" inputmode="decimal" value="${moneyDisp((c.bud||{})[x]||0,2)}" oninput="moneyMask(event,2)" style="max-width:90px;text-align:right"></div>`;
   });
   h += `</div></div></div>`;
 
@@ -4830,7 +4860,7 @@ function saveSet() {
   if (!isNaN(km) && km >= 0) S.cfg.kmMensal = km;
   (S.cfg.ccat||[]).forEach(function(x) {
     var el = document.getElementById('sbud_' + x.replace(/\s+/g,'_'));
-    if (el) { S.cfg.bud = S.cfg.bud||{}; S.cfg.bud[x] = parseFloat(el.value)||0; }
+    if (el) { S.cfg.bud = S.cfg.bud||{}; S.cfg.bud[x] = moneyVal(el.value); }
   });
   S.cfg.cardType = S.cfg.cardType||{};
   S.cfg.cardDueDay = S.cfg.cardDueDay||{};
@@ -7139,9 +7169,9 @@ function qOpen() {
   var vl=document.getElementById('qVehLocal'); if(vl) vl.value='';
   var vk=document.getElementById('qVehKwh'); if(vk) vk.value='';
   var fm=document.getElementById('qFrMins'); if(fm) fm.value='';
-  var fs=document.getElementById('qFrSessao'); if(fs) fs.value=S.cfg.frotaSessao||'';
-  var fp=document.getElementById('qFrPerMin'); if(fp) fp.value=S.cfg.frotaMin||'';
-  var fk=document.getElementById('qFrPerKwh'); if(fk) fk.value=S.cfg.frotaKwh||'';
+  var fs=document.getElementById('qFrSessao'); if(fs) fs.value=moneyDisp(S.cfg.frotaSessao,2);
+  var fp=document.getElementById('qFrPerMin'); if(fp) fp.value=moneyDisp(S.cfg.frotaMin,3);
+  var fk=document.getElementById('qFrPerKwh'); if(fk) fk.value=moneyDisp(S.cfg.frotaKwh,3);
   var di=document.getElementById('qDate'); if(di) di.value=todayStr();
   var ll=document.getElementById('qDateLbl'); if(ll) ll.textContent='Hoje';
   _qRender();
@@ -7295,11 +7325,10 @@ function _qRender() {
 }
 function qPickCat(c){ _qCat=c; _qRender(); }
 function qPickAcc(a){ _qAcc=a; _qRender(); }
-// Lê um input de texto decimal aceitando vírgula ou ponto (teclado pt-PT usa vírgula)
+// Lê um input de texto (mascarado ou não) de volta para float
 function _qNumVal(id){
   var el=document.getElementById(id);
-  var v=(el&&el.value||'').replace(',','.');
-  return parseFloat(v)||0;
+  return moneyVal(el&&el.value);
 }
 function qCalcFrota(){
   var a=document.getElementById('qAmt');
@@ -7310,7 +7339,7 @@ function qCalcFrota(){
   var perMin=_qNumVal('qFrPerMin');
   var perKwh=_qNumVal('qFrPerKwh');
   var total=sessao+mins*perMin+kwh*perKwh;
-  if(a) a.value=(Math.round(total*100)/100).toFixed(2);
+  if(a) a.value=moneyDisp(total,2);
 }
 
 function qOnDateChange(){
@@ -7325,7 +7354,7 @@ function qOnDateChange(){
 }
 function qSave(){
   var raw=(document.getElementById('qAmt')||{}).value||'';
-  var amt=parseFloat(String(raw).replace(',','.'));
+  var amt=moneyVal(raw);
   if(!amt||!isFinite(amt)||amt<=0){
     var a=document.getElementById('qAmt');
     if(a){a.focus();a.classList.remove('shake');void a.offsetWidth;a.classList.add('shake');}
@@ -7344,8 +7373,7 @@ function qSave(){
     var vid=nid();
     if(_qVSub==='cg'){
       var local=((document.getElementById('qVehLocal')||{}).value||'').trim();
-      var kwhRaw=((document.getElementById('qVehKwh')||{}).value||'').replace(',','.');
-      var kwh=parseFloat(kwhRaw)||null;
+      var kwh=moneyVal((document.getElementById('qVehKwh')||{}).value)||null;
       S.veh.cg.push({id:vid,date:date,local:local,kwh:kwh,val:amt,card:acc,notes:notes});
       S.dc.push({id:nid(),date:date,cat:'Carga Elétrica',
         val:amt,card:acc,
@@ -7736,7 +7764,7 @@ function _impBankFile(bank) {
     <div class="qamr">
       <span class="qams">€</span>
       <input class="qamin" id="qAmt" type="text" inputmode="decimal"
-             placeholder="0" autocomplete="off" autocorrect="off" spellcheck="false" oninput="this.dataset.manual='1'">
+             placeholder="0,00" autocomplete="off" autocorrect="off" spellcheck="false" oninput="moneyMask(event,2);this.dataset.manual='1'">
     </div>
   </div>
   <div id="qVSubRow" style="display:none;grid-template-columns:1fr 1fr 1fr;gap:.38rem;background:var(--s2);border-radius:10px;padding:.28rem;margin-bottom:.75rem">
@@ -7765,7 +7793,7 @@ function _impBankFile(bank) {
       </div>
       <div class="qdet" style="flex:1">
         <span style="font-size:.7rem;color:var(--mut);font-weight:700">kWh</span>
-        <input type="text" id="qVehKwh" inputmode="decimal" placeholder="0.0" autocomplete="off" oninput="qCalcFrota()">
+        <input type="text" id="qVehKwh" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3);qCalcFrota()">
       </div>
     </div>
     <div id="qVehFrotaExtra" style="display:none;gap:.45rem;flex-direction:column">
@@ -7776,15 +7804,15 @@ function _impBankFile(bank) {
       <div style="display:flex;gap:.45rem">
         <div class="qdet" style="flex:1">
           <span style="font-size:.65rem;color:var(--mut);font-weight:700">SESSÃO €</span>
-          <input type="text" id="qFrSessao" inputmode="decimal" placeholder="0.00" autocomplete="off" oninput="qCalcFrota()">
+          <input type="text" id="qFrSessao" inputmode="decimal" placeholder="0,00" autocomplete="off" oninput="moneyMask(event,2);qCalcFrota()">
         </div>
         <div class="qdet" style="flex:1">
           <span style="font-size:.65rem;color:var(--mut);font-weight:700">€/MIN</span>
-          <input type="text" id="qFrPerMin" inputmode="decimal" placeholder="0.00" autocomplete="off" oninput="qCalcFrota()">
+          <input type="text" id="qFrPerMin" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3);qCalcFrota()">
         </div>
         <div class="qdet" style="flex:1">
           <span style="font-size:.65rem;color:var(--mut);font-weight:700">€/KWH</span>
-          <input type="text" id="qFrPerKwh" inputmode="decimal" placeholder="0.00" autocomplete="off" oninput="qCalcFrota()">
+          <input type="text" id="qFrPerKwh" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3);qCalcFrota()">
         </div>
       </div>
     </div>
