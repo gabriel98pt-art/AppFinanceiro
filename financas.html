@@ -3899,6 +3899,8 @@ function toggleFrotaCarga() {
   var chk = document.getElementById('f_frota');
   var on = !!(chk && chk.checked);
   var row = document.getElementById('f_frotaFields'); if (row) row.style.display = on ? '' : 'none';
+  var cardRow = document.getElementById('f_cardRow'); if (cardRow) cardRow.style.display = on ? 'none' : '';
+  var cardNote = document.getElementById('f_frotaCardNote'); if (cardNote) cardNote.style.display = on ? '' : 'none';
   var val = document.getElementById('f_val');
   if (val) delete val.dataset.manual;
   if (on) calcFrotaVal();
@@ -4102,7 +4104,8 @@ function buildForm(type, d) {
           </div>
         </div>
         <div class="ff"><label class="fl">Valor (€) ${_isFrota?'<span class="tmut" style="font-weight:400">(auto, mas edita se já souberes o total)</span>':''}</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}" ${d?'data-manual="1"':''} oninput="this.dataset.manual='1'"></div>
-        <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${poC}</select></div>
+        <div class="ff" id="f_cardRow" style="display:${_isFrota?'none':''}"><label class="fl">Cartão</label><select class="fi" id="f_card">${poC}</select></div>
+        <div class="ff" id="f_frotaCardNote" style="display:${_isFrota?'':'none'};align-self:end"><span class="tmut" style="font-size:.72rem">💼 Descontado direto no vencimento — sem conta associada.</span></div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
       </div>`;
     }
@@ -4337,7 +4340,7 @@ function saveModal() {
     }
     case 'carga': {
       var _isFrotaSave = !!(document.getElementById('f_frota') && document.getElementById('f_frota').checked);
-      var o = {date:gv('f_date'),local:gv('f_local'),kwh:gf('f_kwh')||null,val:gf('f_val'),card:gv('f_card'),notes:gv('f_notes'),frota:_isFrotaSave,
+      var o = {date:gv('f_date'),local:gv('f_local'),kwh:gf('f_kwh')||null,val:gf('f_val'),card:_isFrotaSave?'Frota':gv('f_card'),notes:gv('f_notes'),frota:_isFrotaSave,
         mins:_isFrotaSave?(gf('f_mins')||null):null,
         frSessao:_isFrotaSave?(gf('f_frSessao')||0):null,
         frPerMin:_isFrotaSave?(gf('f_frPerMin')||0):null,
@@ -7552,6 +7555,10 @@ function _qRender() {
       +'" data-val="'+_esc(a)+'" onclick="qPickAcc(this.dataset.val)">'+_esc(a)+'</button>';
   }).join('');
 
+  // Conta não se aplica à Frota — é descontado direto no vencimento, sem passar por contas
+  var accRow=document.getElementById('qAccRow'); if(accRow) accRow.style.display=isFr?'none':'';
+  var frNote=document.getElementById('qFrotaNote'); if(frNote) frNote.style.display=isFr?'':'none';
+
   // campo nome (só despesas correntes)
   var nr=document.getElementById('qNameRow');
   if(nr) nr.style.display=isE?'block':'none';
@@ -7623,10 +7630,10 @@ function qSave(){
       var perMinF=parseFloat((document.getElementById('qFrPerMin')||{}).value)||0;
       var perKwhF=parseFloat((document.getElementById('qFrPerKwh')||{}).value)||0;
       if (sessaoF||perMinF||perKwhF) { S.cfg.frotaSessao=sessaoF; S.cfg.frotaMin=perMinF; S.cfg.frotaKwh=perKwhF; }
-      S.veh.cg.push({id:vid,date:date,local:localF,kwh:kwhF,val:amt,card:acc,notes:notes,
+      S.veh.cg.push({id:vid,date:date,local:localF,kwh:kwhF,val:amt,card:'Frota',notes:notes,
         frota:true,mins:minsF,frSessao:sessaoF,frPerMin:perMinF,frPerKwh:perKwhF});
       S.dc.push({id:nid(),date:date,cat:'Carga Elétrica',
-        val:amt,card:acc,
+        val:amt,card:'Frota',
         notes:'⚡ '+(localF||'Carga Elétrica')+(kwhF?' ('+kwhF+' kWh)':'')+' 🚗 frota',
         _src:'veh',_vid:vid,_vtype:'carga'});
     } else {
@@ -8010,8 +8017,11 @@ function _impBankFile(bank) {
   </div>
   <div class="qsl" id="qCatLbl">Categoria</div>
   <div class="qchips" id="qCatChips"></div>
-  <div class="qsl">Conta</div>
-  <div class="qchips" id="qAccChips"></div>
+  <div id="qAccRow">
+    <div class="qsl">Conta</div>
+    <div class="qchips" id="qAccChips"></div>
+  </div>
+  <div id="qFrotaNote" class="tmut" style="display:none;font-size:.72rem;margin-bottom:.6rem">💼 Descontado direto no vencimento — não está associado a nenhuma conta.</div>
   <div id="qNameRow" style="display:none;margin-bottom:.75rem">
     <div class="qdet" style="width:100%">
       <span style="font-size:.9rem;opacity:.55">📝</span>
