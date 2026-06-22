@@ -4101,7 +4101,7 @@ function buildForm(type, d) {
             <div class="ff"><label class="fl">€/kWh <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frPerKwh" type="number" step="0.001" min="0" value="${_frK}" oninput="calcFrotaVal()"></div>
           </div>
         </div>
-        <div class="ff"><label class="fl">Valor (€) ${_isFrota?'<span class="tmut" style="font-weight:400">(auto, mas edita se já souberes o total)</span>':''}</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}" oninput="this.dataset.manual='1'"></div>
+        <div class="ff"><label class="fl">Valor (€) ${_isFrota?'<span class="tmut" style="font-weight:400">(auto, mas edita se já souberes o total)</span>':''}</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}" ${d?'data-manual="1"':''} oninput="this.dataset.manual='1'"></div>
         <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${poC}</select></div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
       </div>`;
