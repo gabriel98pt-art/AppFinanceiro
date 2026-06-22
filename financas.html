@@ -3900,19 +3900,20 @@ function toggleFrotaCarga() {
   var on = !!(chk && chk.checked);
   var row = document.getElementById('f_frotaFields'); if (row) row.style.display = on ? '' : 'none';
   var val = document.getElementById('f_val');
-  if (val) { val.readOnly = on; val.style.background = on ? 'var(--s3)' : ''; }
+  if (val) delete val.dataset.manual;
   if (on) calcFrotaVal();
 }
 function calcFrotaVal() {
   var chk = document.getElementById('f_frota');
   if (!chk || !chk.checked) return;
+  var val = document.getElementById('f_val');
+  if (val && val.dataset.manual === '1') return; // já digitaste o valor final — não sobrescrever
   var kwh = parseFloat((document.getElementById('f_kwh')||{}).value) || 0;
   var mins = parseFloat((document.getElementById('f_mins')||{}).value) || 0;
   var sessao = parseFloat((document.getElementById('f_frSessao')||{}).value) || 0;
   var perMin = parseFloat((document.getElementById('f_frPerMin')||{}).value) || 0;
   var perKwh = parseFloat((document.getElementById('f_frPerKwh')||{}).value) || 0;
   var total = sessao + mins*perMin + kwh*perKwh;
-  var val = document.getElementById('f_val');
   if (val) val.value = (Math.round(total*100)/100).toFixed(2);
 }
 
@@ -4090,17 +4091,17 @@ function buildForm(type, d) {
         <div class="ff full"><label class="fl" style="display:flex;align-items:center;gap:.55rem;cursor:pointer;font-weight:400">
           <input type="checkbox" id="f_frota" ${_isFrota?'checked':''} style="width:15px;height:15px;accent-color:var(--grn);flex-shrink:0" onchange="toggleFrotaCarga()">
           <span style="font-weight:600">🚗 Carga da Frota</span>
-          <span class="tmut" style="font-size:.72rem">(cada posto cobra diferente — calcula o valor a partir dos campos abaixo)</span>
+          <span class="tmut" style="font-size:.72rem">(preenche só o que souberes — sessão/min/kWh ajudam a calcular, mas o Valor pode ser digitado direto)</span>
         </label></div>
         <div class="ff full" id="f_frotaFields" style="display:${_isFrota?'':'none'}">
           <div class="fg" style="grid-template-columns:repeat(2,1fr)">
-            <div class="ff"><label class="fl">Minutos</label><input class="fi fiu" id="f_mins" type="number" step="1" min="0" value="${d&&d.mins?d.mins:''}" oninput="calcFrotaVal()"></div>
-            <div class="ff"><label class="fl">Taxa sessão (€)</label><input class="fi fiu" id="f_frSessao" type="number" step="0.01" min="0" value="${_frS}" oninput="calcFrotaVal()"></div>
-            <div class="ff"><label class="fl">€/minuto</label><input class="fi fiu" id="f_frPerMin" type="number" step="0.001" min="0" value="${_frM}" oninput="calcFrotaVal()"></div>
-            <div class="ff"><label class="fl">€/kWh</label><input class="fi fiu" id="f_frPerKwh" type="number" step="0.001" min="0" value="${_frK}" oninput="calcFrotaVal()"></div>
+            <div class="ff"><label class="fl">Minutos <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_mins" type="number" step="1" min="0" value="${d&&d.mins?d.mins:''}" oninput="calcFrotaVal()"></div>
+            <div class="ff"><label class="fl">Taxa sessão (€) <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frSessao" type="number" step="0.01" min="0" value="${_frS}" oninput="calcFrotaVal()"></div>
+            <div class="ff"><label class="fl">€/minuto <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frPerMin" type="number" step="0.001" min="0" value="${_frM}" oninput="calcFrotaVal()"></div>
+            <div class="ff"><label class="fl">€/kWh <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frPerKwh" type="number" step="0.001" min="0" value="${_frK}" oninput="calcFrotaVal()"></div>
           </div>
         </div>
-        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}" ${_isFrota?'readonly':''} style="${_isFrota?'background:var(--s3)':''}"></div>
+        <div class="ff"><label class="fl">Valor (€) ${_isFrota?'<span class="tmut" style="font-weight:400">(auto, mas edita se já souberes o total)</span>':''}</label><input class="fi fiu" id="f_val" type="number" step="0.01" value="${d?d.val:''}" oninput="this.dataset.manual='1'"></div>
         <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${poC}</select></div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
       </div>`;
@@ -4341,7 +4342,7 @@ function saveModal() {
         frSessao:_isFrotaSave?(gf('f_frSessao')||0):null,
         frPerMin:_isFrotaSave?(gf('f_frPerMin')||0):null,
         frPerKwh:_isFrotaSave?(gf('f_frPerKwh')||0):null};
-      if (_isFrotaSave) { S.cfg.frotaSessao=o.frSessao; S.cfg.frotaMin=o.frPerMin; S.cfg.frotaKwh=o.frPerKwh; }
+      if (_isFrotaSave && (o.frSessao||o.frPerMin||o.frPerKwh)) { S.cfg.frotaSessao=o.frSessao; S.cfg.frotaMin=o.frPerMin; S.cfg.frotaKwh=o.frPerKwh; }
       var _cgNotes = function(o2){ return (o2.local?'⚡ '+o2.local+(o2.kwh?' ('+o2.kwh+' kWh)':''):'Carga Elétrica') + (o2.frota?' 🚗 frota':''); };
       if (id!==null) {
         var existing = S.veh.cg.find(function(x){return x.id===id;});
@@ -7405,7 +7406,7 @@ var _qT='e', _qCat='', _qAcc='', _qVSub='cg';
 
 function qOpen() {
   _qCat=''; _qAcc=''; _qVSub='cg';
-  var ai=document.getElementById('qAmt'); if(ai) ai.value='';
+  var ai=document.getElementById('qAmt'); if(ai) { ai.value=''; delete ai.dataset.manual; }
   var ni=document.getElementById('qNote'); if(ni) ni.value='';
   var nm=document.getElementById('qName'); if(nm) nm.value='';
   var vl=document.getElementById('qVehLocal'); if(vl) vl.value='';
@@ -7494,7 +7495,7 @@ function qClose() {
 // ────────────────────────────────────────────────────────────────
 
 function qType(t) { _qT=t; _qCat=''; if(t==='v') _qVSub='cg'; _qRender(); }
-function qVSub(s) { _qVSub=s; _qCat=''; _qRender(); }
+function qVSub(s) { _qVSub=s; _qCat=''; var a=document.getElementById('qAmt'); if(a) delete a.dataset.manual; _qRender(); }
 
 function _qRender() {
   var isE=_qT==='e', isI=_qT==='i', isV=_qT==='v';
@@ -7520,9 +7521,7 @@ function _qRender() {
   var sb=document.getElementById('qSaveBtn');
   if(sb){ sb.className='qsave '+qcls; sb.textContent='GUARDAR'; }
 
-  // Valor: bloqueado e calculado automaticamente no modo Frota
-  var amtInp=document.getElementById('qAmt');
-  if(amtInp){ amtInp.readOnly=!!isFr; amtInp.style.background=isFr?'var(--s2)':''; }
+  // Valor: sugerido automaticamente no modo Frota, mas sempre editável
   if(isFr) qCalcFrota();
 
   // label + chips categorias (escondidos para carga/frota)
@@ -7566,13 +7565,14 @@ function _qRender() {
 function qPickCat(c){ _qCat=c; _qRender(); }
 function qPickAcc(a){ _qAcc=a; _qRender(); }
 function qCalcFrota(){
+  var a=document.getElementById('qAmt');
+  if(a && a.dataset.manual==='1') return; // já digitaste o valor final — não sobrescrever
   var kwh=parseFloat((document.getElementById('qVehKwh')||{}).value)||0;
   var mins=parseFloat((document.getElementById('qFrMins')||{}).value)||0;
   var sessao=parseFloat((document.getElementById('qFrSessao')||{}).value)||0;
   var perMin=parseFloat((document.getElementById('qFrPerMin')||{}).value)||0;
   var perKwh=parseFloat((document.getElementById('qFrPerKwh')||{}).value)||0;
   var total=sessao+mins*perMin+kwh*perKwh;
-  var a=document.getElementById('qAmt');
   if(a) a.value=(Math.round(total*100)/100).toFixed(2);
 }
 
@@ -7622,7 +7622,7 @@ function qSave(){
       var sessaoF=parseFloat((document.getElementById('qFrSessao')||{}).value)||0;
       var perMinF=parseFloat((document.getElementById('qFrPerMin')||{}).value)||0;
       var perKwhF=parseFloat((document.getElementById('qFrPerKwh')||{}).value)||0;
-      S.cfg.frotaSessao=sessaoF; S.cfg.frotaMin=perMinF; S.cfg.frotaKwh=perKwhF;
+      if (sessaoF||perMinF||perKwhF) { S.cfg.frotaSessao=sessaoF; S.cfg.frotaMin=perMinF; S.cfg.frotaKwh=perKwhF; }
       S.veh.cg.push({id:vid,date:date,local:localF,kwh:kwhF,val:amt,card:acc,notes:notes,
         frota:true,mins:minsF,frSessao:sessaoF,frPerMin:perMinF,frPerKwh:perKwhF});
       S.dc.push({id:nid(),date:date,cat:'Carga Elétrica',
@@ -8000,7 +8000,7 @@ function _impBankFile(bank) {
     <div class="qamr">
       <span class="qams">€</span>
       <input class="qamin" id="qAmt" type="text" inputmode="decimal"
-             placeholder="0" autocomplete="off" autocorrect="off" spellcheck="false">
+             placeholder="0" autocomplete="off" autocorrect="off" spellcheck="false" oninput="this.dataset.manual='1'">
     </div>
   </div>
   <div id="qVSubRow" style="display:none;grid-template-columns:1fr 1fr 1fr;gap:.38rem;background:var(--s2);border-radius:10px;padding:.28rem;margin-bottom:.75rem">
