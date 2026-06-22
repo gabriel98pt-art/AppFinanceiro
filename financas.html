@@ -4154,7 +4154,7 @@ function buildForm(type, d) {
         <!-- MODE 2: total → calculates parcela -->
         <div class="ff" id="pMode2" style="display:none">
           <label class="fl">Valor Total (€)</label>
-          <input class="fi fiu" id="f_total" type="number" step="0.01" placeholder="ex: 619,70" oninput="calcFromTotal()">
+          <input class="fi fiu" id="f_total" type="number" step="0.01" placeholder="ex: 619.70" oninput="calcFromTotal()">
         </div>
 
         <div class="ff">
@@ -7652,7 +7652,7 @@ function qSave(){
     S.dc.push({id:nid(),date:date,name:name||cat,cat:cat,val:amt,card:acc,notes:notes});
   }
   saveState(); renderTab(CUR); qClose();
-  showToast('✓ '+(_qT==='i'?'Receita':_qT==='v'?(_qVSub==='cg'?'Carga Elétrica':_qVSub==='frota'?'Carga Frota':'Veículo'):'Despesa')+' guardada — '+amt.toFixed(2)+' €');
+  showToast('✓ '+(_qT==='i'?'Receita':_qT==='v'?(_qVSub==='cg'?'Carga Elétrica':_qVSub==='frota'?'Carga Frota':'Veículo'):'Despesa')+' guardada — '+fmt(amt));
 }
 
 // ================================================================
