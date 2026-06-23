@@ -102,7 +102,8 @@ body.discreet .kval,body.discreet .ksub,
 body.discreet td.tred,body.discreet td.tgrn,body.discreet td.tylw,body.discreet td.tblu,body.discreet td.tpur,
 body.discreet tfoot td.tred,body.discreet tfoot td.tgrn,body.discreet tfoot td.tylw,body.discreet tfoot td.tblu,body.discreet tfoot td.tpur,
 body.discreet #ctBody td:nth-child(4),body.discreet #ctBody td:nth-child(5),
-body.discreet #dBudget,body.discreet #dSav,body.discreet #dMiniAnnual,body.discreet #dCatBreak{filter:blur(5px);user-select:none;transition:filter var(--tr)}
+body.discreet .fcard .tred,body.discreet .fcard .tgrn,body.discreet .fcard .tylw,
+body.discreet #dBudget,body.discreet #dSav,body.discreet #dMiniAnnual,body.discreet #dCatBreak,body.discreet #metaSav,body.discreet #annT{filter:blur(5px);user-select:none;transition:filter var(--tr)}
 tbody tr:last-child td{border-bottom:none}
 tbody tr:nth-child(even){background:rgba(128,128,255,.03)}
 tbody tr:hover{background:rgba(77,143,255,.06)!important}
@@ -900,12 +901,15 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
   <div class="tc">
     <div class="tch">
       <span class="slbl" style="margin:0">📅 Eventos Personalizados</span>
-      <button class="btn pri sm" onclick="openModal('evt')">+ Adicionar</button>
+      <div class="row g2">
+        <button class="ic tip" id="eyeBtn_evt" data-tip="Mostrar/esconder" onclick="_toggleVis('evtCollapse','eyeBtn_evt')" style="font-size:.8rem;width:28px;height:28px"></button>
+        <button class="btn pri sm" onclick="openModal('evt')">+ Adicionar</button>
+      </div>
     </div>
-    <div class="tw"><table>
+    <div id="evtCollapse"><div class="tw"><table>
       <thead><tr><th>Nome</th><th>Data</th><th>Valor</th><th></th></tr></thead>
       <tbody id="evtBody"></tbody>
-    </table></div>
+    </table></div></div>
   </div>
 </div>
 
@@ -917,16 +921,22 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     <div class="tch">
       <span class="slbl" style="margin:0">📈 Fluxo Consolidado</span>
       <div class="row g2">
+        <button class="ic tip" id="eyeBtn_ct" data-tip="Mostrar/esconder" onclick="_toggleVis('ctCollapse','eyeBtn_ct')" style="font-size:.8rem;width:28px;height:28px"></button>
         <button class="btn pri sm" onclick="openModal('trf')">⇄ Transferência</button>
         <select class="sel" id="ctFilt" onchange="renderCartoes()" style="max-width:160px">
           <option value="all">Todos os cartões</option>
         </select>
+        <select class="sel" id="ctTipoFilt" onchange="CT_TIPO=this.value;renderCartoes()" style="max-width:160px">
+          <option value="all">Todos os tipos</option>
+        </select>
       </div>
     </div>
+    <div id="ctCollapse">
     <div class="tw"><table>
       <thead id="ctHead"><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style="text-align:right">Valor</th><th style="text-align:right">Saldo</th></tr></thead>
       <tbody id="ctBody" class="anim"></tbody>
     </table><div id="ctPager" class="pgr" style="display:none"></div></div>
+    </div>
   </div>
 </div>
 
@@ -937,10 +947,11 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
   <div class="funds-hdr">
     <span class="slbl" style="margin:0">🏦 Fundos de Poupança</span>
     <span class="tmut" id="fundsTotalLbl" style="font-size:.75rem"></span>
-    <button class="btn pri sm" onclick="openModal('fund')" style="margin-left:auto">+ Novo Fundo</button>
+    <button class="ic tip" id="eyeBtn_fnd" data-tip="Mostrar/esconder" onclick="_toggleVis('fundCollapse','eyeBtn_fnd')" style="font-size:.8rem;width:28px;height:28px;margin-left:auto"></button>
+    <button class="btn pri sm" onclick="openModal('fund')">+ Novo Fundo</button>
   </div>
-  <div class="fcards mb2" id="fundCards"></div>
-  <div class="tc mb2"><div class="tch"><span class="slbl" style="margin:0">📅 Resumo Anual</span></div><div class="tw" id="annT"></div></div>
+  <div id="fundCollapse"><div class="fcards mb2" id="fundCards"></div></div>
+  <div class="tc mb2"><div class="tch"><span class="slbl" style="margin:0">📅 Resumo Anual</span><button class="ic tip" id="eyeBtn_ann" data-tip="Mostrar/esconder" onclick="_toggleVis('annCollapse','eyeBtn_ann')" style="font-size:.8rem;width:28px;height:28px"></button></div><div id="annCollapse"><div class="tw" id="annT"></div></div></div>
   <div class="cc mb2"><div class="slbl">Anual</div><canvas id="chAnn" style="height:190px"></canvas></div>
 </div>
 
@@ -1637,7 +1648,11 @@ var _VIS_SECTIONS = [
   ['vehDcCollapse','eyeBtn_vehDc'],
   ['parcContent','eyeBtn_parc'],
   ['kmCollapse','eyeBtn_km'],
-  ['recCollapse','eyeBtn_rec']
+  ['recCollapse','eyeBtn_rec'],
+  ['ctCollapse','eyeBtn_ct'],
+  ['evtCollapse','eyeBtn_evt'],
+  ['fundCollapse','eyeBtn_fnd'],
+  ['annCollapse','eyeBtn_ann']
 ];
 function _applyAllVis() {
   _VIS_SECTIONS.forEach(function(p){ _applyVis(p[0], p[1]); });
@@ -1837,7 +1852,8 @@ var CG_CARD='all',CG_FROTA='all';
 var LP_CARD='all',LP_TIPO='all';
 var VEHDF_CARD='all',VEHDF_CAT='';
 var PARC_CAT='',PARC_CARD='all';
-var CT_SORT='date',CT_DIR=-1,CT_PG=1,CT_PGS=15;
+var CT_SORT='date',CT_DIR=-1,CT_PG=1,CT_PGS=15,CT_TIPO='all';
+var _CAL_EV = {}, _CAL_YM = '';
 
 // ================================================================
 // UTILS
@@ -2359,15 +2375,14 @@ function miniAnnNav(dir) {
   renderMiniAnnual();
 }
 
-function renderMiniAnnual() {
-  var yr = String(miniAnnYear);
-  var lbl3=document.getElementById('miniAnnLbl'); if(lbl3) lbl3.textContent=yr;
-  var MN_SHORT = MN;
+// Grid de 12 meses (receitas/despesas/saldo) partilhado entre o Resumo Anual
+// do Dashboard (ano civil navegável) e o de Metas (últimos 12 meses corridos).
+function _annGridHtml(months) {
   var totRecACents = 0, totDespACents = 0;
   var curYm = todayStr().slice(0, 7);
   var html = '<div class="ann-mini">';
-  for (var mi = 1; mi <= 12; mi++) {
-    var m = yr + '-' + pad2(mi);
+  months.forEach(function(m){
+    var mi = parseInt(m.slice(5,7));
     var isFuture = m > curYm;
     var r = totRec(m);
     var d = isFuture ? totCorrManual(m) : totDespRealized(m);
@@ -2376,19 +2391,27 @@ function renderMiniAnnual() {
     var bg = isFuture ? 'var(--s2)' : s > 0 ? 'rgba(0,212,160,.15)' : s < 0 ? 'rgba(255,84,112,.1)' : 'var(--s2)';
     var col = isFuture ? 'var(--mut)' : s > 0 ? 'var(--grn)' : s < 0 ? 'var(--red)' : 'var(--mut)';
     html += `<div class="ann-cell" style="background:${bg};opacity:${isFuture?.45:1}">
-      <div style="color:var(--mut);font-size:.58rem;margin-bottom:.1rem">${MN_SHORT[mi-1]}</div>
+      <div style="color:var(--mut);font-size:.58rem;margin-bottom:.1rem">${MN[mi-1]}</div>
       <div class="av" style="color:${col}">${isFuture?'·':(s===0?'—':(s>0?'+':'')+Math.round(s)+'€')}</div>
     </div>`;
-  }
+  });
   html += '</div>';
   var totRecA = fromCents(totRecACents), totDespA = fromCents(totDespACents);
   html += `<div class="row g3 wrap" style="margin-top:.5rem;font-size:.75rem">
     <span>Total Receitas: <strong class="tgrn">${fmt(totRecA)}</strong></span>
     <span>Total Despesas: <strong class="tred">${fmt(totDespA)}</strong></span>
-    <span>Saldo: <strong style="color:${(totRecA-totDespA)>=0?'var(--grn)':'var(--red)'}">${fmt(fromCents(totRecACents-totDespACents))}</strong></span>
+    <span>Saldo: <strong class="${(totRecA-totDespA)>=0?'tgrn':'tred'}">${fmt(fromCents(totRecACents-totDespACents))}</strong></span>
   </div>`;
+  return html;
+}
+
+function renderMiniAnnual() {
+  var yr = String(miniAnnYear);
+  var lbl3=document.getElementById('miniAnnLbl'); if(lbl3) lbl3.textContent=yr;
+  var months = [];
+  for (var mi = 1; mi <= 12; mi++) months.push(yr + '-' + pad2(mi));
   var el = document.getElementById('dMiniAnnual');
-  if (el) el.innerHTML = html;
+  if (el) el.innerHTML = _annGridHtml(months);
 }
 
 function renderBackupAlert() {
@@ -3460,14 +3483,15 @@ function renderCal() {
   var td = todayStr();
 
   var ev = {};
-  function addEv(day, lbl, cls) { if (!ev[day]) ev[day]=[]; ev[day].push({lbl:lbl,cls:cls}); }
-  S.par.forEach(function(p){if(parcMonths(p).indexOf(ym)>=0)addEv(parseInt(p.fd.slice(8)),_esc(p.name||'')+' '+fmt(p.vp),'evr');});
+  function addEv(day, lbl, cls, type, id) { if (!ev[day]) ev[day]=[]; ev[day].push({lbl:lbl,cls:cls,type:type,id:id}); }
+  S.par.forEach(function(p){if(parcMonths(p).indexOf(ym)>=0)addEv(parseInt(p.fd.slice(8)),_esc(p.name||'')+' '+fmt(p.vp),'evr','parc',p.id);});
   S.df.forEach(function(d){
     if (!isActiveForYm(d, ym)) return;
-    if(d.day>0)addEv(d.day,_esc(d.name||'')+' '+fmt(d.val),'evr');
+    if(d.day>0)addEv(d.day,_esc(d.name||'')+' '+fmt(d.val),'evr','dfixa',d.id);
   });
-  S.rec.filter(function(r){return inMonth(r.date,ym);}).forEach(function(r){addEv(parseInt(r.date.slice(8)),_esc(r.src||'')+' '+fmt(r.val),'evg');});
-  S.evt.filter(function(e){return inMonth(e.date,ym);}).forEach(function(e){addEv(parseInt(e.date.slice(8)),_esc(e.name||'')+(e.val?' '+fmt(e.val):''),'evb');});
+  S.rec.filter(function(r){return inMonth(r.date,ym);}).forEach(function(r){addEv(parseInt(r.date.slice(8)),_esc(r.src||'')+' '+fmt(r.val),'evg','receita',r.id);});
+  S.evt.filter(function(e){return inMonth(e.date,ym);}).forEach(function(e){addEv(parseInt(e.date.slice(8)),_esc(e.name||'')+(e.val?' '+fmt(e.val):''),'evb','evt',e.id);});
+  _CAL_EV = ev; _CAL_YM = ym;
 
 
 
@@ -3485,7 +3509,7 @@ function renderCal() {
     var dayEvs = ev[d] || [];
     var evHtml = dayEvs.slice(0,3).map(function(e){return `<div class="caev ${e.cls}">${e.lbl}</div>`;}).join('');
     if (dayEvs.length > 3) evHtml += `<div class="caev-more">+${dayEvs.length-3}</div>`;
-    h += `<div class="caday${iso===td?' td':''}${isWknd?' wknd':''}"><div class="cadn">${d}</div>${evHtml}</div>`;
+    h += `<div class="caday${iso===td?' td':''}${isWknd?' wknd':''}" onclick="openDayModal(${d})"><div class="cadn">${d}</div>${evHtml}</div>`;
   }
   var rem = (dow+dim) % 7;
   if (rem > 0) for (var j = 1; j <= 7-rem; j++) {
@@ -3502,6 +3526,26 @@ function renderCal() {
   if (evtEl) evtEl.innerHTML = sorted.length ? sorted.map(function(e){
     return `<tr><td>${e.name}</td><td title="${fmtDate(e.date)}">${fmtDateShort(e.date)}</td><td>${e.val?fmt(e.val):'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('evt',${e.id})">✏</button><button class="ic d" onclick="delRec('evt',${e.id})">🗑</button></div></td></tr>`;
   }).join('') : _emptyRow(4,'📅','Nenhum evento','Adiciona marcos e datas importantes');
+  _applyAllVis();
+}
+
+function openDayModal(day) {
+  var dayEvs = _CAL_EV[day] || [];
+  var iso = _CAL_YM + '-' + pad2(day);
+  mType = 'caldate'; mId = null;
+  var title = document.getElementById('modalTitle');
+  if (title) title.textContent = fmtDate(iso);
+  var body = document.getElementById('modalBody');
+  if (body) body.innerHTML = dayEvs.length ? dayEvs.map(function(e){
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.55rem 0;border-bottom:1px solid var(--brd)">
+      <span class="caev ${e.cls}" style="margin:0;flex:1;min-width:0">${e.lbl}</span>
+      <button class="ic e" onclick="closeModal();openModal('${e.type}',${e.id})" title="Editar" style="flex-shrink:0">✏</button>
+    </div>`;
+  }).join('') : '<div class="tmut" style="text-align:center;padding:1.5rem 0">Sem eventos neste dia</div>';
+  var delArea = document.getElementById('modalDelArea');
+  if (delArea) delArea.innerHTML = '';
+  var modal = document.getElementById('mainModal');
+  if (modal) modal.classList.add('on');
 }
 
 // ================================================================
@@ -3808,6 +3852,12 @@ function renderCartoes() {
     var d = _TX_DEF[k];
     TX_TYPE[k] = {lbl: d.lbl, col: (S.cfg.txTypeColors||{})[k] || d.col};
   });
+  var tipoFiltEl = document.getElementById('ctTipoFilt');
+  if (tipoFiltEl) {
+    var curTipo = CT_TIPO;
+    tipoFiltEl.innerHTML = '<option value="all">Todos os tipos</option>' +
+      Object.keys(TX_TYPE).map(function(k){ return '<option value="'+k+'"'+(k===curTipo?' selected':'')+'>'+TX_TYPE[k].lbl+'</option>'; }).join('');
+  }
   var filteredCards = cv === 'all' ? methods : methods.filter(function(m){ return m === cv; });
 
   var ctHead = document.getElementById('ctHead');
@@ -3882,18 +3932,25 @@ function renderCartoes() {
       html += '<span style="font-size:.63rem;color:var(--ylw)">⚠ defina saldo de referência (⚖)</span>';
     }
     html += '<span style="font-size:.65rem;color:'+netCol+';font-weight:700">'+(netMo>=0?'+':'')+fmt(netMo)+' este mês</span>';
-    if (cardTxs.length === 0) html += '<span style="font-size:.65rem;color:var(--mut)">— sem movimentos</span>';
-    html += '</div></td></tr>';
 
-    // Transaction rows with running balance
+    // Saldo corrido calculado sobre TODOS os movimentos, para se manter correto
+    // mesmo quando o filtro de Tipo esconde algumas linhas da exibição.
     var runBal = openBal;
     cardTxs.forEach(function(tx){
       if (runBal !== null) runBal = fromCents(toCents(runBal) + tx.dir * toCents(tx.val));
+      tx.runBal = runBal;
+    });
+    var dispTxs = CT_TIPO === 'all' ? cardTxs : cardTxs.filter(function(tx){ return tx.type === CT_TIPO; });
+    if (dispTxs.length === 0) html += '<span style="font-size:.65rem;color:var(--mut)">— sem movimentos</span>';
+    html += '</div></td></tr>';
+
+    // Transaction rows
+    dispTxs.forEach(function(tx){
       var ti = TX_TYPE[tx.type] || {lbl:tx.type, col:'#f5a623'};
       var valStr = (tx.dir > 0 ? '+' : '−') + fmt(tx.val);
       var valCol = tx.dir > 0 ? 'var(--grn)' : 'var(--red)';
-      var balTd = runBal !== null
-        ? '<td style="text-align:right;color:'+(runBal>=0?'var(--grn)':'var(--red)')+';font-weight:700">'+fmt(runBal)+'</td>'
+      var balTd = tx.runBal !== null
+        ? '<td style="text-align:right;color:'+(tx.runBal>=0?'var(--grn)':'var(--red)')+';font-weight:700">'+fmt(tx.runBal)+'</td>'
         : '<td style="text-align:right;color:var(--mut)">—</td>';
       html += '<tr data-cc="'+ti.col+'" style="--cc:'+ti.col+';background:'+CARD_RGBA_ROW[ci % CARD_RGBA_ROW.length]+'">'
         + '<td>'+fmtDate(tx.date)+'</td>'
@@ -3906,6 +3963,7 @@ function renderCartoes() {
   });
 
   ctBody.innerHTML = html || _emptyRow(5,'🏦','Nenhuma transação em '+monthLabel(ym),'Regista receitas e despesas para ver aqui');
+  _applyAllVis();
 }
 
 // ================================================================
@@ -3969,6 +4027,7 @@ function renderMetas() {
   if (fc) fc.innerHTML = S.fnds.length ? S.fnds.map(function(f){
     var fpct = f.goal > 0 ? Math.min(100, Math.round((f.saved||0) / f.goal * 100)) : 0;
     var fBarCol = fpct >= 80 ? 'var(--grn)' : fpct >= 40 ? 'var(--ylw)' : 'var(--red)';
+    var fValCls = fpct >= 80 ? 'tgrn' : fpct >= 40 ? 'tylw' : 'tred';
     var falta = Math.max(0, (f.goal||0) - (f.saved||0));
 
     var daysLeft = null, dlBadge = '';
@@ -4000,7 +4059,7 @@ function renderMetas() {
       </div>
       <div class="pb mb1"><div class="pf" style="width:${fpct}%;background:${fBarCol}"></div></div>
       <div class="fcard-stat">
-        <span style="color:${fBarCol};font-weight:700;font-size:.9rem">${fmt(f.saved||0)}</span>
+        <span class="${fValCls}" style="font-weight:700;font-size:.9rem">${fmt(f.saved||0)}</span>
         <span class="tmut" style="font-size:.7rem">/ ${fmt(f.goal)}</span>
         <span class="bdg" style="margin-left:auto;background:rgba(255,255,255,.06);color:var(--mut);font-size:.6rem">${fpct}%</span>
       </div>
@@ -4012,11 +4071,8 @@ function renderMetas() {
 
   var months = getLast(12, ym);
   var ann = document.getElementById('annT');
-  if (ann) ann.innerHTML = '<table><thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Saldo</th></tr></thead><tbody>' +
-    months.map(function(m){
-      var r=totRec(m),d=totDespRealized(m),s=r-d;
-      return `<tr><td>${monthLabel(m)}</td><td class="tgrn">${fmt(r)}</td><td class="tred">${fmt(d)}</td><td style="color:${s>=0?'var(--grn)':'var(--red)'};font-weight:700">${fmt(s)}</td></tr>`;
-    }).join('') + '</tbody></table>';
+  if (ann) ann.innerHTML = _annGridHtml(months);
+  _applyAllVis();
 
   makeChart('chAnn','bar',months.map(monthLabel),[
     {label:'Receitas',data:months.map(totRec),backgroundColor:'rgba(0,212,160,.18)',borderColor:'#00d4a0',borderWidth:2,borderRadius:4,borderSkipped:false},
@@ -4511,6 +4567,7 @@ function validateForm(type) {
 }
 
 function saveModal() {
+  if (mType === 'caldate') { closeModal(); return; }
   var err = validateForm(mType);
   if (err) { showToast('⚠ ' + err, true); return; }
   snapshot();
@@ -5100,13 +5157,11 @@ if (typeof pdfjsLib !== 'undefined') {
 }
 
 var _IMP = { txs: null, rejected: [], tab: 'txs', filter: 'all', stats: null, collapsed: {} }; // estado de importação bancária
-var _QF  = { items: null, isPartial: false, exportedAt: null, counts: {}, tab: 'all' }; // estado de importação Quick App
 
 // ── Render principal ──
 function renderImport() {
   var el = document.getElementById('p-import');
   if (!el) return;
-  if (_QF.items !== null) { _qfPreview(); return; }
   if (_IMP.txs !== null) { _impPreview(); return; }
   el.innerHTML =
     '<div class="tc"><div class="tch"><span class="slbl" style="margin:0">📥 Importar Extrato Bancário</span></div>' +
@@ -5133,16 +5188,7 @@ function renderImport() {
     '&bull; <strong>Revolut</strong> &mdash; exporta em Conta > Extrato > CSV<br>' +
     '&bull; <strong>PDF / TXT</strong> &mdash; qualquer extrato bancário<br>' +
     '<span style="color:var(--ylw)">⚠ Se o PDF não funcionar, copie o texto e guarde como .txt</span>' +
-    '</div></div></div>' +
-    '<div class="tc" style="margin-top:.75rem"><div class="tch">' +
-    '<span class="slbl" style="margin:0">📱 Importar da Quick€ App</span></div>' +
-    '<div style="padding:1.25rem;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">' +
-    '<div style="flex:1;min-width:180px;font-size:.82rem;color:var(--mut);line-height:1.6">' +
-    'Importa registos exportados pela Quick€ — despesas, receitas e transferências.<br>' +
-    '<span style="font-size:.72rem">Ficheiro <code>.json</code> gerado com ☁ Exportar na Quick€ app.</span></div>' +
-    '<button class="btn pri" onclick="document.getElementById(\'qfFileIn\').click()">📱 Selecionar ficheiro QF</button>' +
-    '<input type="file" id="qfFileIn" accept=".json" style="display:none" onchange="_qfFile(this)">' +
-    '</div></div>';
+    '</div></div></div>';
 }
 
 function _impDrop(e) {
@@ -5175,7 +5221,6 @@ function _impErr(msg) {
 // ── Processar ficheiro ──
 function _impProcess(file) {
   var ext = (file.name.split('.').pop()||'').toLowerCase();
-  if (ext === 'json') { _qfProcess(file); return; } // route QF exports
   _impLoading();
   if (ext === 'pdf') {
     _impParsePDF(file)
@@ -6339,558 +6384,6 @@ function _impConfirm() {
 }
 
 // ================================================================
-// IMPORTAR DA QUICK APP (Quick Finance JSON)
-// ================================================================
-
-function _qfFile(inp) {
-  if (inp.files && inp.files[0]) _qfProcess(inp.files[0]);
-  inp.value = '';
-}
-
-function _qfProcess(file) {
-  if (file.size > 20 * 1024 * 1024) { _qfErr('Ficheiro demasiado grande (máx. 20 MB).'); return; }
-  var rd = new FileReader();
-  rd.onload = function(ev) {
-    var data;
-    try { data = JSON.parse(ev.target.result); }
-    catch(ex) { _qfErr('JSON inválido: ' + _esc(ex.message)); return; }
-    _qfLoad(data);
-  };
-  rd.onerror = function() { _qfErr('Erro ao ler ficheiro.'); };
-  rd.readAsText(file, 'UTF-8');
-}
-
-function _qfIsQFPayload(data) {
-  return data && typeof data === 'object' && !Array.isArray(data) &&
-    data._schema === 'fin_v4' && data._sourceApp === 'quick-finance';
-}
-
-// Normaliza um registo raw de um array fonte ('rec'|'dc'|'trf').
-// Guards estruturais em _entryType; strips anotações QF de notes; normaliza val.
-function _qfNormalize(raw, arraySource) {
-  if (!raw || typeof raw !== 'object') return null;
-  var et;
-  if (arraySource === 'trf') {
-    et = 'transfer';
-  } else if (arraySource === 'rec') {
-    et = (raw._entryType === 'transfer') ? 'income' : (raw._entryType || 'income');
-  } else {
-    et = (raw._entryType === 'transfer') ? 'expense' : (raw._entryType || 'expense');
-  }
-  var meta = (raw._meta && typeof raw._meta === 'object') ? raw._meta : {};
-  // _quickEntryId: usar != null para não perder ID numérico 0
-  var qid = raw._quickEntryId != null ? raw._quickEntryId
-          : (meta._quickEntryId != null ? meta._quickEntryId : null);
-  // Notes: remover anotações de sincronização QF antes de normalizar
-  var notes = safeStr(raw.notes || '', 400).replace(/\[QF:\d+\s[^\]]*\]/g, '').trim();
-  // Val: normalizar para número aqui, para garantir consistência a jusante
-  var val = safeNum(raw.val, null);
-  var n = {
-    _entryType:    et,
-    _quickEntryId: qid,
-    _createdAt:    raw._createdAt    != null ? raw._createdAt    : (meta._createdAt    || null),
-    _updatedAt:    raw._updatedAt    != null ? raw._updatedAt    : (meta._updatedAt    || null),
-    _syncStatus:   raw._syncStatus   != null ? raw._syncStatus   : (meta._syncStatus   || null),
-    date:  safeStr(raw.date || '', 20),
-    val:   val,
-    notes: notes
-  };
-  if (et === 'income') {
-    n.src  = safeStr(raw.src  || '', 100);
-    n.card = safeStr(raw.card || '', 60);
-  } else if (et === 'expense') {
-    n.name = safeStr(raw.name || '', 200);
-    n.cat  = safeStr(raw.cat  || '', 100);
-    n.card = safeStr(raw.card || '', 60);
-  } else {
-    n.from = safeStr(raw.from || '', 60);
-    n.to   = safeStr(raw.to   || '', 60);
-  }
-  return n;
-}
-
-function _qfLoad(data) {
-  if (!_qfIsQFPayload(data)) {
-    _qfErr('Ficheiro não reconhecido como export da Quick€ app.<br>' +
-           'Certifica-te de que usaste ☁&nbsp;Exportar pendentes na Quick€.');
-    return;
-  }
-  var entries = [];
-  (data.rec||[]).forEach(function(r) { var n = _qfNormalize(r, 'rec'); if (n) entries.push(n); });
-  (data.dc ||[]).forEach(function(d) { var n = _qfNormalize(d, 'dc');  if (n) entries.push(n); });
-  (data.trf||[]).forEach(function(t) { var n = _qfNormalize(t, 'trf'); if (n) entries.push(n); });
-  if (!entries.length) {
-    _qfErr('Nenhum registo encontrado no ficheiro. O export pode estar vazio.');
-    return;
-  }
-  _QF.items      = _qfAnalyze(entries);
-  _QF.isPartial  = !!data._isPartialExport;
-  _QF.exportedAt = data._exportedAt || null;
-  _QF.counts     = data._counts || {};
-  _QF.tab        = 'all';
-  _qfPreview();
-}
-
-// Recolhe todos os _qfId já guardados em S (para dedup exacto por ID)
-function _qfExistingIds() {
-  var ids = {};
-  function sc(arr) {
-    (arr||[]).forEach(function(x){
-      if (x && x._qfId != null) ids[String(x._qfId)] = true;
-    });
-  }
-  sc(S.rec); sc(S.dc); sc(S.trf);
-  return ids;
-}
-
-// Dedup baseado em score contra os dados existentes.
-// Retorna {score, match, reasons} ou null se score=0.
-// Limiares: 200=ID exacto (probable); >=115=probable_dup; >=65=possible_dup.
-// REGRA: data é gate mínimo para field-based dedup — sem match de data, score ≤ 30
-// (não chega a 65), evitando falsos positivos em pagamentos recorrentes com mesmo valor.
-function _qfDupCheck(e, existingIds) {
-  var amt  = toCents(e.val);
-  if (!amt || amt <= 0) return null;
-  var best = null;
-  var qfId = e._quickEntryId;
-  // ID exacto: converte para string para evitar coerção numérica como chave de objeto
-  if (qfId != null && existingIds[String(qfId)]) {
-    return { score: 200, match: null, reasons: ['ID exacto'] };
-  }
-  var score, reasons;
-  function upd(m) {
-    if (score > (best ? best.score : 0)) best = { score: score, match: m, reasons: reasons.slice() };
-  }
-  if (e._entryType === 'income') {
-    (S.rec||[]).forEach(function(r) {
-      score = 0; reasons = [];
-      if (Math.abs(toCents(r.val) - amt) > 1) return;
-      score += 30; reasons.push('valor');
-      // Gate: data obrigatória para chegar a possible_dup (≥65)
-      if (r.date !== e.date) { upd(r); return; }
-      score += 35; reasons.push('data');
-      if (e.src && (r.src||'').toLowerCase() === e.src.toLowerCase()) { score += 50; reasons.push('fonte'); }
-      upd(r);
-    });
-  } else if (e._entryType === 'expense') {
-    (S.dc||[]).forEach(function(d) {
-      score = 0; reasons = [];
-      if (Math.abs(toCents(d.val) - amt) > 1) return;
-      score += 30; reasons.push('valor');
-      if (d.date !== e.date) { upd(d); return; }
-      score += 35; reasons.push('data');
-      if (e.cat && (d.cat||'').toLowerCase() === e.cat.toLowerCase()) { score += 50; reasons.push('categoria'); }
-      upd(d);
-    });
-  } else if (e._entryType === 'transfer') {
-    (S.trf||[]).forEach(function(t) {
-      score = 0; reasons = [];
-      if (Math.abs(toCents(t.val) - amt) > 1) return;
-      score += 30; reasons.push('valor');
-      if (t.date !== e.date) { upd(t); return; }
-      score += 35; reasons.push('data');
-      if (e.from && (t.from||'').toLowerCase() === e.from.toLowerCase()) { score += 25; reasons.push('origem'); }
-      if (e.to   && (t.to  ||'').toLowerCase() === e.to.toLowerCase())   { score += 25; reasons.push('destino'); }
-      upd(t);
-    });
-  }
-  return best && best.score > 0 ? best : null;
-}
-
-function _qfAnalyze(entries) {
-  var existingIds = _qfExistingIds();
-  var validTypes  = ['income','expense','transfer'];
-  var batchSeen   = {};
-
-  var results = entries.map(function(e, i) {
-    var errs = [];
-    if (validTypes.indexOf(e._entryType) < 0) errs.push('tipo inválido: ' + safeStr(String(e._entryType||''), 20));
-    if (!safeDate(e.date)) errs.push('data inválida');
-    var v = safeNum(e.val, null);
-    if (v === null || v <= 0 || v > 999999) errs.push('valor inválido');
-    if (e._entryType === 'transfer') {
-      var fr = safeStr(e.from||'', 60).trim();
-      var to = safeStr(e.to||'', 60).trim();
-      if (!fr || !to) errs.push('transferência sem contas');
-      else if (fr.toLowerCase() === to.toLowerCase()) errs.push('origem = destino');
-    }
-    if (errs.length) {
-      return { idx:i, entry:e, valid:false, reason:errs.join('; '),
-               dupStatus:'invalid', action:'skip', selected:false,
-               dupScore:0, dupMatch:null, dupReasons:[], _intraBatch:false };
-    }
-    var dup = _qfDupCheck(e, existingIds);
-    var ds  = dup ? dup.score   : 0;
-    var dm  = dup ? dup.match   : null;
-    var dr  = dup ? dup.reasons : [];
-    var dupStatus, action;
-    if (ds >= 115)     { dupStatus = 'probable_dup'; action = 'skip'; }
-    else if (ds >= 65) { dupStatus = 'possible_dup'; action = 'import'; }
-    else               { dupStatus = 'new';          action = 'import'; }
-    return { idx:i, entry:e, valid:true, dupStatus:dupStatus,
-             qfId: e._quickEntryId != null ? e._quickEntryId : null,
-             action:action, selected:action==='import',
-             dupScore:ds, dupMatch:dm, dupReasons:dr, _intraBatch:false };
-  });
-
-  // Intra-batch dedup: registo com mesmo tipo+data+valor dentro do mesmo export.
-  // Escape hatch: se ambos têm _quickEntryId distintos e não-null, são registos
-  // legitimamente diferentes (e.g. dois cafés no mesmo dia) — não marcar.
-  results.forEach(function(item) {
-    if (!item.valid) return;
-    var e   = item.entry;
-    var key = e._entryType + '|' + e.date + '|' + Math.round(toCents(e.val));
-    var seen = batchSeen[key];
-    if (seen) {
-      // Escape: IDs distintos e não-null → registos diferentes, não marcar
-      var bothHaveDistinctIds = item.qfId != null && seen.qfId != null
-                                && String(item.qfId) !== String(seen.qfId);
-      if (!bothHaveDistinctIds) {
-        item._intraBatch = true;
-        if (item.dupStatus === 'new') item.dupStatus = 'possible_dup';
-      }
-    } else {
-      batchSeen[key] = item;
-    }
-  });
-
-  return results;
-}
-
-function _qfTab(tab) {
-  _QF.tab = tab;
-  _qfPreview();
-}
-
-function _qfTabBtn(tab, cur, label, accent) {
-  var active = tab === cur;
-  var style = active
-    ? 'background:var(--s3);border:1px solid ' + (accent || 'var(--brd)') + ';color:' + (accent || 'var(--txt)')
-    : 'background:var(--s1);border:1px solid var(--brd);color:var(--mut)';
-  return '<button onclick="_qfTab(\'' + tab + '\')" style="' + style + ';border-radius:var(--r-sm);padding:.25rem .6rem;font-size:.75rem;cursor:pointer">' + _esc(label) + '</button>';
-}
-
-function _qfPreview() {
-  var items = _QF.items || [];
-  var el    = document.getElementById('p-import');
-  if (!el) return;
-
-  var nNew   = items.filter(function(x){ return x.valid && x.dupStatus==='new'; }).length;
-  var nProbD = items.filter(function(x){ return x.valid && x.dupStatus==='probable_dup'; }).length;
-  var nPossD = items.filter(function(x){ return x.valid && x.dupStatus==='possible_dup'; }).length;
-  var nInv   = items.filter(function(x){ return !x.valid; }).length;
-  var nDup   = nProbD + nPossD;
-  var nSel   = items.filter(function(x){ return x.action==='import'; }).length;
-  var tab    = _QF.tab || 'all';
-
-  var visible;
-  if      (tab === 'new') visible = items.filter(function(x){ return x.valid && x.dupStatus==='new'; });
-  else if (tab === 'dup') visible = items.filter(function(x){ return x.valid && (x.dupStatus==='probable_dup'||x.dupStatus==='possible_dup'); });
-  else if (tab === 'inv') visible = items.filter(function(x){ return !x.valid; });
-  else                    visible = items;
-
-  var h = '<div class="tc"><div class="tch">';
-  h += '<span class="slbl" style="margin:0">📱 Importar da Quick€ App</span>';
-  h += '<button class="btn sec sm" onclick="_QF.items=null;renderImport()">← Voltar</button>';
-  h += '</div><div style="padding:1.25rem">';
-
-  // Stats strip — "A importar" tem id próprio para ser actualizável em tempo real por _qfToggle
-  h += '<div style="display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--brd);border-radius:var(--r-sm);margin-bottom:.875rem;overflow:hidden">';
-  h += '<div style="flex:1;padding:.6rem 1rem;border-right:1px solid var(--brd);min-width:110px">'
-     + '<div style="font-size:.64rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.2rem">A importar</div>'
-     + '<div id="qfImportCount" class="bold ' + (nSel > 0 ? 'tgrn' : 'tmut') + '" style="font-size:.9rem">' + nSel + '</div>'
-     + '</div>';
-  h += _impStatCell('Novos', String(nNew), 'tgrn');
-  if (nDup)  h += _impStatCell('Duplicados', String(nDup), nProbD > 0 ? 'tmut' : 'tylw');
-  if (nInv)  h += _impStatCell('Inválidos',  String(nInv), 'tred');
-  h += '</div>';
-
-  // Export info
-  if (_QF.exportedAt) {
-    var exDate = (_QF.exportedAt||'').slice(0,10);
-    h += '<div style="font-size:.72rem;color:var(--mut);margin-bottom:.75rem">☁ Export Quick€: '
-      + fmtDate(exDate)
-      + (_QF.isPartial ? ' — export parcial (pendentes)' : ' — backup completo') + '</div>';
-  }
-
-  // Tabs (antes dos avisos para não enterrar a navegação)
-  h += '<div style="display:flex;gap:.3rem;margin-bottom:.5rem;flex-wrap:wrap">';
-  h += _qfTabBtn('all', tab, 'Todos (' + items.length + ')', '');
-  if (nNew)  h += _qfTabBtn('new', tab, 'Novos ('        + nNew  + ')', 'var(--grn)');
-  if (nDup)  h += _qfTabBtn('dup', tab, 'Duplicados ('   + nDup  + ')', 'var(--ylw)');
-  if (nInv)  h += _qfTabBtn('inv', tab, 'Inválidos ('    + nInv  + ')', 'var(--red)');
-  h += '</div>';
-
-  // Bulk helpers (tabs all/new)
-  if (tab === 'all' || tab === 'new') {
-    h += '<div style="display:flex;gap:.5rem;margin-bottom:.5rem">';
-    h += '<button class="btn sec sm" onclick="_qfSelAll(true)"  style="font-size:.73rem;padding:.2rem .5rem">✓ Só novos</button>';
-    h += '<button class="btn sec sm" onclick="_qfSelAll(false)" style="font-size:.73rem;padding:.2rem .5rem">✗ Desselecionar</button>';
-    h += '</div>';
-  }
-
-  // Avisos contextuais — depois dos tabs para não enterrar a navegação
-  var nIntra = items.filter(function(x){ return x._intraBatch; }).length;
-  if (nIntra > 0) {
-    h += '<div style="font-size:.78rem;color:var(--ylw);background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.2);padding:.5rem .75rem;border-radius:var(--r-sm);margin-bottom:.35rem">';
-    h += '⚠ ' + nIntra + ' registo(s) com tipo+data+valor repetidos neste export. Verifica se são compras distintas.';
-    h += '</div>';
-  }
-  if (nPossD > 0) {
-    h += '<div style="font-size:.78rem;color:var(--ylw);background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.2);padding:.5rem .75rem;border-radius:var(--r-sm);margin-bottom:.5rem">';
-    h += '⚠ ' + nPossD + ' registo(s) com possível duplicado nos teus dados. Desmarca os que já existem.';
-    h += '</div>';
-  }
-
-  // Entry rows
-  h += '<div style="display:flex;flex-direction:column;gap:.25rem;margin-bottom:1rem">';
-  if (visible.length) {
-    visible.forEach(function(item) { h += _qfEntryRow(item); });
-  } else {
-    h += '<div style="text-align:center;color:var(--mut);font-size:.8rem;padding:1rem">Nenhum registo nesta categoria</div>';
-  }
-  h += '</div>';
-
-  // Footer
-  h += '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">';
-  h += '<span id="qfSelLbl" style="font-size:.78rem;color:var(--mut)">' + nSel + ' de ' + items.length + ' selecionados</span>';
-  h += '<button class="btn pri" id="qfConfirmBtn" onclick="_qfPreConfirm()"' + (nSel===0?' disabled':'') + '>Importar ' + nSel + ' registo(s) →</button>';
-  h += '</div>';
-  h += '</div></div>';
-  el.innerHTML = h;
-}
-
-function _qfEntryRow(item) {
-  var e   = item.entry;
-  var t   = e._entryType || '';
-  var tlb = t==='income'?'Receita':t==='transfer'?'Transf.':'Despesa';
-  var tcl = t==='income'?'var(--grn)':t==='transfer'?'var(--blu)':'var(--red)';
-  // Usar fromCents(toCents()) para consistência monetária no display
-  var vAbs = fromCents(Math.abs(toCents(safeNum(e.val, 0))));
-  var vStr = (t==='income'?'+':t==='transfer'?'⇄':'−') + fmt(vAbs);
-
-  var badge;
-  if (!item.valid)                              badge = '<span class="ist ist-d">inválido</span>';
-  else if (item.dupStatus === 'probable_dup')   badge = '<span class="ist ist-s">provável dup.</span>';
-  else if (item.dupStatus === 'possible_dup')   badge = '<span class="ist ist-p">poss. dup.</span>';
-  else                                          badge = '<span class="ist ist-n">novo</span>';
-
-  var desc;
-  if (t === 'transfer') {
-    desc = _esc((e.from||'?') + ' → ' + (e.to||'?'));
-  } else if (t === 'income') {
-    desc = _esc([e.src, e.card].filter(Boolean).join(' · '));
-  } else {
-    desc = _esc([e.cat||e.name, e.card].filter(Boolean).join(' · '));
-  }
-  var noteHtml = e.notes
-    ? ' <span style="color:var(--mut);font-size:.72rem">· ' + _esc(safeStr(e.notes, 80)) + '</span>'
-    : '';
-
-  // Sub-linha de match/erro — legível, sem score numérico exposto ao utilizador
-  var matchHtml = '';
-  if (!item.valid && item.reason) {
-    matchHtml = '<div style="font-size:.68rem;color:var(--red);margin-top:.15rem">✗ ' + _esc(item.reason) + '</div>';
-  } else if (item.valid && item.dupScore > 0) {
-    var mLabel;
-    if (item.dupScore >= 200) {
-      // ID exacto: já importado anteriormente
-      mLabel = 'já importado anteriormente (ID confirmado)';
-    } else if (item.dupMatch) {
-      var m = item.dupMatch;
-      var mSnip = (m.date ? fmtDate(m.date) : '') + (m.val ? ' ' + fmt(m.val) : '');
-      mLabel = (mSnip ? 'coincide com: ' + mSnip : 'coincidência') +
-               ' · ' + (item.dupReasons||[]).join(', ');
-    } else {
-      mLabel = 'coincidência: ' + (item.dupReasons||[]).join(', ');
-    }
-    matchHtml = '<div style="font-size:.68rem;color:var(--mut);margin-top:.15rem">🔍 ' + _esc(mLabel) + '</div>';
-  }
-  if (item._intraBatch) {
-    matchHtml += '<div style="font-size:.68rem;color:var(--ylw);margin-top:.1rem">⚠ repetido neste export</div>';
-  }
-
-  var canToggle = item.valid && item.dupStatus !== 'probable_dup';
-  var chk = canToggle
-    ? '<input type="checkbox" style="flex-shrink:0"' + (item.action==='import'?' checked':'') + ' onchange="_qfToggle(' + item.idx + ',this.checked)">'
-    : '<span style="width:1rem;flex-shrink:0"></span>';
-  var op = (!item.valid || item.dupStatus === 'probable_dup') ? 'opacity:.5;' : '';
-
-  return '<div style="background:var(--s1);border:1px solid var(--brd);border-radius:var(--r-sm);padding:.42rem .7rem;' + op + '">'
-    + '<div style="display:flex;align-items:center;gap:.5rem">'
-    + chk
-    + '<span style="font-size:.7rem;color:var(--mut);flex-shrink:0;width:56px">'                         + _esc(e.date||'') + '</span>'
-    + '<span style="font-size:.72rem;font-weight:700;color:' + tcl + ';flex-shrink:0;width:42px">'       + tlb + '</span>'
-    + '<span style="font-size:.85rem;font-weight:700;color:' + tcl + ';flex-shrink:0;width:70px;text-align:right">' + vStr + '</span>'
-    + '<span style="flex:1;font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + desc + noteHtml + '</span>'
-    + badge
-    + '</div>'
-    + (matchHtml ? '<div style="padding-left:1.5rem">' + matchHtml + '</div>' : '')
-    + '</div>';
-}
-
-function _qfToggle(idx, checked) {
-  var item = (_QF.items||[])[idx];
-  if (!item || !item.valid || item.dupStatus === 'probable_dup') return;
-  item.action   = checked ? 'import' : 'skip';
-  item.selected = checked;
-  var nSel  = (_QF.items||[]).filter(function(x){ return x.action==='import'; }).length;
-  var total = (_QF.items||[]).length;
-  var btn   = document.getElementById('qfConfirmBtn');
-  var lbl   = document.getElementById('qfSelLbl');
-  var cnt   = document.getElementById('qfImportCount');
-  if (btn) { btn.textContent = 'Importar ' + nSel + ' registo(s) →'; btn.disabled = nSel === 0; }
-  if (lbl) { lbl.textContent = nSel + ' de ' + total + ' selecionados'; }
-  if (cnt) { cnt.textContent = String(nSel); cnt.className = 'bold ' + (nSel > 0 ? 'tgrn' : 'tmut'); }
-}
-
-function _qfSelAll(onlyNew) {
-  (_QF.items||[]).forEach(function(item) {
-    if (!item.valid || item.dupStatus === 'probable_dup') return;
-    item.action   = (onlyNew && item.dupStatus !== 'new') ? 'skip' : (onlyNew ? 'import' : 'skip');
-    item.selected = item.action === 'import';
-  });
-  _qfPreview();
-}
-
-function _qfPreConfirm() {
-  var toInsert = (_QF.items||[]).filter(function(x){ return x.action==='import' && x.valid; });
-  if (!toInsert.length) { showToast('Nenhum registo marcado para importar', true); return; }
-  var el = document.getElementById('p-import');
-  if (!el) return;
-
-  var nInc = 0, nExp = 0, nTrf = 0, sumInc = 0, sumExp = 0, sumTrf = 0;
-  toInsert.forEach(function(item) {
-    var e = item.entry;
-    var v = Math.abs(toCents(safeNum(e.val, 0)));
-    if      (e._entryType === 'income')   { nInc++; sumInc += v; }
-    else if (e._entryType === 'expense')  { nExp++; sumExp += v; }
-    else if (e._entryType === 'transfer') { nTrf++; sumTrf += v; }
-  });
-  var nPossD   = toInsert.filter(function(x){ return x.dupStatus==='possible_dup'; }).length;
-  var nInBatch = toInsert.filter(function(x){ return x._intraBatch; }).length;
-
-  var h = '<div class="tc"><div class="tch">';
-  h += '<span class="slbl" style="margin:0">📱 Confirmar Importação</span>';
-  h += '<button class="btn sec sm" onclick="_qfPreview()">← Rever</button>';
-  h += '</div><div style="padding:1.25rem">';
-
-  h += '<div style="font-size:.82rem;color:var(--mut);margin-bottom:1rem">Estás prestes a importar '
-    + toInsert.length + ' registo(s). Esta ação pode ser desfeita (Ctrl+Z).</div>';
-
-  h += '<div style="border:1px solid var(--brd);border-radius:var(--r-sm);overflow:hidden;margin-bottom:1rem">';
-  if (nInc) h += _impSumRow('Receitas (' + nInc + ')',       '+' + fmt(fromCents(sumInc)), 'tgrn');
-  if (nExp) h += _impSumRow('Despesas (' + nExp + ')',       '−' + fmt(fromCents(sumExp)), 'tred');
-  if (nTrf) h += _impSumRow('Transferências (' + nTrf + ')', '⇄' + fmt(fromCents(sumTrf)), 'tblu');
-  h += _impSumRow('Total', toInsert.length + ' registos', '');
-  h += '</div>';
-
-  if (nPossD > 0) {
-    h += '<div style="font-size:.78rem;color:var(--ylw);background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.2);padding:.5rem .75rem;border-radius:var(--r-sm);margin-bottom:.5rem">';
-    h += '⚠ ' + nPossD + ' registo(s) marcados como possível duplicado. Confirma que não existem já nos teus dados.';
-    h += '</div>';
-  }
-  if (nInBatch > 0) {
-    h += '<div style="font-size:.78rem;color:var(--ylw);background:rgba(245,166,35,.07);border:1px solid rgba(245,166,35,.2);padding:.5rem .75rem;border-radius:var(--r-sm);margin-bottom:.5rem">';
-    h += '⚠ ' + nInBatch + ' registo(s) repetidos neste export estão incluídos. Confirma que são transações distintas.';
-    h += '</div>';
-  }
-
-  h += '<div style="display:flex;gap:.5rem;justify-content:flex-end;flex-wrap:wrap">';
-  h += '<button class="btn sec" onclick="_qfPreview()">← Rever</button>';
-  h += '<button class="btn pri" onclick="_qfConfirm()">✓ Confirmar ' + toInsert.length + ' registos</button>';
-  h += '</div>';
-  h += '</div></div>';
-  el.innerHTML = h;
-}
-
-function _qfConfirm() {
-  var toInsert = (_QF.items||[]).filter(function(x){ return x.action==='import' && x.valid; });
-  if (!toInsert.length) { showToast('Nenhum registo marcado para importar', true); return; }
-
-  snapshot();
-
-  // byType calculado antes do loop para o log de auditoria
-  var byType = { income:0, expense:0, transfer:0 };
-  toInsert.forEach(function(item) {
-    var t = item.entry._entryType;
-    byType[t] = (byType[t] || 0) + 1;
-  });
-
-  var now = new Date().toISOString(), ok = 0, failed = 0;
-
-  toInsert.forEach(function(item) {
-    try {
-      var e      = item.entry;
-      var date   = safeDate(e.date);
-      var absVal = fromCents(Math.abs(toCents(safeNum(e.val, 0))));
-      if (!date || absVal <= 0) { failed++; return; }
-      // _qfId: usar != null para preservar ID numérico 0 (nunca usar || null)
-      var _m = { _qfId: item.qfId != null ? item.qfId : null, _qfImportedAt: now };
-
-      if (e._entryType === 'income') {
-        S.rec.push(Object.assign({
-          id:nid(), date:date,
-          src:   safeStr(e.src||'Receita', 100),
-          val:   absVal,
-          card:  safeStr(e.card||'', 60),
-          notes: safeStr(e.notes||'', 400)
-        }, _m));
-      } else if (e._entryType === 'expense') {
-        S.dc.push(Object.assign({
-          id:nid(), date:date,
-          name:  safeStr(e.name||e.cat||'Despesa', 200),
-          cat:   safeStr(e.cat||'Outros', 100),
-          val:   absVal,
-          card:  safeStr(e.card||'', 60),
-          notes: safeStr(e.notes||'', 400)
-        }, _m));
-      } else if (e._entryType === 'transfer') {
-        S.trf.push(Object.assign({
-          id:nid(), date:date,
-          from:  safeStr(e.from||'', 60),
-          to:    safeStr(e.to||'', 60),
-          val:   absVal,
-          notes: safeStr(e.notes||'', 400)
-        }, _m));
-      } else { failed++; return; }
-      ok++;
-    } catch(ex) { failed++; console.error('[_qfConfirm]', ex, item); }
-  });
-
-  // Log escrito com ok (importações reais), não toInsert.length (intenção).
-  // Fica dentro do snapshot — se saveState falhar, o rollback reverte também o log.
-  if (!S.cfg.importLog) S.cfg.importLog = [];
-  var logEntry = { ts: Date.now(), source: 'quick-finance',
-    imported: ok, exportedAt: _QF.exportedAt||null,
-    isPartial: _QF.isPartial, byType: byType };
-  if (failed > 0) logEntry.failed = failed;
-  S.cfg.importLog.unshift(logEntry);
-  if (S.cfg.importLog.length > 10) S.cfg.importLog.length = 10;
-
-  var _saved = saveState();
-  if (!_saved) {
-    // Rollback: snapshot() guardou o estado anterior em HIST
-    S = JSON.parse(HIST[HIDX]); HIST.pop(); HIDX = HIST.length - 1; updateUR();
-    showToast('Erro ao guardar — importação cancelada', true);
-    return;
-  }
-
-  _QF.items = null; _QF.isPartial = false; _QF.exportedAt = null; _QF.counts = {}; _QF.tab = 'all';
-  showToast('✓ ' + ok + ' registo(s) importados da Quick€' + (failed ? ' (' + failed + ' com erro)' : ''), failed > 0);
-  renderImport();
-}
-
-function _qfErr(msg) {
-  var el = document.getElementById('p-import');
-  if (el) el.innerHTML =
-    '<div class="tc"><div style="padding:1.25rem">' +
-    '<div style="background:rgba(255,84,112,.08);border:1px solid rgba(255,84,112,.25);border-radius:var(--r-sm);padding:.75rem 1rem;margin-bottom:.75rem;font-size:.82rem;line-height:1.6">⚠ ' + msg + '</div>' +
-    '<button class="btn sec sm" onclick="_QF.items=null;renderImport()">← Voltar</button>' +
-    '</div></div>';
-}
-
-// ================================================================
 // THEME / EXPORT / IMPORT
 // ================================================================
 var _COLOR_ACC_DEF = {grn:'#00d4a0',red:'#ff5470',ylw:'#f5a623',blu:'#4d8fff',pur:'#a78bfa'};
@@ -7677,7 +7170,7 @@ function _gsrchRun(q) {
   _gsrchFocusIdx = -1;
   var el = document.getElementById('gsrchList');
   if (!q || q.trim().length < 2) {
-    el.innerHTML = '<div class="gsrch-hint">Escreve para pesquisar em todos os lançamentos<br><span style="font-size:.7rem;opacity:.6">receitas · despesas · fixas · parcelas · veículo</span></div>';
+    el.innerHTML = '<div class="gsrch-hint">Escreve para pesquisar em todos os lançamentos<br><span style="font-size:.7rem;opacity:.6">receitas · despesas · fixas · parcelas · veículo · eventos</span></div>';
     return;
   }
   var lq = q.toLowerCase();
@@ -7719,6 +7212,18 @@ function _gsrchRun(q) {
       results.push({type:'veh',ico:'🚘',label:v.desc||'Veículo',sub:_gsrchSub([v.date,v.cat]),val:v.val,sign:-1,tab:'veiculo'});
   });
 
+  ((S.veh && S.veh.df)||[]).forEach(function(d) {
+    var txt = [(d.name||''),(d.cat||''),(d.notes||''),'veículo fixa'].join(' ').toLowerCase();
+    if (txt.indexOf(lq) >= 0 || String(d.val||'').indexOf(lq) >= 0)
+      results.push({type:'vehdf',ico:'📋',label:d.name||'Despesa Fixa Veículo',sub:_gsrchSub([d.cat,d.card]),val:d.val,sign:-1,tab:'veiculo'});
+  });
+
+  (S.evt || []).forEach(function(e) {
+    var txt = (e.name||'').toLowerCase();
+    if (txt.indexOf(lq) >= 0 || String(e.val||'').indexOf(lq) >= 0)
+      results.push({type:'evt',ico:'📅',label:e.name||'Evento',sub:_gsrchSub([e.date]),val:e.val,sign:0,tab:'cal'});
+  });
+
   results.sort(function(a,b) {
     var da = (a.sub||'0000').slice(0,10), db = (b.sub||'0000').slice(0,10);
     return da < db ? 1 : da > db ? -1 : 0;
@@ -7731,7 +7236,7 @@ function _gsrchRun(q) {
 
   var shown = results.slice(0, 25);
   var groups = {}, order = [];
-  var gNames = {rec:'Receitas',dc:'Despesas Correntes',df:'Despesas Fixas',par:'Parcelas',veh:'Veículo'};
+  var gNames = {rec:'Receitas',dc:'Despesas Correntes',df:'Despesas Fixas',par:'Parcelas',veh:'Veículo',vehdf:'Despesas Fixas do Veículo',evt:'Eventos'};
   shown.forEach(function(r) {
     if (!groups[r.type]) { groups[r.type] = []; order.push(r.type); }
     groups[r.type].push(r);
@@ -7741,8 +7246,8 @@ function _gsrchRun(q) {
   order.forEach(function(type) {
     html += '<div class="gsrch-grp">' + (gNames[type]||type) + '</div>';
     groups[type].forEach(function(r) {
-      var vStr = r.val != null ? (r.sign < 0 ? '−' : '+') + fmt(r.val) : '';
-      var vCol = r.sign < 0 ? 'var(--red)' : 'var(--grn)';
+      var vStr = r.val != null ? (r.sign < 0 ? '−' : r.sign > 0 ? '+' : '') + fmt(r.val) : '';
+      var vCol = r.sign < 0 ? 'var(--red)' : r.sign > 0 ? 'var(--grn)' : 'var(--blu)';
       html += '<div class="gsrch-row" onclick="_gsrchGo(\'' + r.tab + '\')">' +
         '<span class="gsrch-ico">' + r.ico + '</span>' +
         '<div class="gsrch-body">' +
