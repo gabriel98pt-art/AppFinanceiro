@@ -18,6 +18,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <style>
 :root{
+  color-scheme:dark;
   --bg:#0d0f18;--s1:#141720;--s2:#1c2030;--s3:#252a42;
   --txt:#e8eaf2;--mut:#7c82a0;--brd:#252a42;
   --grn:#00d4a0;--red:#ff5470;--ylw:#f5a623;--blu:#4d8fff;--pur:#a78bfa;
@@ -25,11 +26,17 @@
   --sh:0 4px 20px rgba(0,0,0,.35);--sh-sm:0 2px 8px rgba(0,0,0,.2);
 }
 [data-theme="light"]{
+  color-scheme:light;
   --bg:#f2f4fb;--s1:#fff;--s2:#eef0f9;--s3:#e2e5f5;
   --txt:#141720;--mut:#5a608a;--brd:#dde0f0;
   --sh:0 4px 20px rgba(0,0,0,.07);--sh-sm:0 2px 8px rgba(0,0,0,.05);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+*{scrollbar-width:thin;scrollbar-color:var(--brd) transparent}
+*::-webkit-scrollbar{width:8px;height:8px}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-thumb{background:var(--brd);border-radius:4px}
+*::-webkit-scrollbar-thumb:hover{background:var(--mut)}
 html{-webkit-text-size-adjust:100%}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--txt);font-size:14px;min-height:100vh;transition:background var(--tr),color var(--tr);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 
