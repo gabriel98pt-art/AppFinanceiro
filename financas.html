@@ -6854,17 +6854,19 @@ window.addEventListener('resize', fixStickyOffsets);
 // ================================================================
 // QUICK-ADD FAB
 // ================================================================
-var _qT='e', _qCat='', _qAcc='', _qVSub='cg';
+var _qT='e', _qCat='', _qAcc='', _qVSub='cg', _qCgTouch=[];
 
 function qOpen() {
-  _qCat=''; _qAcc=''; _qVSub='cg';
+  _qCat=''; _qAcc=''; _qVSub='cg'; _qCgTouch=[];
   var ai=document.getElementById('qAmt'); if(ai) { ai.value=''; delete ai.dataset.manual; }
   var ni=document.getElementById('qNote'); if(ni) ni.value='';
   var nm=document.getElementById('qName'); if(nm) nm.value='';
   var vl=document.getElementById('qVehLocal'); if(vl) vl.value='';
   var vk=document.getElementById('qVehKwh'); if(vk) vk.value='';
-  var vp=document.getElementById('qVehPreco'); if(vp) { vp.value=''; delete vp.dataset.manual; }
-  var fm=document.getElementById('qFrMins'); if(fm) fm.value='';
+  var vm=document.getElementById('qVehMins'); if(vm) vm.value='';
+  var vs=document.getElementById('qVehSessao'); if(vs) vs.value='';
+  var vpm=document.getElementById('qVehPerMin'); if(vpm) vpm.value='';
+  var vp=document.getElementById('qVehPreco'); if(vp) vp.value='';
   var fs=document.getElementById('qFrSessao'); if(fs) fs.value=moneyDisp(S.cfg.frotaSessao,2);
   var fp=document.getElementById('qFrPerMin'); if(fp) fp.value=moneyDisp(S.cfg.frotaMin,3);
   var fk=document.getElementById('qFrPerKwh'); if(fk) fk.value=moneyDisp(S.cfg.frotaKwh,3);
@@ -6948,8 +6950,8 @@ function qClose() {
 })();
 // ────────────────────────────────────────────────────────────────
 
-function qType(t) { _qT=t; _qCat=''; if(t==='v') { _qVSub='cg'; _qRenderLocais(); } _qRender(); }
-function qVSub(s) { _qVSub=s; _qCat=''; var a=document.getElementById('qAmt'); if(a) delete a.dataset.manual; if(s==='cg') _qRenderLocais(); _qRender(); }
+function qType(t) { _qT=t; _qCat=''; if(t==='v') { _qVSub='cg'; _qCgTouch=[]; _qRenderLocais(); } _qRender(); }
+function qVSub(s) { _qVSub=s; _qCat=''; var a=document.getElementById('qAmt'); if(a) delete a.dataset.manual; if(s==='cg'){ _qCgTouch=[]; _qRenderLocais(); } _qRender(); }
 
 function _qRender() {
   var isE=_qT==='e', isI=_qT==='i', isV=_qT==='v';
@@ -7022,7 +7024,7 @@ function _qRender() {
   // Local: dropdown "Local de Recarga" na Carga, texto livre na Frota
   var vlfr=document.getElementById('qVehLocalFrRow'); if(vlfr) vlfr.style.display=isFr?'flex':'none';
   var vlcg=document.getElementById('qVehLocalCgWrap'); if(vlcg) vlcg.style.display=isCg?'flex':'none';
-  var vpw=document.getElementById('qVehPrecoWrap'); if(vpw) vpw.style.display=isCg?'flex':'none';
+  var vpw=document.getElementById('qVehRatesCgWrap'); if(vpw) vpw.style.display=isCg?'flex':'none';
 }
 function qPickCat(c){ _qCat=c; _qRender(); }
 function qPickAcc(a){ _qAcc=a; _qRender(); }
@@ -7035,20 +7037,28 @@ function qCalcFrota(){
   var a=document.getElementById('qAmt');
   if(a && a.dataset.manual==='1') return; // já digitaste o valor final — não sobrescrever
   var kwh=_qNumVal('qVehKwh');
-  var mins=_qNumVal('qFrMins');
+  var mins=_qNumVal('qVehMins');
   var sessao=_qNumVal('qFrSessao');
   var perMin=_qNumVal('qFrPerMin');
   var perKwh=_qNumVal('qFrPerKwh');
   var total=sessao+mins*perMin+kwh*perKwh;
   if(a) a.value=moneyDisp(total,2);
 }
-// kWh é partilhado entre Carga e Frota — despacha para o cálculo certo
+// kWh e Min são partilhados entre Carga e Frota — despacham para o cálculo certo
 function qVehKwhInput(){
   if(_qVSub==='frota') qCalcFrota();
-  else if(_qVSub==='cg') qCalcCarga();
+  else if(_qVSub==='cg') qCgInput('kwh');
+}
+function qVehMinsInput(){
+  if(_qVSub==='frota') qCalcFrota();
+  else if(_qVSub==='cg') qCgInput('min');
+}
+function qAmtInput(){
+  if(_qVSub==='cg') qCgInput('valor');
 }
 
 // ── LOCAIS DE RECARGA (Carga Elétrica) ────────────────────────────
+// Tarifário flexível por local: sessão (fixo), €/min, €/kWh — qualquer um pode ficar a 0.
 function _qLocalOpts(selVal){
   var locs=S.cfg.locais||[];
   var html=locs.map(function(l){
@@ -7074,19 +7084,24 @@ function qLocalChange(){
   var isNew=sel.value==='__new__';
   if(box) box.style.display=isNew?'flex':'none';
   if(isNew){
-    var nm=document.getElementById('qNewLocalNome'); if(nm) nm.value='';
-    var rd=document.getElementById('qNewLocalRede'); if(rd) rd.value='';
-    var pr=document.getElementById('qNewLocalPreco'); if(pr) pr.value='';
+    ['qNewLocalNome','qNewLocalRede','qNewLocalSessao','qNewLocalPerMin','qNewLocalPreco'].forEach(function(id){
+      var el=document.getElementById(id); if(el) el.value='';
+    });
     return;
   }
   var loc=(S.cfg.locais||[]).find(function(l){ return String(l.id)===sel.value; });
-  var pf=document.getElementById('qVehPreco');
-  if(pf && loc) pf.value=moneyDisp(loc.preco,3);
+  if(loc){
+    var sf=document.getElementById('qVehSessao'); if(sf) sf.value=moneyDisp(loc.sessao,2);
+    var pmf=document.getElementById('qVehPerMin'); if(pmf) pmf.value=moneyDisp(loc.perMin,3);
+    var pf=document.getElementById('qVehPreco'); if(pf) pf.value=moneyDisp(loc.preco,3);
+  }
   qCalcCarga();
 }
 function qSaveLocal(){
   var nome=((document.getElementById('qNewLocalNome')||{}).value||'').trim();
   var rede=((document.getElementById('qNewLocalRede')||{}).value||'').trim();
+  var sessao=_qNumVal('qNewLocalSessao');
+  var perMin=_qNumVal('qNewLocalPerMin');
   var preco=_qNumVal('qNewLocalPreco');
   if(!nome){
     var nm=document.getElementById('qNewLocalNome');
@@ -7094,20 +7109,54 @@ function qSaveLocal(){
     return;
   }
   if(!S.cfg.locais) S.cfg.locais=[];
-  var loc={id:nid(),nome:nome.slice(0,60),rede:rede.slice(0,60),preco:preco||0};
+  var loc={id:nid(),nome:nome.slice(0,60),rede:rede.slice(0,60),sessao:sessao||0,perMin:perMin||0,preco:preco||0};
   S.cfg.locais.push(loc);
   saveState();
   _qRenderLocais(loc.id);
   showToast('✓ Local guardado — '+loc.nome);
 }
-// Valor sugerido a partir do €/kWh do local (sempre editável)
+// Motor de cálculo bidirecional da Carga: kWh, Min e Valor — preenche 2, o 3º calcula-se.
+// 'active' = variáveis que de facto entram na conta deste local (tarifa>0). Falta exactamente
+// 1 das activas (as outras já foram tocadas pelo utilizador) → resolve essa em função das outras.
+function qCgInput(field){
+  _qCgTouch=_qCgTouch.filter(function(f){return f!==field;});
+  _qCgTouch.push(field);
+  qCalcCarga();
+}
+function _qFmtMin(n){
+  n=Math.round(n*10)/10;
+  if(!isFinite(n)||n<=0) return '';
+  return String(n).replace('.',',');
+}
 function qCalcCarga(){
-  var a=document.getElementById('qAmt');
-  if(a && a.dataset.manual==='1') return;
-  var kwh=_qNumVal('qVehKwh');
-  var preco=_qNumVal('qVehPreco');
-  if(!kwh||!preco) return;
-  a.value=moneyDisp(kwh*preco,2);
+  var kwhEl=document.getElementById('qVehKwh');
+  var minEl=document.getElementById('qVehMins');
+  var amtEl=document.getElementById('qAmt');
+  if(!kwhEl||!minEl||!amtEl) return;
+  var sessao=_qNumVal('qVehSessao');
+  var perMin=_qNumVal('qVehPerMin');
+  var perKwh=_qNumVal('qVehPreco');
+  var kwh=moneyVal(kwhEl.value);
+  var min=moneyVal(minEl.value);
+  var amt=moneyVal(amtEl.value);
+
+  var active=['valor'];
+  if(perKwh>0) active.push('kwh');
+  if(perMin>0) active.push('min');
+  var touched=_qCgTouch.filter(function(f){return active.indexOf(f)>=0;});
+  var missing=active.filter(function(f){return touched.indexOf(f)<0;});
+  if(missing.length!==1) return; // 0 → nada por calcular; 2+ → ainda ambíguo, espera mais um campo
+
+  var target=missing[0];
+  if(target==='valor'){
+    amtEl.value=moneyDisp(sessao+min*perMin+kwh*perKwh,2);
+  } else if(target==='kwh'){
+    var vK=(amt-sessao-min*perMin)/perKwh;
+    kwhEl.value=vK>0?moneyDisp(vK,3):'';
+  } else if(target==='min'){
+    var vM=(amt-sessao-kwh*perKwh)/perMin;
+    minEl.value=_qFmtMin(vM);
+  }
 }
 
 function qOnDateChange(){
@@ -7158,8 +7207,11 @@ function qSave(){
       var locObj=(S.cfg.locais||[]).find(function(l){return l.id===locId;});
       var local=locObj?locObj.nome:'';
       var kwh=moneyVal((document.getElementById('qVehKwh')||{}).value)||null;
+      var mins=_qNumVal('qVehMins')||null;
       var preco=_qNumVal('qVehPreco')||null;
-      S.veh.cg.push({id:vid,date:date,local:local,localId:locId,preco:preco,kwh:kwh,val:amt,card:acc,notes:notes});
+      var perMin=_qNumVal('qVehPerMin')||null;
+      var sessaoUsed=_qNumVal('qVehSessao')||null;
+      S.veh.cg.push({id:vid,date:date,local:local,localId:locId,preco:preco,perMin:perMin,sessao:sessaoUsed,kwh:kwh,mins:mins,val:amt,card:acc,notes:notes});
       S.dc.push({id:nid(),date:date,cat:'Carga Elétrica',
         val:amt,card:acc,
         notes:'⚡ '+(local||'Carga Elétrica')+(kwh?' ('+kwh+' kWh)':''),
@@ -7167,7 +7219,7 @@ function qSave(){
     } else if(_qVSub==='frota'){
       var localF=((document.getElementById('qVehLocal')||{}).value||'').trim();
       var kwhF=_qNumVal('qVehKwh')||null;
-      var minsF=_qNumVal('qFrMins')||null;
+      var minsF=_qNumVal('qVehMins')||null;
       var sessaoF=_qNumVal('qFrSessao');
       var perMinF=_qNumVal('qFrPerMin');
       var perKwhF=_qNumVal('qFrPerKwh');
@@ -7561,7 +7613,7 @@ function _impBankFile(bank) {
     <div class="qamr">
       <span class="qams">€</span>
       <input class="qamin" id="qAmt" type="text" inputmode="decimal"
-             placeholder="0,00" autocomplete="off" autocorrect="off" spellcheck="false" oninput="moneyMask(event,2);this.dataset.manual='1'">
+             placeholder="0,00" autocomplete="off" autocorrect="off" spellcheck="false" oninput="moneyMask(event,2);this.dataset.manual='1';qAmtInput()">
     </div>
   </div>
   <div id="qVSubRow" style="display:none;grid-template-columns:1fr 1fr 1fr;gap:.38rem;background:var(--s2);border-radius:10px;padding:.28rem;margin-bottom:.75rem">
@@ -7595,7 +7647,12 @@ function _impBankFile(bank) {
       <div id="qNewLocalBox" class="qnewloc" style="display:none">
         <div class="qdet"><span>🏷</span><input type="text" id="qNewLocalNome" placeholder="Nome do local..." autocomplete="off" maxlength="60"></div>
         <div class="qdet"><span>🔌</span><input type="text" id="qNewLocalRede" placeholder="Rede (opcional)..." autocomplete="off" maxlength="60"></div>
-        <div class="qdet"><span style="font-size:.65rem;color:var(--mut);font-weight:700">€/KWH</span><input type="text" id="qNewLocalPreco" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3)"></div>
+        <div style="display:flex;gap:.4rem">
+          <div class="qdet" style="flex:1"><span style="font-size:.65rem;color:var(--mut);font-weight:700">SESSÃO €</span><input type="text" id="qNewLocalSessao" inputmode="decimal" placeholder="0,00" autocomplete="off" oninput="moneyMask(event,2)"></div>
+          <div class="qdet" style="flex:1"><span style="font-size:.65rem;color:var(--mut);font-weight:700">€/MIN</span><input type="text" id="qNewLocalPerMin" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3)"></div>
+          <div class="qdet" style="flex:1"><span style="font-size:.65rem;color:var(--mut);font-weight:700">€/KWH</span><input type="text" id="qNewLocalPreco" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3)"></div>
+        </div>
+        <div class="tmut" style="font-size:.68rem">💡 Preenche só o que esse local cobra — o resto pode ficar a 0</div>
         <button type="button" class="qnewloc-save" onclick="qSaveLocal()">Salvar local</button>
       </div>
     </div>
@@ -7604,16 +7661,29 @@ function _impBankFile(bank) {
         <span style="font-size:.7rem;color:var(--mut);font-weight:700">kWh</span>
         <input type="text" id="qVehKwh" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3);qVehKwhInput()">
       </div>
-      <div class="qdet" id="qVehPrecoWrap" style="flex:1;display:none">
-        <span style="font-size:.7rem;color:var(--mut);font-weight:700">€/KWH</span>
-        <input type="text" id="qVehPreco" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3);qCalcCarga()">
+      <div class="qdet" style="flex:1">
+        <span style="font-size:.7rem;color:var(--mut);font-weight:700">Min</span>
+        <input type="text" id="qVehMins" inputmode="decimal" placeholder="Minutos" autocomplete="off" oninput="qVehMinsInput()">
       </div>
     </div>
-    <div id="qVehFrotaExtra" style="display:none;gap:.45rem;flex-direction:column">
-      <div class="qdet" style="width:100%">
-        <span style="font-size:.7rem;color:var(--mut);font-weight:700">Min</span>
-        <input type="text" id="qFrMins" inputmode="decimal" placeholder="Minutos" autocomplete="off" oninput="qCalcFrota()">
+    <div id="qVehRatesCgWrap" style="display:none;gap:.45rem;flex-direction:column">
+      <div style="display:flex;gap:.45rem">
+        <div class="qdet" style="flex:1">
+          <span style="font-size:.65rem;color:var(--mut);font-weight:700">SESSÃO €</span>
+          <input type="text" id="qVehSessao" inputmode="decimal" placeholder="0,00" autocomplete="off" oninput="moneyMask(event,2);qCalcCarga()">
+        </div>
+        <div class="qdet" style="flex:1">
+          <span style="font-size:.65rem;color:var(--mut);font-weight:700">€/MIN</span>
+          <input type="text" id="qVehPerMin" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3);qCalcCarga()">
+        </div>
+        <div class="qdet" style="flex:1">
+          <span style="font-size:.65rem;color:var(--mut);font-weight:700">€/KWH</span>
+          <input type="text" id="qVehPreco" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3);qCalcCarga()">
+        </div>
       </div>
+      <div class="tmut" style="font-size:.68rem">💡 Preenche 2 de 3 — kWh, Min ou Valor — o terceiro calcula-se sozinho</div>
+    </div>
+    <div id="qVehFrotaExtra" style="display:none;gap:.45rem;flex-direction:column">
       <div style="display:flex;gap:.45rem">
         <div class="qdet" style="flex:1">
           <span style="font-size:.65rem;color:var(--mut);font-weight:700">SESSÃO €</span>
