@@ -7130,10 +7130,10 @@ window.addEventListener('resize', fixStickyOffsets);
 // ================================================================
 // QUICK-ADD FAB
 // ================================================================
-var _qT='e', _qCat='', _qAcc='', _qVSub='cg', _qCgTouch=[];
+var _qT='e', _qCat='', _qAcc='', _qVSub='cg', _qCgTouch=[], _qEditLocId=null;
 
 function qOpen() {
-  _qCat=''; _qAcc=''; _qVSub='cg'; _qCgTouch=[];
+  _qCat=''; _qAcc=''; _qVSub='cg'; _qCgTouch=[]; _qEditLocId=null;
   var ai=document.getElementById('qAmt'); if(ai) { ai.value=''; delete ai.dataset.manual; }
   var ni=document.getElementById('qNote'); if(ni) ni.value='';
   var nm=document.getElementById('qName'); if(nm) nm.value='';
@@ -7356,9 +7356,13 @@ function _qRenderLocais(selVal){
 function qLocalChange(){
   var sel=document.getElementById('qVehLocalSel');
   var box=document.getElementById('qNewLocalBox');
+  var editBtn=document.getElementById('qEditLocalBtn');
   if(!sel) return;
+  _qEditLocId=null; // trocar de local (ou ir para "novo") sai sempre do modo edição
+  _qResetLocalFormButtons();
   var isNew=sel.value==='__new__';
   if(box) box.style.display=isNew?'flex':'none';
+  if(editBtn) editBtn.style.display=isNew?'none':'';
   if(isNew){
     ['qNewLocalNome','qNewLocalRede','qNewLocalSessao','qNewLocalPerMin','qNewLocalPreco'].forEach(function(id){
       var el=document.getElementById(id); if(el) el.value='';
@@ -7373,6 +7377,32 @@ function qLocalChange(){
   }
   qCalcCarga();
 }
+function _qResetLocalFormButtons(){
+  var sb=document.getElementById('qSaveLocalBtn'); if(sb) sb.textContent='Salvar local';
+  var cb=document.getElementById('qCancelLocalBtn'); if(cb) cb.style.display='none';
+}
+// Abre os campos inline já preenchidos com os dados do local seleccionado, para editar
+function qEditLocal(){
+  var sel=document.getElementById('qVehLocalSel');
+  if(!sel || sel.value==='__new__') return;
+  var loc=(S.cfg.locais||[]).find(function(l){ return String(l.id)===sel.value; });
+  if(!loc) return;
+  _qEditLocId=loc.id;
+  var nm=document.getElementById('qNewLocalNome'); if(nm) nm.value=loc.nome||'';
+  var rd=document.getElementById('qNewLocalRede'); if(rd) rd.value=loc.rede||'';
+  var sf=document.getElementById('qNewLocalSessao'); if(sf) sf.value=moneyDisp(loc.sessao,2);
+  var pmf=document.getElementById('qNewLocalPerMin'); if(pmf) pmf.value=moneyDisp(loc.perMin,3);
+  var pf=document.getElementById('qNewLocalPreco'); if(pf) pf.value=moneyDisp(loc.preco,3);
+  var box=document.getElementById('qNewLocalBox'); if(box) box.style.display='flex';
+  var sb=document.getElementById('qSaveLocalBtn'); if(sb) sb.textContent='Guardar alterações';
+  var cb=document.getElementById('qCancelLocalBtn'); if(cb) cb.style.display='';
+  if(nm) nm.focus();
+}
+function qCancelEditLocal(){
+  _qEditLocId=null;
+  _qResetLocalFormButtons();
+  var box=document.getElementById('qNewLocalBox'); if(box) box.style.display='none';
+}
 function qSaveLocal(){
   var nome=((document.getElementById('qNewLocalNome')||{}).value||'').trim();
   var rede=((document.getElementById('qNewLocalRede')||{}).value||'').trim();
@@ -7385,6 +7415,20 @@ function qSaveLocal(){
     return;
   }
   if(!S.cfg.locais) S.cfg.locais=[];
+  if(_qEditLocId!=null){
+    var existing=S.cfg.locais.find(function(l){return l.id===_qEditLocId;});
+    if(!existing) { _qEditLocId=null; return; }
+    existing.nome=nome.slice(0,60); existing.rede=rede.slice(0,60);
+    existing.sessao=sessao||0; existing.perMin=perMin||0; existing.preco=preco||0;
+    saveState();
+    var editedId=_qEditLocId;
+    _qEditLocId=null;
+    _qResetLocalFormButtons();
+    var box=document.getElementById('qNewLocalBox'); if(box) box.style.display='none';
+    _qRenderLocais(editedId);
+    showToast('✓ Local atualizado — '+existing.nome);
+    return;
+  }
   var loc={id:nid(),nome:nome.slice(0,60),rede:rede.slice(0,60),sessao:sessao||0,perMin:perMin||0,preco:preco||0};
   S.cfg.locais.push(loc);
   saveState();
@@ -7916,9 +7960,10 @@ function _impBankFile(bank) {
       <input type="text" id="qVehLocal" placeholder="Local / Posto..." autocomplete="off" maxlength="80">
     </div>
     <div id="qVehLocalCgWrap" style="display:none;flex-direction:column;gap:.45rem">
-      <div class="qdet">
+      <div class="qdet" style="gap:.4rem">
         <span>📍</span>
-        <select id="qVehLocalSel" onchange="qLocalChange()"></select>
+        <select id="qVehLocalSel" onchange="qLocalChange()" style="flex:1"></select>
+        <button type="button" id="qEditLocalBtn" class="ic" onclick="qEditLocal()" title="Editar local" style="display:none;flex-shrink:0;width:26px;height:26px;font-size:.8rem">✏️</button>
       </div>
       <div id="qNewLocalBox" class="qnewloc" style="display:none">
         <div class="qdet"><span>🏷</span><input type="text" id="qNewLocalNome" placeholder="Nome do local..." autocomplete="off" maxlength="60"></div>
@@ -7929,7 +7974,10 @@ function _impBankFile(bank) {
           <div class="qdet" style="flex:1"><span style="font-size:.65rem;color:var(--mut);font-weight:700">€/KWH</span><input type="text" id="qNewLocalPreco" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3)"></div>
         </div>
         <div class="tmut" style="font-size:.68rem">💡 Preenche só o que esse local cobra — o resto pode ficar a 0</div>
-        <button type="button" class="qnewloc-save" onclick="qSaveLocal()">Salvar local</button>
+        <div style="display:flex;gap:.4rem">
+          <button type="button" class="qnewloc-save" id="qSaveLocalBtn" style="flex:1" onclick="qSaveLocal()">Salvar local</button>
+          <button type="button" id="qCancelLocalBtn" style="display:none;flex-shrink:0;padding:.55rem .8rem;border-radius:8px;border:1.5px solid var(--brd);background:none;color:var(--mut);font-size:.78rem;font-weight:700;cursor:pointer" onclick="qCancelEditLocal()">Cancelar</button>
+        </div>
       </div>
     </div>
     <div style="display:flex;gap:.45rem">
