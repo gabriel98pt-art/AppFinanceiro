@@ -708,9 +708,8 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     <div id="dfCollapse">
     <div class="srch-bar">
       <input id="dfSearch" type="search" placeholder="🔍 Pesquisar…" oninput="DF_SEARCH=this.value;renderDespesas()" value="">
-      <select id="dfCatFilt" onchange="DF_CAT=this.value;renderDespesas()"><option value="">Todas as categorias</option></select>
       <select id="dfCardFilt" onchange="DF_CARD=this.value;renderDespesas()"><option value="all">Todos os cartões</option></select>
-      <button class="srch-clr" onclick="DF_SEARCH='';DF_CARD='all';DF_CAT='';document.getElementById('dfSearch').value='';renderDespesas()" title="Limpar filtros">✕</button>
+      <button class="srch-clr" onclick="DF_SEARCH='';DF_CARD='all';document.getElementById('dfSearch').value='';renderDespesas()" title="Limpar filtros">✕</button>
     </div>
     <div class="tw"><table>
       <thead><tr><th>Nome</th><th>Categoria</th><th>Valor</th><th title="Dia de vencimento mensal">Dia Venc.</th><th>Cartão</th><th title="Marque quando pago — não reinicia a cada mês">Pago?</th><th>Notas</th><th></th></tr></thead>
@@ -1854,7 +1853,7 @@ var DC_FROM=null,DC_TO=null,_dcFilterOpen=false;
 var DC_WEEK=false,VEH_WEEK=false,_dcWeekOffset=0,_vehWeekOffset=0;
 var REC_SEARCH='',REC_CARD='all',REC_PIN=false;
 var DC_SEARCH='',DC_CARD='all',DC_CAT='',DC_PIN=false,DC_SRC='all';
-var DF_SEARCH='',DF_CARD='all',DF_CAT='';
+var DF_SEARCH='',DF_CARD='all';
 var CG_CARD='all',CG_FROTA='all';
 var LP_CARD='all',LP_TIPO='all';
 var VEHDF_CARD='all',VEHDF_CAT='';
@@ -2288,6 +2287,7 @@ function makeChart(id, type, labels, datasets, opts) {
       cfg.options.plugins.legend.display = false;
     } else {
       cfg.options.maintainAspectRatio = false;
+      cfg.options.interaction = { mode: 'index', intersect: false };
       cfg.options.scales = {
         x: { grid: { display: false }, ticks: { color: tc, font: { size: 10 } } },
         y: { grid: { color: gc }, ticks: { color: tc, font: { size: 10 }, callback: function(v) { return '€' + v; } } }
@@ -2826,14 +2826,6 @@ function renderDespesas() {
   }
 
   // Fixas — popular filtros
-  var dfCatFiltEl = document.getElementById('dfCatFilt');
-  if (dfCatFiltEl) {
-    var dfCats = {}; S.df.forEach(function(d){ if(d.cat) dfCats[d.cat]=1; });
-    var curDfCat = DF_CAT;
-    dfCatFiltEl.innerHTML = '<option value="">Todas as categorias</option>' +
-      Object.keys(dfCats).map(function(c){ return '<option value="'+_esc(c)+'"'+(c===curDfCat?' selected':'')+'>'+_esc(c)+'</option>'; }).join('');
-    if (DF_CAT && !dfCats[DF_CAT]) DF_CAT = '';
-  }
   var dfCardFiltEl = document.getElementById('dfCardFilt');
   if (dfCardFiltEl) {
     var dfCards = {}; S.df.forEach(function(d){ if(d.card) dfCards[d.card]=1; });
@@ -2844,7 +2836,6 @@ function renderDespesas() {
   }
   var _dfq = DF_SEARCH.toLowerCase();
   var dfList = S.df.filter(function(d){
-    if (DF_CAT && d.cat !== DF_CAT) return false;
     if (DF_CARD !== 'all' && d.card !== DF_CARD) return false;
     if (_dfq && !((d.name||'').toLowerCase().includes(_dfq) || (d.cat||'').toLowerCase().includes(_dfq) || (d.notes||'').toLowerCase().includes(_dfq) || (d.card||'').toLowerCase().includes(_dfq))) return false;
     return true;
@@ -3823,7 +3814,15 @@ function renderCartoes() {
   }).join('');
 
   var _ctData = methods.map(function(c){
-    if ((S.cfg.cardType||{})[c]==='transit') return 0;
+    var _ctType = (S.cfg.cardType||{})[c];
+    if (_ctType === 'transit') return 0;
+    if (_ctType === 'credit') {
+      var _ctFatCalc = sumVal(dfM.filter(function(d){return d.card===c;}))
+                     + sumVal(dcM.filter(function(d){return d.card===c&&d._src!=='fat';}))
+                     + _autoDebitParcVal(c, ym);
+      var _ctFatManual = (S.cfg.fatManual||{})[c] && (S.cfg.fatManual||{})[c][ym];
+      return _ctFatManual != null ? _ctFatManual : _ctFatCalc;
+    }
     return sumVal(dfM.filter(function(d){return d.card===c;})) + sumVal(dcM.filter(function(d){return d.card===c;}));
   });
   var _ctCanvas = document.getElementById('chCt');
