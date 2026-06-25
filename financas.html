@@ -472,6 +472,8 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 .qdet input::placeholder{color:var(--mut)}
 .qdet select{background:none;border:none;outline:none;color:var(--txt);
             font-size:.78rem;font-weight:600;font-family:inherit;width:100%;min-width:0;cursor:pointer}
+.qlbl{font-size:.7rem;color:var(--mut);font-weight:700}
+.qlbl-sm{font-size:.65rem;color:var(--mut);font-weight:700}
 .qnewloc{background:var(--s2);border:1.5px solid var(--brd);border-radius:10px;padding:.55rem;display:flex;flex-direction:column;gap:.4rem}
 .qnewloc .qdet{background:var(--s1)}
 .qnewloc-save{padding:.55rem;border-radius:8px;border:none;font-size:.78rem;font-weight:700;cursor:pointer;background:var(--grn);color:#06281f}
@@ -8059,9 +8061,9 @@ function _impBankFile(bank) {
         <div class="qdet"><span>🏷</span><input type="text" id="qNewLocalNome" placeholder="Nome do local..." autocomplete="off" maxlength="60"></div>
         <div class="qdet"><span>🔌</span><input type="text" id="qNewLocalRede" placeholder="Rede (opcional)..." autocomplete="off" maxlength="60"></div>
         <div style="display:flex;gap:.4rem">
-          <div class="qdet" style="flex:1"><span style="font-size:.65rem;color:var(--mut);font-weight:700">SESSÃO €</span><input type="text" id="qNewLocalSessao" inputmode="decimal" placeholder="0,00" autocomplete="off" oninput="moneyMask(event,2)"></div>
-          <div class="qdet" style="flex:1"><span style="font-size:.65rem;color:var(--mut);font-weight:700">€/MIN</span><input type="text" id="qNewLocalPerMin" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3)"></div>
-          <div class="qdet" style="flex:1"><span style="font-size:.65rem;color:var(--mut);font-weight:700">€/KWH</span><input type="text" id="qNewLocalPreco" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3)"></div>
+          <div class="qdet" style="flex:1"><span class="qlbl-sm">SESSÃO €</span><input type="text" id="qNewLocalSessao" inputmode="decimal" placeholder="0,00" autocomplete="off" oninput="moneyMask(event,2)"></div>
+          <div class="qdet" style="flex:1"><span class="qlbl-sm">€/MIN</span><input type="text" id="qNewLocalPerMin" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3)"></div>
+          <div class="qdet" style="flex:1"><span class="qlbl-sm">€/KWH</span><input type="text" id="qNewLocalPreco" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3)"></div>
         </div>
         <div class="tmut" style="font-size:.68rem">💡 Preenche só o que esse local cobra — o resto pode ficar a 0</div>
         <div style="display:flex;gap:.4rem">
@@ -8072,26 +8074,26 @@ function _impBankFile(bank) {
     </div>
     <div style="display:flex;gap:.45rem">
       <div class="qdet" style="flex:1">
-        <span style="font-size:.7rem;color:var(--mut);font-weight:700">kWh</span>
+        <span class="qlbl">kWh</span>
         <input type="text" id="qVehKwh" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3);qVehKwhInput()">
       </div>
       <div class="qdet" style="flex:1">
-        <span style="font-size:.7rem;color:var(--mut);font-weight:700">Min</span>
+        <span class="qlbl">Min</span>
         <input type="text" id="qVehMins" inputmode="decimal" placeholder="Minutos" autocomplete="off" oninput="qVehMinsInput()">
       </div>
     </div>
     <div id="qVehRatesCgWrap" style="display:none;gap:.45rem;flex-direction:column">
       <div style="display:flex;gap:.45rem">
         <div class="qdet" style="flex:1">
-          <span style="font-size:.65rem;color:var(--mut);font-weight:700">SESSÃO €</span>
+          <span class="qlbl-sm">SESSÃO €</span>
           <input type="text" id="qVehSessao" inputmode="decimal" placeholder="0,00" autocomplete="off" oninput="moneyMask(event,2);qCalcCarga()">
         </div>
         <div class="qdet" style="flex:1">
-          <span style="font-size:.65rem;color:var(--mut);font-weight:700">€/MIN</span>
+          <span class="qlbl-sm">€/MIN</span>
           <input type="text" id="qVehPerMin" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3);qCalcCarga()">
         </div>
         <div class="qdet" style="flex:1">
-          <span style="font-size:.65rem;color:var(--mut);font-weight:700">€/KWH</span>
+          <span class="qlbl-sm">€/KWH</span>
           <input type="text" id="qVehPreco" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3);qCalcCarga()">
         </div>
       </div>
