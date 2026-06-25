@@ -15,7 +15,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -5175,9 +5174,25 @@ function changeFbPw() {
 // IMPORTAR EXTRATO BANCÁRIO
 // ================================================================
 
-if (typeof pdfjsLib !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+// PDF.js só é pesado e só é preciso para importar extratos em PDF — carrega-se on-demand,
+// não no arranque da app, para não atrasar todas as outras sessões que nunca o usam.
+var _pdfJsLoadPromise = null;
+function _loadPdfJs() {
+  if (typeof pdfjsLib !== 'undefined') return Promise.resolve();
+  if (_pdfJsLoadPromise) return _pdfJsLoadPromise;
+  _pdfJsLoadPromise = new Promise(function(resolve, reject) {
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.crossOrigin = 'anonymous';
+    s.onload = function() {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve();
+    };
+    s.onerror = function() { _pdfJsLoadPromise = null; reject(new Error('Falha ao carregar PDF.js')); };
+    document.head.appendChild(s);
+  });
+  return _pdfJsLoadPromise;
 }
 
 var _IMP = { txs: null, rejected: [], tab: 'txs', filter: 'all', stats: null, collapsed: {} }; // estado de importação bancária
@@ -5483,11 +5498,8 @@ function _impTXT(text) {
 
 // ── Parsing: PDF ──
 function _impParsePDF(file) {
-  return new Promise(function(resolve, reject) {
-    if (typeof pdfjsLib === 'undefined') {
-      reject(new Error('PDF.js não disponível. Converta o PDF para TXT e tente novamente.'));
-      return;
-    }
+  return _loadPdfJs().then(function() {
+    return new Promise(function(resolve, reject) {
     file.arrayBuffer().then(function(buf) {
       return pdfjsLib.getDocument({ data: buf }).promise;
     }).then(function(pdf) {
@@ -5526,6 +5538,7 @@ function _impParsePDF(file) {
       }).join('\n');
       resolve(_impTXT(text));
     }).catch(reject);
+    });
   });
 }
 
