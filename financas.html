@@ -755,6 +755,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
         <option value="parc">Parcela</option>
         <option value="fat">Cartão de Crédito</option>
       </select>
+      <select id="dcCatFilt" onchange="DC_CAT=this.value;DC_PG=1;renderDespesas()"><option value="">Todas as categorias</option></select>
       <button class="srch-pin" id="dcWeekBtn" onclick="toggleDcWeek()" title="Semana actual (Seg–Dom)">📅 Sem</button>
       <div id="dcWeekNav" style="display:none;align-items:center;gap:.18rem">
         <button class="srch-pin" onclick="_dcWeekNav(-1)" style="padding:.18rem .38rem">‹</button>
@@ -762,7 +763,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
         <button class="srch-pin" onclick="_dcWeekNav(1)" style="padding:.18rem .38rem">›</button>
       </div>
       <button class="srch-pin" id="dcPin" onclick="_togglePin('dc')" title="Manter filtro ao mudar de mês">📌</button>
-      <button class="srch-clr" onclick="DC_SEARCH='';DC_CARD='all';DC_CAT='';document.getElementById('dcSearch').value='';DC_PG=1;renderDespesas()" title="Limpar filtros">✕</button>
+      <button class="srch-clr" onclick="DC_SEARCH='';DC_CARD='all';DC_SRC='all';DC_CAT='';document.getElementById('dcSearch').value='';DC_PG=1;renderDespesas()" title="Limpar filtros">✕</button>
       <span id="dcCatBadge" style="display:none;font-size:.74rem;background:rgba(77,143,255,.12);color:var(--blu);border:1px solid rgba(77,143,255,.25);border-radius:6px;padding:.2rem .55rem;font-weight:600"></span>
     </div>
     <div id="dcFilterBar" style="display:none;padding:.55rem 1rem;border-bottom:1px solid var(--brd);background:var(--s2)">
@@ -3007,6 +3008,14 @@ function renderDespesas() {
       Object.keys(dcCards).map(function(c){ return '<option value="'+_esc(c)+'"'+(c===curDcCard?' selected':'')+'>'+_esc(c)+'</option>'; }).join('');
     if (!dcCards[DC_CARD]) DC_CARD = 'all';
   }
+  // Category filter populate
+  var dcCatFiltEl = document.getElementById('dcCatFilt');
+  if (dcCatFiltEl) {
+    var _dcCats = {}; S.dc.forEach(function(d){ if(d.cat && !d._src) _dcCats[d.cat]=1; });
+    dcCatFiltEl.innerHTML = '<option value="">Todas as categorias</option>' +
+      Object.keys(_dcCats).sort().map(function(c){ return '<option value="'+_esc(c)+'"'+(c===DC_CAT?' selected':'')+'>'+_esc(c)+'</option>'; }).join('');
+    if (DC_CAT && !_dcCats[DC_CAT]) DC_CAT = '';
+  }
 
   // Correntes — filtro por intervalo ou por mês
   var _dcRangeActive = !!(DC_FROM && DC_TO);
@@ -4015,8 +4024,12 @@ function renderCartoes() {
   var tipoFiltEl = document.getElementById('ctTipoFilt');
   if (tipoFiltEl) {
     var curTipo = CT_TIPO;
-    var _ctChips = [{k:'all', lbl:'Todos', col:'#4d8fff'}];
-    Object.keys(TX_TYPE).forEach(function(k){ _ctChips.push({k:k, lbl:TX_TYPE[k].lbl, col:TX_TYPE[k].col}); });
+    var _ctChips = [
+      {k:'all',  lbl:'Todos',        col:'#4d8fff'},
+      {k:'rec',  lbl:'Receita',      col:'#00d4a0'},
+      {k:'exp',  lbl:'Despesa',      col:'#ff5470'},
+      {k:'trf',  lbl:'Transferência',col:'#06b6d4'}
+    ];
     tipoFiltEl.innerHTML = _ctChips.map(function(c){
       var isActive = c.k === curTipo;
       var style = '';
@@ -4151,7 +4164,7 @@ function renderCartoes() {
       tx.runBal = runBal;
     });
 
-    var typeFiltered = CT_TIPO === 'all' ? cardTxs : cardTxs.filter(function(tx){ return tx.type === CT_TIPO; });
+    var typeFiltered = CT_TIPO === 'all' ? cardTxs : CT_TIPO === 'exp' ? cardTxs.filter(function(tx){ return tx.type==='fix'||tx.type==='cor'||tx.type==='fat'; }) : cardTxs.filter(function(tx){ return tx.type === CT_TIPO; });
     var searchFiltered = _ctq ? typeFiltered.filter(function(tx){ return (tx.desc||'').toLowerCase().includes(_ctq); }) : typeFiltered;
 
     if (searchFiltered.length === 0) html += '<span style="font-size:.65rem;color:var(--mut)">— sem movimentos</span>';
