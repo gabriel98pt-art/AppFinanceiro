@@ -939,9 +939,13 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
   <div class="cc mb2"><div class="slbl">💳 Gastos por Cartão</div><canvas id="chCt"></canvas></div>
   <div class="tc">
     <div class="tch">
-      <span class="slbl" style="margin:0">📈 Fluxo Consolidado</span>
+      <div class="row g2" style="align-items:center;flex-wrap:wrap;gap:.35rem">
+        <span class="slbl" style="margin:0">📈 Fluxo Consolidado</span>
+        <span id="ctFilterLbl" style="display:none" class="bdg gy">📅 filtro ativo</span>
+      </div>
       <div class="row g2">
         <button class="ic tip" id="eyeBtn_ct" data-tip="Mostrar/esconder" onclick="_toggleVis('ctCollapse','eyeBtn_ct')" style="font-size:.8rem;width:28px;height:28px"></button>
+        <button class="btn sec sm" id="ctFilterBtn" onclick="toggleCtFilter()" title="Filtrar por intervalo de datas">🔍 Período</button>
         <button class="btn pri sm" onclick="openModal('trf')">⇄ Transferência</button>
         <select class="sel" id="ctFilt" onchange="renderCartoes()" style="max-width:160px">
           <option value="all">Todos os cartões</option>
@@ -952,10 +956,27 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
       </div>
     </div>
     <div id="ctCollapse">
+    <div class="srch-bar">
+      <input id="ctSearch" type="search" placeholder="🔍 Pesquisar descrição…" oninput="CT_SEARCH=this.value;renderCartoes()" value="">
+      <button class="srch-pin" id="ctPin" onclick="_togglePin('ct')" title="Manter filtro ao mudar de mês">📌</button>
+      <button class="srch-clr" onclick="CT_SEARCH='';document.getElementById('ctSearch').value='';renderCartoes()" title="Limpar filtros">✕</button>
+    </div>
+    <div id="ctFilterBar" style="display:none;padding:.55rem 1rem;border-bottom:1px solid var(--brd);background:var(--s2)">
+      <div class="row wrap" style="gap:.35rem;align-items:center">
+        <button class="btn sec sm" onclick="applyCtPreset(30)">30 dias</button>
+        <button class="btn sec sm" onclick="applyCtPreset(90)">3 meses</button>
+        <button class="btn sec sm" onclick="applyCtPresetYear()">Este ano</button>
+        <div class="sep" style="height:18px;margin:0 .1rem"></div>
+        <input type="date" id="ctFrom" class="fi" style="max-width:140px;padding:.3rem .55rem" onchange="applyCtCustomRange()" title="Data início">
+        <span style="color:var(--mut);font-size:.75rem">até</span>
+        <input type="date" id="ctTo" class="fi" style="max-width:140px;padding:.3rem .55rem" onchange="applyCtCustomRange()" title="Data fim">
+        <button class="btn dan sm" id="ctClearBtn" onclick="clearCtRange()" style="display:none">✕ Limpar</button>
+      </div>
+    </div>
     <div class="tw"><table>
       <thead id="ctHead"><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style="text-align:right">Valor</th><th style="text-align:right">Saldo</th></tr></thead>
       <tbody id="ctBody" class="anim"></tbody>
-    </table><div id="ctPager" class="pgr" style="display:none"></div></div>
+    </table></div>
     </div>
   </div>
 </div>
@@ -1782,9 +1803,8 @@ function _setHead(elId,cols,sort,dir,fn){
   }).join('')+'</tr>';
 }
 function sortDC(col){if(DC_SORT===col)DC_DIR*=-1;else{DC_SORT=col;DC_DIR=col==='date'?-1:col==='val'?-1:1;}DC_PG=1;renderDespesas();}
-function sortCT(col){if(CT_SORT===col)CT_DIR*=-1;else{CT_SORT=col;CT_DIR=col==='date'?-1:col==='val'?-1:1;}CT_PG=1;renderCartoes();}
+function sortCT(col){if(CT_SORT===col)CT_DIR*=-1;else{CT_SORT=col;CT_DIR=col==='date'?-1:col==='val'?-1:1;}renderCartoes();}
 function pgDC(p){DC_PG=p;renderDespesas();}
-function pgCT(p){CT_PG=p;renderCartoes();}
 
 function toggleDcFilter() {
   _dcFilterOpen = !_dcFilterOpen;
@@ -1829,6 +1849,53 @@ function clearDcRange() {
   var lb = document.getElementById('dcFilterLbl'); if (lb) lb.style.display = 'none';
   var catB = document.getElementById('dcCatBadge'); if (catB) catB.style.display = 'none';
   DC_PG = 1; renderDespesas();
+}
+
+function toggleCtFilter() {
+  _ctFilterOpen = !_ctFilterOpen;
+  var bar = document.getElementById('ctFilterBar');
+  var btn = document.getElementById('ctFilterBtn');
+  if (bar) bar.style.display = _ctFilterOpen ? '' : 'none';
+  if (btn) { btn.classList.toggle('pri', _ctFilterOpen); btn.classList.toggle('sec', !_ctFilterOpen); }
+  if (!_ctFilterOpen) clearCtRange();
+}
+
+function applyCtPreset(days) {
+  var to = new Date(), from = new Date(to);
+  from.setDate(from.getDate() - days + 1);
+  CT_FROM = from.getFullYear() + '-' + pad2(from.getMonth()+1) + '-' + pad2(from.getDate());
+  CT_TO   = to.getFullYear()   + '-' + pad2(to.getMonth()+1)   + '-' + pad2(to.getDate());
+  _syncCtInputs(); renderCartoes();
+}
+
+function applyCtPresetYear() {
+  CT_FROM = new Date().getFullYear() + '-01-01';
+  CT_TO   = todayStr();
+  _syncCtInputs(); renderCartoes();
+}
+
+function applyCtCustomRange() {
+  var f = (document.getElementById('ctFrom')||{}).value;
+  var t = (document.getElementById('ctTo')||{}).value;
+  if (!f || !t) return;
+  if (f > t) { showToast('⚠ Data início posterior à data fim', true); return; }
+  CT_FROM = f; CT_TO = t;
+  renderCartoes();
+}
+
+function clearCtRange() {
+  CT_FROM = null; CT_TO = null;
+  var cf = document.getElementById('ctFrom'); if (cf) cf.value = '';
+  var ct = document.getElementById('ctTo');   if (ct) ct.value = '';
+  var cb = document.getElementById('ctClearBtn'); if (cb) cb.style.display = 'none';
+  var lb = document.getElementById('ctFilterLbl'); if (lb) lb.style.display = 'none';
+  renderCartoes();
+}
+
+function _syncCtInputs() {
+  var cf = document.getElementById('ctFrom'); if (cf) cf.value = CT_FROM || '';
+  var ct = document.getElementById('ctTo');   if (ct) ct.value = CT_TO   || '';
+  var cb = document.getElementById('ctClearBtn'); if (cb) cb.style.display = (CT_FROM && CT_TO) ? '' : 'none';
 }
 
 function _getWeekRange(offset) {
@@ -1919,7 +1986,8 @@ var CG_CARD='all',CG_FROTA='all';
 var LP_CARD='all',LP_TIPO='all';
 var VEHDF_CARD='all',VEHDF_CAT='';
 var PARC_CAT='',PARC_CARD='all';
-var CT_SORT='date',CT_DIR=-1,CT_PG=1,CT_PGS=15,CT_TIPO='all';
+var CT_SORT='date',CT_DIR=-1,CT_TIPO='all';
+var CT_SEARCH='',CT_FROM=null,CT_TO=null,_ctFilterOpen=false,CT_PIN=false,CT_EXPANDED={};
 var _CAL_EV = {}, _CAL_YM = '';
 
 // ================================================================
@@ -2370,6 +2438,12 @@ function _resetListFilters() {
     var bar=document.getElementById('dcFilterBar'); if(bar) bar.style.display='none';
     var btn=document.getElementById('dcFilterBtn'); if(btn){btn.classList.remove('pri');btn.classList.add('sec');}
   }
+  if (!CT_PIN) {
+    CT_SEARCH=''; CT_EXPANDED={}; var cs=document.getElementById('ctSearch'); if(cs) cs.value='';
+    CT_FROM=null; CT_TO=null; _ctFilterOpen=false;
+    var cbar=document.getElementById('ctFilterBar'); if(cbar) cbar.style.display='none';
+    var cbtn=document.getElementById('ctFilterBtn'); if(cbtn){cbtn.classList.remove('pri');cbtn.classList.add('sec');}
+  }
 }
 function _togglePin(which) {
   if (which==='rec') {
@@ -2377,6 +2451,11 @@ function _togglePin(which) {
     var btn = document.getElementById('recPin');
     if (btn) btn.classList.toggle('on', REC_PIN);
     showToast(REC_PIN ? '📌 Filtro de receitas fixado' : '📌 Filtro de receitas libertado');
+  } else if (which==='ct') {
+    CT_PIN = !CT_PIN;
+    var btn = document.getElementById('ctPin');
+    if (btn) btn.classList.toggle('on', CT_PIN);
+    showToast(CT_PIN ? '📌 Filtro de cartões fixado' : '📌 Filtro de cartões libertado');
   } else {
     DC_PIN = !DC_PIN;
     var btn = document.getElementById('dcPin');
@@ -3927,64 +4006,104 @@ function renderCartoes() {
   }
   var filteredCards = cv === 'all' ? methods : methods.filter(function(m){ return m === cv; });
 
-  var ctHead = document.getElementById('ctHead');
-  if (ctHead) ctHead.innerHTML = '<tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style="text-align:right">Valor</th><th style="text-align:right">Saldo</th></tr>';
+  _setHead('ctHead', [
+    {l:'Data', col:'date'}, {l:'Descrição'}, {l:'Tipo'}, {l:'Valor'}, {l:'Saldo'}
+  ], CT_SORT, CT_DIR, 'sortCT');
 
   var ctBody = document.getElementById('ctBody');
   if (!ctBody) return;
-  var ctPg = document.getElementById('ctPager');
-  if (ctPg) ctPg.style.display = 'none';
 
   if (!filteredCards.length) {
     ctBody.innerHTML = _emptyRow(5,'🏦','Nenhum cartão configurado','Adiciona cartões nas Definições');
     return;
   }
 
+  // Período: usa o intervalo escolhido (🔍 Período) ou cai de volta ao mês atual
+  var ctRangeActive = !!(CT_FROM && CT_TO);
+  var ctTblDfM, ctTblDcM, ctTblRecM, ctTblTrf;
+  if (ctRangeActive) {
+    var _ctMonths = [];
+    var _ctMCur = CT_FROM.slice(0,7);
+    var _ctMEnd = CT_TO.slice(0,7);
+    while (_ctMCur <= _ctMEnd) {
+      _ctMonths.push(_ctMCur);
+      var _ctNext = new Date(_ctMCur + '-01'); _ctNext.setMonth(_ctNext.getMonth()+1);
+      _ctMCur = _ctNext.getFullYear() + '-' + pad2(_ctNext.getMonth()+1);
+    }
+    ctTblDfM = [];
+    _ctMonths.forEach(function(_m){
+      S.df.filter(function(d){ return isActiveForYm(d, _m); }).forEach(function(d){
+        var _dDate = _m + '-' + pad2(d.day || 1);
+        if (_dDate >= CT_FROM && _dDate <= CT_TO) ctTblDfM.push(Object.assign({}, d, {_ctDate: _dDate}));
+      });
+    });
+    ctTblDcM = S.dc.filter(function(d){ return d.date >= CT_FROM && d.date <= CT_TO; }).map(function(d){
+      if (d._src === 'parc' && !d.card && d._pid) {
+        var par = S.par.find(function(p){ return p.id === d._pid; });
+        if (par && par.card) return Object.assign({}, d, {card: par.card});
+      }
+      return d;
+    });
+    ctTblRecM = S.rec.filter(function(r){ return r.date >= CT_FROM && r.date <= CT_TO; });
+    ctTblTrf  = trfAll.filter(function(t){ return t.date >= CT_FROM && t.date <= CT_TO; });
+  } else {
+    ctTblDfM = dfM; ctTblDcM = dcM; ctTblRecM = recM; ctTblTrf = trf;
+  }
+  var ctPeriodLbl = ctRangeActive ? (fmtDate(CT_FROM) + ' — ' + fmtDate(CT_TO)) : monthLabel(ym);
+  var _ctq = CT_SEARCH.toLowerCase();
+
+  var _ctLb = document.getElementById('ctFilterLbl');
+  if (_ctLb) {
+    _ctLb.style.display = ctRangeActive ? '' : 'none';
+    if (ctRangeActive) _ctLb.title = ctPeriodLbl;
+  }
+  var _ctClearBtn = document.getElementById('ctClearBtn');
+  if (_ctClearBtn) _ctClearBtn.style.display = ctRangeActive ? '' : 'none';
+
   var html = '';
 
   filteredCards.forEach(function(card) {
     var ci = methods.indexOf(card);
     var col = CARD_CSS[ci % CARD_CSS.length];
+    var safeCardCt = card.replace(/'/g,"\\'");
     var isCredit  = (S.cfg.cardType||{})[card] === 'credit';
     var isTransit = (S.cfg.cardType||{})[card] === 'transit';
 
-    // Build movements for this card this month
+    // Build movements for this card in the active period
     var cardTxs = [];
-    recM.filter(function(r){ return r.card === card; }).forEach(function(r){
+    ctTblRecM.filter(function(r){ return r.card === card; }).forEach(function(r){
       cardTxs.push({date:r.date, desc:r.src, type:'rec', val:r.val, dir:1});
     });
-    dfM.filter(function(d){ return d.card === card; }).forEach(function(d){
-      cardTxs.push({date:ym+'-'+pad2(d.day||1), desc:d.name, type:'fix', val:d.val, dir:-1});
+    ctTblDfM.filter(function(d){ return d.card === card; }).forEach(function(d){
+      cardTxs.push({date:d._ctDate || (ym+'-'+pad2(d.day||1)), desc:d.name, type:'fix', val:d.val, dir:-1});
     });
-    dcM.filter(function(d){ return d.card === card; }).forEach(function(d){
+    ctTblDcM.filter(function(d){ return d.card === card; }).forEach(function(d){
       var lbl = d._src==='fat' ? ('Cartão de Crédito '+d._fatCard) : d._src==='parc' ? ('🔗 '+(d.name||d.notes||'')) : d._src==='veh' ? ('🚘 '+d.cat) : (d.name||d.cat||'');
       cardTxs.push({date:d.date, desc:lbl, type:d._src==='fat'?'fat':'cor', val:d.val, dir:-1});
     });
-    trf.filter(function(t){ return t.to === card; }).forEach(function(t){
+    ctTblTrf.filter(function(t){ return t.to === card; }).forEach(function(t){
       cardTxs.push({date:t.date, desc:'← '+t.from, type:'trf', val:t.val, dir:1});
     });
-    trf.filter(function(t){ return t.from === card; }).forEach(function(t){
+    ctTblTrf.filter(function(t){ return t.from === card; }).forEach(function(t){
       cardTxs.push({date:t.date, desc:'→ '+t.to, type:'trf', val:t.val, dir:-1});
     });
     cardTxs.sort(function(a,b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
 
     var totInCents  = cardTxs.filter(function(t){return t.dir>0;}).reduce(function(s,t){return s+toCents(t.val);},0);
     var totOutCents = cardTxs.filter(function(t){return t.dir<0;}).reduce(function(s,t){return s+toCents(t.val);},0);
-    var totIn  = fromCents(totInCents);
-    var totOut = fromCents(totOutCents);
     var netMo  = fromCents(totInCents - totOutCents);
     var netCol = netMo >= 0 ? 'var(--grn)' : 'var(--red)';
 
-    // Opening balance for the month (debit cards only)
-    var ymStart = ym + '-01';
-    var snap = getCardSnap(card, ymStart);
+    // Opening balance for the start of the active period (debit cards only)
+    var rangeStart = ctRangeActive ? CT_FROM : (ym + '-01');
+    var snap = getCardSnap(card, rangeStart);
     var hasSnap = snap.date !== '0000-01-01';
     var openBal = null;
     if (!isCredit && hasSnap) {
-      var recB   = sumVal(S.rec.filter(function(r){ return r.card===card && r.date>=snap.date && r.date<ymStart; }));
-      var dcB    = sumVal(S.dc.filter(function(d){  return d.card===card && d.date>=snap.date && d.date<ymStart; }));
-      var trfInB = sumVal(trfAll.filter(function(t){ return t.to===card   && t.date>=snap.date && t.date<ymStart; }));
-      var trfOB  = sumVal(trfAll.filter(function(t){ return t.from===card && t.date>=snap.date && t.date<ymStart; }));
+      var recB   = sumVal(S.rec.filter(function(r){ return r.card===card && r.date>=snap.date && r.date<rangeStart; }));
+      var dcB    = sumVal(S.dc.filter(function(d){  return d.card===card && d.date>=snap.date && d.date<rangeStart; }));
+      var trfInB = sumVal(trfAll.filter(function(t){ return t.to===card   && t.date>=snap.date && t.date<rangeStart; }));
+      var trfOB  = sumVal(trfAll.filter(function(t){ return t.from===card && t.date>=snap.date && t.date<rangeStart; }));
       openBal = snap.val + recB - dcB + trfInB - trfOB;
     }
 
@@ -3998,21 +4117,31 @@ function renderCartoes() {
     } else if (!isCredit && !hasSnap) {
       html += '<span style="font-size:.63rem;color:var(--ylw)">⚠ defina saldo de referência (⚖)</span>';
     }
-    html += '<span style="font-size:.65rem;color:'+netCol+';font-weight:700">'+(netMo>=0?'+':'')+fmt(netMo)+' este mês</span>';
+    html += '<span style="font-size:.65rem;color:'+netCol+';font-weight:700">'+(netMo>=0?'+':'')+fmt(netMo)+(ctRangeActive?' no período':' este mês')+'</span>';
 
-    // Saldo corrido calculado sobre TODOS os movimentos, para se manter correto
-    // mesmo quando o filtro de Tipo esconde algumas linhas da exibição.
+    // Saldo corrido calculado sobre TODOS os movimentos do período, na ordem cronológica,
+    // para se manter correto mesmo quando os filtros de tipo/pesquisa ou a ordenação de
+    // exibição escondem/reordenam algumas linhas.
     var runBal = openBal;
     cardTxs.forEach(function(tx){
       if (runBal !== null) runBal = fromCents(toCents(runBal) + tx.dir * toCents(tx.val));
       tx.runBal = runBal;
     });
-    var dispTxs = CT_TIPO === 'all' ? cardTxs : cardTxs.filter(function(tx){ return tx.type === CT_TIPO; });
-    if (dispTxs.length === 0) html += '<span style="font-size:.65rem;color:var(--mut)">— sem movimentos</span>';
+
+    var typeFiltered = CT_TIPO === 'all' ? cardTxs : cardTxs.filter(function(tx){ return tx.type === CT_TIPO; });
+    var searchFiltered = _ctq ? typeFiltered.filter(function(tx){ return (tx.desc||'').toLowerCase().includes(_ctq); }) : typeFiltered;
+
+    if (searchFiltered.length === 0) html += '<span style="font-size:.65rem;color:var(--mut)">— sem movimentos</span>';
     html += '</div></td></tr>';
 
+    // Mostra só as últimas 10 transações por cartão por padrão, com opção de expandir
+    var isExpanded = !!CT_EXPANDED[card];
+    var hidden = searchFiltered.length - 10;
+    var limited = (!isExpanded && hidden > 0) ? searchFiltered.slice(-10) : searchFiltered;
+    var shownTxs = CT_DIR === 1 ? limited : limited.slice().reverse();
+
     // Transaction rows
-    dispTxs.forEach(function(tx){
+    shownTxs.forEach(function(tx){
       var ti = TX_TYPE[tx.type] || {lbl:tx.type, col:'#f5a623'};
       var valStr = (tx.dir > 0 ? '+' : '−') + fmt(tx.val);
       var valCol = tx.dir > 0 ? 'var(--grn)' : 'var(--red)';
@@ -4027,9 +4156,15 @@ function renderCartoes() {
         + balTd
         + '</tr>';
     });
+
+    if (!isExpanded && hidden > 0) {
+      html += '<tr><td colspan="5" style="text-align:center;padding:.5rem"><button class="btn sec sm" onclick="CT_EXPANDED[\''+safeCardCt+'\']=true;renderCartoes()" style="font-size:.68rem">mostrar mais '+hidden+' transaç'+(hidden===1?'ão':'ões')+'</button></td></tr>';
+    } else if (isExpanded && searchFiltered.length > 10) {
+      html += '<tr><td colspan="5" style="text-align:center;padding:.5rem"><button class="btn sec sm" onclick="CT_EXPANDED[\''+safeCardCt+'\']=false;renderCartoes()" style="font-size:.68rem">mostrar menos</button></td></tr>';
+    }
   });
 
-  ctBody.innerHTML = html || _emptyRow(5,'🏦','Nenhuma transação em '+monthLabel(ym),'Regista receitas e despesas para ver aqui');
+  ctBody.innerHTML = html || _emptyRow(5,'🏦','Nenhuma transação em '+ctPeriodLbl,'Regista receitas e despesas para ver aqui');
   _applyAllVis();
 }
 
