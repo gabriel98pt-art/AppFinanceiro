@@ -4,10 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Finanças">
 <meta name="theme-color" content="#0d0f18">
 <link rel="manifest" href="manifest.json">
+<link rel="icon" href="./icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <title>Finanças Pessoais</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
@@ -1170,12 +1173,25 @@ function _fbSave(s) {
   });
 }
 
+// Preenche em obj.cfg qualquer chave que exista em DEFAULTS.cfg mas ainda não em obj.cfg —
+// garante que configurações novas (ex: locais) aparecem mesmo em dados antigos, vindos de
+// localStorage OU do Firebase.
+function _mergeDefaultCfg(obj) {
+  var def = DEFAULTS.cfg;
+  if (!obj.cfg || typeof obj.cfg !== 'object') { obj.cfg = JSON.parse(JSON.stringify(def)); return; }
+  var keys = Object.keys(def);
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    if (obj.cfg[k] === undefined || obj.cfg[k] === null)
+      obj.cfg[k] = Array.isArray(def[k]) ? def[k].slice() : def[k];
+  }
+}
 function _fbNormalizeState(fb) {
   ['rec','df','dc','par','evt','fnds','trf'].forEach(function(k){ if (!Array.isArray(fb[k])) fb[k] = []; });
   if (!fb.veh || typeof fb.veh !== 'object' || Array.isArray(fb.veh)) fb.veh = { cg:[], lp:[], df:[], km:[] };
   ['cg','lp','df','km'].forEach(function(k){ if (!Array.isArray(fb.veh[k])) fb.veh[k] = []; });
   if (typeof fb._id !== 'number' || fb._id < 10) fb._id = 10;
-  if (!fb.cfg || typeof fb.cfg !== 'object') fb.cfg = {};
+  _mergeDefaultCfg(fb);
   return fb;
 }
 
@@ -1475,17 +1491,7 @@ function loadState() {
     if (raw) {
       var saved = JSON.parse(raw);
       if (!saved || typeof saved !== 'object' || Array.isArray(saved)) throw new Error('bad root');
-      // Merge missing cfg keys from DEFAULTS
-      var def = DEFAULTS.cfg;
-      if (!saved.cfg || typeof saved.cfg !== 'object') saved.cfg = JSON.parse(JSON.stringify(def));
-      else {
-        var keys = Object.keys(def);
-        for (var i = 0; i < keys.length; i++) {
-          var k = keys[i];
-          if (saved.cfg[k] === undefined || saved.cfg[k] === null)
-            saved.cfg[k] = Array.isArray(def[k]) ? def[k].slice() : def[k];
-        }
-      }
+      _mergeDefaultCfg(saved);
       // Garantir que todos os arrays existem (retrocompat com saves antigos)
       ['rec','df','dc','par','evt','fnds','trf'].forEach(function(key) {
         if (!Array.isArray(saved[key])) saved[key] = [];
