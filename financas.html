@@ -7677,6 +7677,18 @@ document.addEventListener('click', function(e) {
   if (wrap && !wrap.contains(e.target)) _hdrMoreClose();
 });
 
+// Clicar no texto de um rótulo ".fl" foca o campo ao lado — os formulários são gerados
+// dinamicamente (buildForm/openSettings), por isso um único handler genérico cobre todos
+// sem precisar emparelhar manualmente for="" com cada id gerado.
+document.addEventListener('click', function(e) {
+  var lbl = e.target.closest && e.target.closest('label.fl');
+  if (!lbl) return;
+  var container = lbl.closest('.ff') || lbl.parentElement;
+  if (!container) return;
+  var field = container.querySelector('input, select, textarea');
+  if (field && field !== e.target) field.focus();
+});
+
 // ================================================================
 // COMPARAÇÃO TOGGLE — genérico e dashboard
 // ================================================================
