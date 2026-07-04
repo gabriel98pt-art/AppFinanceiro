@@ -267,7 +267,7 @@ tbody.anim tr:nth-child(n+6){animation-delay:.14s}
 .evb{background:rgba(77,143,255,.2);color:var(--blu)}
 
 /* PARCELA CELLS */
-.pmc{display:flex;flex-direction:column;align-items:center;gap:.04rem;padding:.18rem .1rem;border-radius:4px;cursor:pointer;transition:opacity var(--tr);min-width:33px}
+.pmc{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.04rem;padding:.18rem .1rem;border-radius:4px;cursor:pointer;transition:opacity var(--tr);min-width:33px;min-height:30px}
 .pmc:hover{opacity:.7}
 .pma{background:rgba(77,143,255,.12);border:1px solid rgba(77,143,255,.28)}
 .pmp{background:rgba(0,212,160,.15);border:1px solid rgba(0,212,160,.28)}
@@ -4900,7 +4900,7 @@ function buildForm(type, d) {
           <div class="row g1">
             <select class="sel" id="f_ovM" style="flex:1.2" onchange="_parcOvPickMonth()">${parcMonths(d).map(function(m){return '<option value="'+m+'">'+monthLabel(m)+'</option>';}).join('')}</select>
             <input class="fi" id="f_ovV" type="text" inputmode="decimal" placeholder="0,00" style="flex:1" oninput="moneyMask(event,2)">
-            <button type="button" class="btn sec sm" onclick="applyParcOv()">Aplicar</button>
+            <button type="button" class="btn sec" style="padding:.4rem .9rem;font-size:.78rem;flex-shrink:0" onclick="applyParcOv()">Aplicar</button>
           </div>
           <div id="pOvList" class="tmut" style="font-size:.72rem;margin-top:.35rem;line-height:1.6"></div>
         </div>` : ''}
