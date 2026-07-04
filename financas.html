@@ -2116,6 +2116,15 @@ function parcMonths(p) {
 }
 
 function parcDate(p, ym) {
+  // Sistemas tipo Klarna cobram a cada 30 dias a contar da 1ª cobrança,
+  // não num dia fixo do mês — devolve a data exata dessa ocorrência
+  if (p.sys === 'klarna') {
+    var kIdx = parcMonths(p).indexOf(ym);
+    if (kIdx < 0) kIdx = 0;
+    var kD = new Date(p.fd + 'T00:00:00');
+    kD.setDate(kD.getDate() + kIdx * 30);
+    return kD.getFullYear() + '-' + pad2(kD.getMonth()+1) + '-' + pad2(kD.getDate());
+  }
   var isCredit = (S.cfg.cardType||{})[p.card] === 'credit';
   var dueDay = isCredit ? ((S.cfg.cardDueDay||{})[p.card] || 0) : 0;
   var day = dueDay || parseInt(p.fd.slice(8, 10));
@@ -3588,7 +3597,8 @@ function renderParcelas() {
       t += `<tr ${dragAttrs} style="${rowStyle}">`;
       t += `<td class="drag-handle" title="Arrastar">⠿</td>`;
       var adBadge = p.autoDebit ? ' <span style="font-size:.58rem;background:rgba(0,212,160,.12);color:var(--grn);border:1px solid rgba(0,212,160,.25);border-radius:4px;padding:.05rem .3rem;font-weight:600">auto</span>' : '';
-      t += `<td class="bold">${_esc(p.name||'')}${adBadge}</td><td>${p.cat ? ccatBadge(p.cat) : '<span class="tmut" style="font-size:.74rem">—</span>'}</td><td>${fmt(p.vp)}</td>`;
+      var sysBadge = p.sys ? ' <span style="font-size:.58rem;background:rgba(244,114,182,.12);color:#f472b6;border:1px solid rgba(244,114,182,.28);border-radius:4px;padding:.05rem .3rem;font-weight:600" title="' + (p.sys==='klarna' ? 'Klarna — cobrada a cada 30 dias' : 'Sequra') + '">' + (p.sys==='klarna' ? 'Klarna' : 'Sequra') + '</span>' : '';
+      t += `<td class="bold">${_esc(p.name||'')}${adBadge}${sysBadge}</td><td>${p.cat ? ccatBadge(p.cat) : '<span class="tmut" style="font-size:.74rem">—</span>'}</td><td>${fmt(p.vp)}</td>`;
 
       for (var ci = 0; ci < PARC_MONTHS.length; ci++) {
         var cm = PARC_MONTHS[ci];
@@ -3722,7 +3732,14 @@ function renderCal() {
 
   var ev = {};
   function addEv(day, lbl, cls, type, id) { if (!ev[day]) ev[day]=[]; ev[day].push({lbl:lbl,cls:cls,type:type,id:id}); }
-  S.par.forEach(function(p){if(parcMonths(p).indexOf(ym)>=0)addEv(parseInt(p.fd.slice(8)),_esc(p.name||'')+' '+fmt(p.vp),'evr','parc',p.id);});
+  // Parcelas no calendário: usa a data real de cobrança (respeita dia de
+  // vencimento do cartão de crédito e o ciclo de 30 dias da Klarna)
+  S.par.forEach(function(p){
+    parcMonths(p).forEach(function(m){
+      var dt = parcDate(p, m);
+      if (dt.slice(0,7) === ym) addEv(parseInt(dt.slice(8)), _esc(p.name||'')+' '+fmt(p.vp), 'evr', 'parc', p.id);
+    });
+  });
   S.df.forEach(function(d){
     if (!isActiveForYm(d, ym)) return;
     if(d.day>0)addEv(d.day,_esc(d.name||'')+' '+fmt(d.val),'evr','dfixa',d.id);
@@ -4447,36 +4464,61 @@ function setParcMode(mode) {
   }
 }
 
-// Mode 1: user knows parcela value → show total
-function onParcValChange() {
-  var val = moneyVal(document.getElementById('f_val') ? document.getElementById('f_val').value : 0);
-  var num = parseInt(document.getElementById('f_num') ? document.getElementById('f_num').value : 0) || 0;
-  var el = document.getElementById('pCalcVal');
-  if (el) el.textContent = (val > 0 && num > 0) ? fmt(val * num) : '—';
-  if (el) el.style.color = 'var(--grn)';
+// Recálculo único do formulário de parcelas — respeita o modo ativo.
+// (Antes havia duas funções em conflito: no modo "sei o total", o valor por
+// parcela calculado era logo sobrescrito pelo total outra vez.)
+function _parcActiveMode() {
+  var m2 = document.getElementById('pMode2');
+  return (m2 && m2.style.display !== 'none') ? 2 : 1;
 }
 
-// Mode 2: user knows total → calculate parcela value
-function calcFromTotal() {
-  var total = moneyVal(document.getElementById('f_total') ? document.getElementById('f_total').value : 0);
-  var num = parseInt(document.getElementById('f_num') ? document.getElementById('f_num').value : 0) || 0;
+function _parcRecalc() {
+  var num = parseInt((document.getElementById('f_num')||{}).value) || 0;
   var calcEl = document.getElementById('pCalcVal');
   var valEl = document.getElementById('f_val');
-  if (total > 0 && num > 0) {
-    var perParc = Math.round((total / num) * 100) / 100;
-    if (calcEl) { calcEl.textContent = fmt(perParc); calcEl.style.color = 'var(--grn)'; }
-    // Write calculated value to f_val (hidden) so saveModal reads it
-    if (!valEl) {
-      var hidden = document.createElement('input');
-      hidden.type = 'hidden'; hidden.id = 'f_val'; hidden.value = moneyDisp(perParc, 2);
-      document.getElementById('f_total').parentNode.appendChild(hidden);
-    } else { valEl.value = moneyDisp(perParc, 2); }
+  var vp = 0;
+  if (_parcActiveMode() === 2) {
+    var total = moneyVal((document.getElementById('f_total')||{}).value);
+    if (total > 0 && num > 0) {
+      vp = Math.round(total / num * 100) / 100;
+      if (valEl) valEl.value = moneyDisp(vp, 2); // o Guardar lê sempre f_val
+    }
+    if (calcEl) { calcEl.textContent = vp > 0 ? fmt(vp) : '—'; calcEl.style.color = vp > 0 ? 'var(--grn)' : 'var(--mut)'; }
   } else {
-    if (calcEl) { calcEl.textContent = '—'; calcEl.style.color = 'var(--mut)'; }
+    vp = moneyVal(valEl ? valEl.value : '');
+    var tot = (vp > 0 && num > 0) ? fromCents(toCents(vp) * num) : 0;
+    if (calcEl) { calcEl.textContent = tot > 0 ? fmt(tot) : '—'; calcEl.style.color = tot > 0 ? 'var(--grn)' : 'var(--mut)'; }
   }
-  // Also update mode1 total label if visible
-  onParcValChange();
+  _parcPreview(vp, num);
 }
+
+// Resumo ao vivo: n.º × valor = total, com 1ª e última cobrança conforme o sistema
+function _parcPreview(vp, num) {
+  var row = document.getElementById('pSummaryRow');
+  var el = document.getElementById('pSummary');
+  if (!row || !el) return;
+  var fd = (document.getElementById('f_fd')||{}).value;
+  if (!(vp > 0) || !(num > 0) || !safeDate(fd)) { row.style.display = 'none'; return; }
+  var sys = (document.getElementById('f_sys')||{}).value || '';
+  var last;
+  if (sys === 'klarna') {
+    var dl = new Date(fd + 'T00:00:00');
+    dl.setDate(dl.getDate() + (num - 1) * 30);
+    last = dl.getFullYear() + '-' + pad2(dl.getMonth()+1) + '-' + pad2(dl.getDate());
+  } else {
+    var lm = addMonths(fd.slice(0,7), num - 1);
+    var lastDay = new Date(parseInt(lm.slice(0,4)), parseInt(lm.slice(5,7)), 0).getDate();
+    last = lm + '-' + pad2(Math.min(parseInt(fd.slice(8,10)), lastDay));
+  }
+  el.innerHTML = '📋 <strong>' + num + '×</strong> de <strong>' + fmt(vp) + '</strong> = <strong>' + fmt(fromCents(toCents(vp) * num)) + '</strong>'
+    + '<br>1ª cobrança a <strong>' + fmtDate(fd) + '</strong> · última a <strong>' + fmtDate(last) + '</strong>'
+    + (sys === 'klarna' ? '<br><span class="tmut">Klarna cobra a cada 30 dias — o dia do mês vai recuando ao longo do tempo</span>' : '');
+  row.style.display = '';
+}
+
+// Mantidas por compatibilidade com os oninput existentes
+function onParcValChange() { _parcRecalc(); }
+function calcFromTotal() { _parcRecalc(); }
 
 // Carga Elétrica — modo "Frota": calcula o valor a partir do tarifário em Definições
 function toggleFrotaCarga() {
@@ -4539,6 +4581,8 @@ function openModal(type, id) {
   }
   var modal = document.getElementById('mainModal');
   if (modal) modal.classList.add('on');
+  // Parcelas: mostrar logo o resumo (total, 1ª/última cobrança) ao editar
+  if (type === 'parc') _parcRecalc();
 }
 
 function modalDelete(type, id) {
@@ -4715,6 +4759,13 @@ function buildForm(type, d) {
         <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
         <div class="ff"><label class="fl">Categoria</label><select class="fi" id="f_cat">${coP}</select></div>
         <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card" onchange="onParcCardChange()">${poP}</select></div>
+        <div class="ff full"><label class="fl">Sistema de pagamento</label>
+          <select class="fi" id="f_sys" onchange="_parcRecalc()">
+            <option value="">Cartão / direto — dia fixo do mês</option>
+            <option value="klarna"${d&&d.sys==='klarna'?' selected':''}>Klarna — cobra a cada 30 dias</option>
+            <option value="sequra"${d&&d.sys==='sequra'?' selected':''}>Sequra — dia fixo do mês</option>
+          </select>
+        </div>
         <div class="ff full"><label class="fl" style="display:flex;align-items:center;gap:.55rem;cursor:pointer;font-weight:400">
           <input type="checkbox" id="f_autoDebit" ${d&&d.autoDebit?'checked':''} style="width:15px;height:15px;accent-color:var(--grn);flex-shrink:0">
           <span style="font-weight:600">Débito automático</span>
@@ -4754,7 +4805,12 @@ function buildForm(type, d) {
 
         <div class="ff">
           <label class="fl">Data 1.º Pagamento</label>
-          <input class="fi fiu" id="f_fd" type="date" value="${fdVal}">
+          <input class="fi fiu" id="f_fd" type="date" value="${fdVal}" onchange="_parcRecalc()">
+        </div>
+
+        <!-- Resumo ao vivo -->
+        <div class="ff full" id="pSummaryRow" style="display:none">
+          <div class="inf" id="pSummary" style="font-size:.78rem;line-height:1.7"></div>
         </div>
       </div>`;
     }
@@ -5003,7 +5059,7 @@ function saveModal() {
     }
     case 'parc': {
       var _ad2 = !!(document.getElementById('f_autoDebit') && document.getElementById('f_autoDebit').checked);
-      var o = {name:gv('f_name'),cat:gv('f_cat'),card:gv('f_card'),vp:gm('f_val'),num:gi('f_num'),fd:gv('f_fd'),autoDebit:_ad2};
+      var o = {name:gv('f_name'),cat:gv('f_cat'),card:gv('f_card'),vp:gm('f_val'),num:gi('f_num'),fd:gv('f_fd'),autoDebit:_ad2,sys:gv('f_sys')||null};
       if (id!==null) { var _t=S.par.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
       else S.par.push(Object.assign({id:nid(),py:{}}, o));
       break;
