@@ -1251,6 +1251,9 @@ function _fbNormalizeState(fb) {
   ['rec','df','dc','par','evt','fnds','trf'].forEach(function(k){ if (!Array.isArray(fb[k])) fb[k] = []; });
   if (!fb.veh || typeof fb.veh !== 'object' || Array.isArray(fb.veh)) fb.veh = { cg:[], lp:[], df:[], km:[] };
   ['cg','lp','df','km'].forEach(function(k){ if (!Array.isArray(fb.veh[k])) fb.veh[k] = []; });
+  // Firebase remove objetos vazios ({}) ao gravar — repor py/paidMonths para não rebentar
+  fb.par.forEach(function(p){ if (!p.py || typeof p.py !== 'object') p.py = {}; });
+  fb.df.forEach(function(d){ if (d.paidMonths && typeof d.paidMonths !== 'object') d.paidMonths = {}; });
   if (typeof fb._id !== 'number' || fb._id < 10) fb._id = 10;
   _mergeDefaultCfg(fb);
   return fb;
@@ -1566,6 +1569,7 @@ function loadState() {
       if (!Array.isArray(saved.veh.lp)) saved.veh.lp = [];
       if (!Array.isArray(saved.veh.df)) saved.veh.df = [];
       if (!Array.isArray(saved.veh.km)) saved.veh.km = [];
+      saved.par.forEach(function(p){ if (!p.py || typeof p.py !== 'object') p.py = {}; });
       if (typeof saved._id !== 'number' || saved._id < 10) saved._id = 10;
       return saved;
     }
@@ -2062,11 +2066,11 @@ function defaultDate() { return todayStr(); }
 function daysUntil(day) {
   if (!day) return 999;
   var t = new Date();
+  // Comparar à meia-noite: um vencimento hoje deve dar 0, não saltar para o mês seguinte
+  var t0 = new Date(t.getFullYear(), t.getMonth(), t.getDate());
   var tm = new Date(t.getFullYear(), t.getMonth(), day);
-  if (tm <= t) {
-    return Math.ceil((new Date(t.getFullYear(), t.getMonth() + 1, day) - t) / 864e5);
-  }
-  return Math.ceil((tm - t) / 864e5);
+  if (tm < t0) tm = new Date(t.getFullYear(), t.getMonth() + 1, day);
+  return Math.round((tm - t0) / 864e5);
 }
 
 // ================================================================
@@ -2509,14 +2513,6 @@ function goToday() {
 // ================================================================
 // DASHBOARD
 // ================================================================
-function goToday() {
-  var d = new Date();
-  globalMonth = d.getFullYear() + '-' + pad2(d.getMonth()+1);
-  S.cfg.lastMonth = globalMonth;
-  saveState(); renderActive();
-}
-
-
 var miniAnnYear = new Date().getFullYear();
 function miniAnnNav(dir) {
   miniAnnYear += dir;
@@ -7663,39 +7659,40 @@ function _gsrchRun(q) {
   var results = [];
 
   (S.rec || []).forEach(function(r) {
-    var txt = [(r.src||''),(r.acc||''),(r.notes||'')].join(' ').toLowerCase();
+    var txt = [(r.src||''),(r.card||''),(r.notes||'')].join(' ').toLowerCase();
     if (txt.indexOf(lq) >= 0 || String(r.val||'').indexOf(lq) >= 0)
-      results.push({type:'rec',ico:'💰',label:r.src||'Receita',sub:_gsrchSub([r.date,r.acc,r.notes]),val:r.val,sign:1,tab:'receitas'});
+      results.push({type:'rec',ico:'💰',label:r.src||'Receita',sub:_gsrchSub([r.date,r.card,r.notes]),val:r.val,sign:1,tab:'receitas'});
   });
 
   (S.dc || []).forEach(function(d) {
-    var txt = [(d.desc||''),(d.cat||''),(d.pay||''),(d.notes||'')].join(' ').toLowerCase();
+    var txt = [(d.name||''),(d.cat||''),(d.card||''),(d.notes||'')].join(' ').toLowerCase();
     if (txt.indexOf(lq) >= 0 || String(d.val||'').indexOf(lq) >= 0)
-      results.push({type:'dc',ico:'💸',label:d.desc||'Despesa',sub:_gsrchSub([d.date,d.cat,d.pay]),val:d.val,sign:-1,tab:'despesas'});
+      results.push({type:'dc',ico:'💸',label:d.name||d.cat||'Despesa',sub:_gsrchSub([d.date,d.cat,d.card]),val:d.val,sign:-1,tab:'despesas'});
   });
 
   (S.df || []).forEach(function(d) {
-    var txt = [(d.name||''),(d.cat||''),(d.pay||'')].join(' ').toLowerCase();
+    var txt = [(d.name||''),(d.cat||''),(d.card||''),(d.notes||'')].join(' ').toLowerCase();
     if (txt.indexOf(lq) >= 0 || String(d.val||'').indexOf(lq) >= 0)
-      results.push({type:'df',ico:'📌',label:d.name||'Fixa',sub:_gsrchSub([d.cat,d.pay]),val:d.val,sign:-1,tab:'despesas'});
+      results.push({type:'df',ico:'📌',label:d.name||'Fixa',sub:_gsrchSub([d.cat,d.card]),val:d.val,sign:-1,tab:'despesas'});
   });
 
   (S.par || []).forEach(function(p) {
-    var txt = (p.name||'').toLowerCase();
+    var txt = [(p.name||''),(p.cat||''),(p.card||'')].join(' ').toLowerCase();
+    var _pLast = (p.fd && p.num) ? addMonths(p.fd.slice(0,7), p.num-1) : null;
     if (txt.indexOf(lq) >= 0 || String(p.vp||'').indexOf(lq) >= 0)
-      results.push({type:'par',ico:'💳',label:p.name||'Parcela',sub:_gsrchSub([p.fd&&p.fd.slice(0,7),p.ld&&p.ld.slice(0,7)],true),val:p.vp,sign:-1,tab:'parcelas'});
+      results.push({type:'par',ico:'💳',label:p.name||'Parcela',sub:_gsrchSub([p.fd&&p.fd.slice(0,7),_pLast],true),val:p.vp,sign:-1,tab:'parcelas'});
   });
 
   ((S.veh && S.veh.cg)||[]).forEach(function(v) {
-    var txt = [(v.loc||''),'veículo carga'].join(' ').toLowerCase();
+    var txt = [(v.local||''),(v.notes||''),'veículo carga'].join(' ').toLowerCase();
     if (txt.indexOf(lq) >= 0 || String(v.val||'').indexOf(lq) >= 0)
-      results.push({type:'veh',ico:'⚡',label:'Carga Elétrica',sub:_gsrchSub([v.date,v.loc,v.kwh!=null?v.kwh+' kWh':null]),val:v.val,sign:-1,tab:'veiculo'});
+      results.push({type:'veh',ico:'⚡',label:'Carga Elétrica',sub:_gsrchSub([v.date,v.local,v.kwh!=null?v.kwh+' kWh':null]),val:v.val,sign:-1,tab:'veiculo'});
   });
 
   ((S.veh && S.veh.lp)||[]).forEach(function(v) {
-    var txt = [(v.desc||''),(v.cat||''),'veículo'].join(' ').toLowerCase();
+    var txt = [(v.tipo||''),(v.notes||''),'veículo'].join(' ').toLowerCase();
     if (txt.indexOf(lq) >= 0 || String(v.val||'').indexOf(lq) >= 0)
-      results.push({type:'veh',ico:'🚘',label:v.desc||'Veículo',sub:_gsrchSub([v.date,v.cat]),val:v.val,sign:-1,tab:'veiculo'});
+      results.push({type:'veh',ico:'🚘',label:v.tipo||'Veículo',sub:_gsrchSub([v.date,v.notes]),val:v.val,sign:-1,tab:'veiculo'});
   });
 
   ((S.veh && S.veh.df)||[]).forEach(function(d) {
