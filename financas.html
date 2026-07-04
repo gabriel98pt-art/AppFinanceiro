@@ -564,7 +564,13 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
   .fi,.sel{font-size:1rem}
   .srch-bar input,.srch-bar select{font-size:1rem}
   .qdet input{font-size:1rem}
-}</style>
+}
+/* Modo organizar secções */
+.sec-editing{position:relative;outline:2px dashed var(--blu);outline-offset:3px;border-radius:8px}
+.sec-handle{position:absolute;top:-13px;right:10px;display:flex;gap:.3rem;z-index:60}
+.sec-handle button{width:34px;height:28px;border:1px solid var(--brd);border-radius:7px;background:var(--s1);color:var(--txt);cursor:pointer;font-size:.9rem;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.3);line-height:1}
+.sec-handle button:active{background:var(--blu);color:#fff}
+</style>
 </head>
 <body>
 
@@ -591,6 +597,8 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
         <button class="hdr-more-item" id="compactMenuItem" onclick="toggleCompact();_hdrMoreClose()"></button>
         <button class="hdr-more-item" id="discreetMenuItem" onclick="toggleDiscreet();_hdrMoreClose()"></button>
         <button class="hdr-more-item" id="themeMenuItem" onclick="toggleTheme();_hdrMoreClose()"></button>
+        <div style="height:1px;background:var(--brd);margin:.2rem 0"></div>
+        <button class="hdr-more-item" id="secEditMenuItem" onclick="toggleSecEdit();_hdrMoreClose()">✥ <span style="color:var(--mut);font-size:.72rem">Organizar secções</span></button>
       </div>
     </div>
   </div>
@@ -647,8 +655,8 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
       </div>
     </div>
     <!-- Coluna direita: orçamento + poupança + resumo anual -->
-    <div style="display:flex;flex-direction:column;gap:.75rem;height:100%;min-width:0">
-      <div class="tc" style="margin-bottom:0;flex:3;display:flex;flex-direction:column">
+    <div style="display:flex;flex-direction:column;gap:.75rem;height:100%;min-width:0" data-secgrp="dash-right">
+      <div class="tc" data-sec="orcamento" style="margin-bottom:0;flex:3;display:flex;flex-direction:column">
         <div class="tch" style="padding:.5rem 1rem">
           <span class="slbl" style="margin:0">🎯 Orçamento vs Real</span>
           <button class="ic" onclick="toggleBudEdit()" title="Filtrar categorias no orçamento" style="font-size:.85rem;width:28px;height:28px">✏</button>
@@ -656,11 +664,11 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
         <div id="budEditPanel" style="display:none;padding:.75rem 1rem;border-bottom:1px solid var(--brd);background:var(--s2)"></div>
         <div class="tw" id="dBudget" style="flex:1"></div>
       </div>
-      <div class="tc" style="margin-bottom:0;flex:2;display:flex;flex-direction:column">
+      <div class="tc" data-sec="poupanca" style="margin-bottom:0;flex:2;display:flex;flex-direction:column">
         <div class="tch" style="padding:.5rem 1rem"><span class="slbl" style="margin:0">💰 Poupança — Meta vs Real</span></div>
         <div id="dSav" style="padding:.6rem 1rem;flex:1"></div>
       </div>
-      <div class="tc" style="margin-bottom:0;flex:2;display:flex;flex-direction:column">
+      <div class="tc" data-sec="resumo" style="margin-bottom:0;flex:2;display:flex;flex-direction:column">
         <div class="tch" style="padding:.5rem 1rem">
           <span class="slbl" style="margin:0">📅 Resumo Anual</span>
           <div class="mnav" style="margin:0">
@@ -676,20 +684,20 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 </div>
 
 <!-- RECEITAS -->
-<div class="pnl" id="p-receitas">
+<div class="pnl" id="p-receitas" data-secgrp="receitas">
   <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:.4rem">
     <button class="cmp-btn" id="recCmpBtn" onclick="toggleCmp('recKpis','recCmpBtn')">≈ Comparar</button>
   </div>
-  <div class="kg mb2" id="recKpis"></div>
-  <div class="cc mb2" id="recMiniChart" style="display:none"><div class="slbl">📈 Evolução — últimos 6 meses</div><canvas id="chRecMini" style="max-height:130px"></canvas></div>
-  <div class="tc mb2">
+  <div class="kg mb2" id="recKpis" data-sec="kpis"></div>
+  <div class="cc mb2" id="recMiniChart" data-sec="grafico" style="display:none"><div class="slbl">📈 Evolução — últimos 6 meses</div><canvas id="chRecMini" style="max-height:130px"></canvas></div>
+  <div class="tc mb2" data-sec="recorrentes">
     <div class="tch">
       <span class="slbl" style="margin:0">🔁 Receitas Recorrentes</span>
       <button class="btn pri sm" onclick="openModal('recrule')">+ Adicionar</button>
     </div>
     <div id="recRulesBody"></div>
   </div>
-  <div class="tc">
+  <div class="tc" data-sec="registos">
     <div class="tch">
       <span class="slbl" style="margin:0">📋 Registos</span>
       <div class="row g2">
@@ -714,13 +722,13 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 </div>
 
 <!-- DESPESAS -->
-<div class="pnl" id="p-despesas">
+<div class="pnl" id="p-despesas" data-secgrp="despesas">
   <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:.4rem">
     <button class="cmp-btn" id="despCmpBtn" onclick="toggleCmp('despKpis','despCmpBtn')">≈ Comparar</button>
   </div>
-  <div class="kg mb2" id="despKpis"></div>
-  <div id="despProx"></div>
-  <div class="tc mb2">
+  <div class="kg mb2" id="despKpis" data-sec="kpis"></div>
+  <div id="despProx" data-sec="proximos"></div>
+  <div class="tc mb2" data-sec="fixas">
     <div class="tch">
       <span class="slbl" style="margin:0">📌 Despesas Fixas</span>
       <div class="row g2">
@@ -740,7 +748,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     </table></div>
     </div>
   </div>
-  <div class="tc mb2">
+  <div class="tc mb2" data-sec="correntes">
     <div class="tch">
       <div class="row g2" style="align-items:center;flex-wrap:wrap;gap:.35rem">
         <span class="slbl" style="margin:0">💸 Despesas Correntes</span>
@@ -795,13 +803,13 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 </div>
 
 <!-- VEÍCULO -->
-<div class="pnl" id="p-veiculo">
+<div class="pnl" id="p-veiculo" data-secgrp="veiculo">
   <div style="display:flex;align-items:center;justify-content:flex-end;margin-bottom:.4rem">
     <button class="cmp-btn" id="vehCmpBtn" onclick="toggleCmp('vehKpis','vehCmpBtn')">≈ Comparar</button>
   </div>
-  <div class="kg mb2" id="vehKpis"></div>
+  <div class="kg mb2" id="vehKpis" data-sec="kpis"></div>
 
-  <div class="tc mb2">
+  <div class="tc mb2" data-sec="km">
     <div class="tch">
       <span class="slbl" style="margin:0">🛣️ Km &amp; Tempo</span>
       <div class="row g2">
@@ -812,7 +820,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     <div id="kmCollapse"><div id="kmBody" style="padding:.6rem .9rem"></div></div>
   </div>
 
-  <div class="tc mb2">
+  <div class="tc mb2" data-sec="carga">
     <div class="tch">
       <span class="slbl" style="margin:0">⚡ Carga Elétrica</span>
       <div class="row g2">
@@ -842,7 +850,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     </div>
   </div>
 
-  <div class="tc mb2">
+  <div class="tc mb2" data-sec="despesas">
     <div class="tch">
       <span class="slbl" style="margin:0">🚘 Despesas do Veículo</span>
       <div class="row g2">
@@ -862,7 +870,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     </div>
   </div>
 
-  <div class="tc mb2">
+  <div class="tc mb2" data-sec="fixas">
     <div class="tch">
       <span class="slbl" style="margin:0">📋 Despesas Fixas do Veículo</span>
       <div class="row g2">
@@ -882,7 +890,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     </div>
   </div>
 
-  <div class="tc">
+  <div class="tc" data-sec="auto">
     <div class="tch">
       <span class="slbl" style="margin:0">📋 Em Despesas Correntes (automático)</span>
       <div class="row g2">
@@ -898,9 +906,9 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 </div>
 
 <!-- PARCELAS -->
-<div class="pnl" id="p-parcelas">
-  <div class="kg mb2" id="parcKpis"></div>
-  <div class="tc">
+<div class="pnl" id="p-parcelas" data-secgrp="parcelas">
+  <div class="kg mb2" id="parcKpis" data-sec="kpis"></div>
+  <div class="tc" data-sec="tabela">
     <div class="tch">
       <span class="slbl" style="margin:0">Parcelas <span id="parcAtivaBadge" style="font-size:.68rem;font-weight:600;color:var(--mut);background:var(--s2);border:1px solid var(--brd);border-radius:99px;padding:.1rem .45rem;vertical-align:middle"></span></span>
       <div class="row g2">
@@ -919,8 +927,8 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 </div>
 
 <!-- CALENDÁRIO -->
-<div class="pnl" id="p-cal">
-  <div class="cc mb2">
+<div class="pnl" id="p-cal" data-secgrp="cal">
+  <div class="cc mb2" data-sec="calendario">
     <div class="cal-legend">
       <span class="caev evg" style="font-size:.65rem;padding:.12rem .5rem">Receita</span>
       <span class="caev evr" style="font-size:.65rem;padding:.12rem .5rem">Despesa / Parcela</span>
@@ -928,7 +936,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
     </div>
     <div class="cagrid" id="calGrid"></div>
   </div>
-  <div class="tc">
+  <div class="tc" data-sec="eventos">
     <div class="tch">
       <span class="slbl" style="margin:0">📅 Eventos Personalizados</span>
       <div class="row g2">
@@ -944,10 +952,10 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 </div>
 
 <!-- CARTÕES -->
-<div class="pnl" id="p-cartoes">
-  <div class="kg mb2" id="ctCards"></div>
-  <div class="cc mb2"><div class="slbl">💳 Gastos por Cartão</div><canvas id="chCt"></canvas></div>
-  <div class="tc">
+<div class="pnl" id="p-cartoes" data-secgrp="cartoes">
+  <div class="kg mb2" id="ctCards" data-sec="kpis"></div>
+  <div class="cc mb2" data-sec="grafico"><div class="slbl">💳 Gastos por Cartão</div><canvas id="chCt"></canvas></div>
+  <div class="tc" data-sec="fluxo">
     <div class="tch">
       <div class="row g2" style="align-items:center;flex-wrap:wrap;gap:.35rem">
         <span class="slbl" style="margin:0">📈 Fluxo Consolidado</span>
@@ -990,18 +998,20 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 </div>
 
 <!-- METAS -->
-<div class="pnl" id="p-metas">
-  <div class="kg mb2" id="metaKpis"></div>
-  <div class="cc mb2" id="metaSav"></div>
-  <div class="funds-hdr">
-    <span class="slbl" style="margin:0">🏦 Fundos de Poupança</span>
-    <span class="tmut" id="fundsTotalLbl" style="font-size:.75rem"></span>
-    <button class="ic tip" id="eyeBtn_fnd" data-tip="Mostrar/esconder" onclick="_toggleVis('fundCollapse','eyeBtn_fnd')" style="font-size:.8rem;width:28px;height:28px;margin-left:auto"></button>
-    <button class="btn pri sm" onclick="openModal('fund')">+ Novo Fundo</button>
+<div class="pnl" id="p-metas" data-secgrp="metas">
+  <div class="kg mb2" id="metaKpis" data-sec="kpis"></div>
+  <div class="cc mb2" id="metaSav" data-sec="meta"></div>
+  <div data-sec="fundos">
+    <div class="funds-hdr">
+      <span class="slbl" style="margin:0">🏦 Fundos de Poupança</span>
+      <span class="tmut" id="fundsTotalLbl" style="font-size:.75rem"></span>
+      <button class="ic tip" id="eyeBtn_fnd" data-tip="Mostrar/esconder" onclick="_toggleVis('fundCollapse','eyeBtn_fnd')" style="font-size:.8rem;width:28px;height:28px;margin-left:auto"></button>
+      <button class="btn pri sm" onclick="openModal('fund')">+ Novo Fundo</button>
+    </div>
+    <div id="fundCollapse"><div class="fcards mb2" id="fundCards"></div></div>
   </div>
-  <div id="fundCollapse"><div class="fcards mb2" id="fundCards"></div></div>
-  <div class="tc mb2"><div class="tch"><span class="slbl" style="margin:0">📅 Resumo Anual</span><button class="ic tip" id="eyeBtn_ann" data-tip="Mostrar/esconder" onclick="_toggleVis('annCollapse','eyeBtn_ann')" style="font-size:.8rem;width:28px;height:28px"></button></div><div id="annCollapse"><div class="tw" id="annT"></div></div></div>
-  <div class="cc mb2"><div class="slbl">Anual</div><canvas id="chAnn" style="height:190px"></canvas></div>
+  <div class="tc mb2" data-sec="resumo"><div class="tch"><span class="slbl" style="margin:0">📅 Resumo Anual</span><button class="ic tip" id="eyeBtn_ann" data-tip="Mostrar/esconder" onclick="_toggleVis('annCollapse','eyeBtn_ann')" style="font-size:.8rem;width:28px;height:28px"></button></div><div id="annCollapse"><div class="tw" id="annT"></div></div></div>
+  <div class="cc mb2" data-sec="grafico"><div class="slbl">Anual</div><canvas id="chAnn" style="height:190px"></canvas></div>
 </div>
 
 <!-- IMPORTAR -->
@@ -2391,6 +2401,8 @@ function renderTab(id) {
   if (fns[id]) {
     try { fns[id](); } catch(e) { console.error(id, e); }
   }
+  // Repor as setas do modo organizar — os renders substituem o conteúdo dos cartões
+  if (_secEditMode) _renderSecHandles();
 }
 
 // ================================================================
@@ -3455,12 +3467,23 @@ function buildParcMonths() {
   var set = {};
   S.par.forEach(function(p) { parcMonths(p).forEach(function(m){ set[m]=1; }); });
   var months = Object.keys(set).sort();
+  var cur = currentYm();
+  // Meses passados já totalmente pagos desaparecem — a grelha avança sozinha;
+  // mês atual e futuros ficam sempre visíveis
+  var visible = months.filter(function(m){
+    if (m >= cur) return true;
+    return S.par.some(function(p){ return parcMonths(p).indexOf(m) >= 0 && !(p.py||{})[m]; });
+  });
+  if (visible.length) months = visible;
   if (!months.length) {
-    var cur = currentYm();
     for (var i=0;i<12;i++) months.push(addMonths(cur,i));
   }
   PARC_MONTHS = months;
-  PARC_LABELS = months.map(function(m){ return MN[parseInt(m.slice(5))-1]; });
+  PARC_LABELS = months.map(function(m){
+    var lbl = MN[parseInt(m.slice(5))-1];
+    // Ano curto quando o mês não é do ano atual (grelhas que atravessam anos)
+    return m.slice(0,4) !== cur.slice(0,4) ? lbl + ' ' + m.slice(2,4) : lbl;
+  });
 }
 
 function renderParcelas() {
@@ -7229,6 +7252,7 @@ document.addEventListener('keydown', function(e) {
     _updateThemeBtn();
     _updateCompactBtn();
     _updateDiscreetBtn();
+    _applySecOrder();
     _applyAllVis();
     HIST.push(JSON.stringify(S));
     HIDX = 0;
@@ -7745,6 +7769,73 @@ function toggleDashCmp() {
   var on = kg.classList.toggle('cmp-on');
   btn.classList.toggle('on', on);
   btn.textContent = on ? '≈ Comparar ✓' : '≈ Comparar';
+}
+
+// ================================================================
+// ORGANIZAR SECÇÕES — reordenar cartões dentro de cada aba
+// A ordem fica em S.cfg.secOrder[grupo] (sincroniza via Firebase) e é
+// aplicada no arranque. Cada aba é um grupo (data-secgrp); cada cartão
+// móvel tem data-sec. Só irmãos do mesmo grupo trocam entre si.
+// ================================================================
+var _secEditMode = false;
+
+function toggleSecEdit() {
+  _secEditMode = !_secEditMode;
+  var mi = document.getElementById('secEditMenuItem');
+  if (mi) mi.innerHTML = (_secEditMode ? '✓' : '✥') + ' <span style="color:var(--mut);font-size:.72rem">' + (_secEditMode ? 'Concluir organização' : 'Organizar secções') + '</span>';
+  _renderSecHandles();
+  showToast(_secEditMode ? '✥ Usa as setas ↑↓ para mover as secções' : '✓ Organização concluída');
+}
+
+function _renderSecHandles() {
+  document.querySelectorAll('.sec-handle').forEach(function(el){ el.remove(); });
+  document.querySelectorAll('[data-sec]').forEach(function(el){ el.classList.toggle('sec-editing', _secEditMode); });
+  if (!_secEditMode) return;
+  document.querySelectorAll('[data-secgrp] > [data-sec]').forEach(function(el) {
+    var h = document.createElement('div');
+    h.className = 'sec-handle';
+    h.innerHTML = '<button type="button" onclick="_secMove(this,-1)" title="Mover para cima">↑</button><button type="button" onclick="_secMove(this,1)" title="Mover para baixo">↓</button>';
+    el.appendChild(h);
+  });
+}
+
+function _secMove(btn, dir) {
+  var sec = btn.closest('[data-sec]');
+  if (!sec) return;
+  var cont = sec.parentElement;
+  var sib = dir < 0 ? sec.previousElementSibling : sec.nextElementSibling;
+  while (sib && !(sib.hasAttribute && sib.hasAttribute('data-sec'))) sib = dir < 0 ? sib.previousElementSibling : sib.nextElementSibling;
+  if (!sib) return;
+  if (dir < 0) cont.insertBefore(sec, sib);
+  else cont.insertBefore(sib, sec);
+  _saveSecOrder(cont);
+  fixStickyOffsets();
+}
+
+function _saveSecOrder(cont) {
+  var grp = cont.getAttribute('data-secgrp');
+  if (!grp) return;
+  if (!S.cfg.secOrder) S.cfg.secOrder = {};
+  var ids = [];
+  for (var i = 0; i < cont.children.length; i++) {
+    var el = cont.children[i];
+    if (el.hasAttribute && el.hasAttribute('data-sec')) ids.push(el.getAttribute('data-sec'));
+  }
+  S.cfg.secOrder[grp] = ids;
+  saveState();
+}
+
+// Aplica a ordem guardada — corre no arranque, para todas as abas
+function _applySecOrder() {
+  var ord = S.cfg.secOrder || {};
+  Object.keys(ord).forEach(function(grp) {
+    var cont = document.querySelector('[data-secgrp="' + grp + '"]');
+    if (!cont) return;
+    (ord[grp] || []).forEach(function(id) {
+      var el = cont.querySelector(':scope > [data-sec="' + id + '"]');
+      if (el) cont.appendChild(el);
+    });
+  });
 }
 
 // ================================================================
