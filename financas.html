@@ -4474,7 +4474,6 @@ function _parcActiveMode() {
 
 function _parcRecalc() {
   var num = parseInt((document.getElementById('f_num')||{}).value) || 0;
-  var calcEl = document.getElementById('pCalcVal');
   var valEl = document.getElementById('f_val');
   var vp = 0;
   if (_parcActiveMode() === 2) {
@@ -4483,11 +4482,8 @@ function _parcRecalc() {
       vp = Math.round(total / num * 100) / 100;
       if (valEl) valEl.value = moneyDisp(vp, 2); // o Guardar lê sempre f_val
     }
-    if (calcEl) { calcEl.textContent = vp > 0 ? fmt(vp) : '—'; calcEl.style.color = vp > 0 ? 'var(--grn)' : 'var(--mut)'; }
   } else {
     vp = moneyVal(valEl ? valEl.value : '');
-    var tot = (vp > 0 && num > 0) ? fromCents(toCents(vp) * num) : 0;
-    if (calcEl) { calcEl.textContent = tot > 0 ? fmt(tot) : '—'; calcEl.style.color = tot > 0 ? 'var(--grn)' : 'var(--mut)'; }
   }
   _parcPreview(vp, num);
 }
@@ -4511,8 +4507,7 @@ function _parcPreview(vp, num) {
     last = lm + '-' + pad2(Math.min(parseInt(fd.slice(8,10)), lastDay));
   }
   el.innerHTML = '📋 <strong>' + num + '×</strong> de <strong>' + fmt(vp) + '</strong> = <strong>' + fmt(fromCents(toCents(vp) * num)) + '</strong>'
-    + '<br>1ª cobrança a <strong>' + fmtDate(fd) + '</strong> · última a <strong>' + fmtDate(last) + '</strong>'
-    + (sys === 'klarna' ? '<br><span class="tmut">Klarna cobra a cada 30 dias — o dia do mês vai recuando ao longo do tempo</span>' : '');
+    + '<br>1ª cobrança a <strong>' + fmtDate(fd) + '</strong> · última a <strong>' + fmtDate(last) + '</strong>';
   row.style.display = '';
 }
 
@@ -4759,17 +4754,16 @@ function buildForm(type, d) {
         <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
         <div class="ff"><label class="fl">Categoria</label><select class="fi" id="f_cat">${coP}</select></div>
         <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card" onchange="onParcCardChange()">${poP}</select></div>
-        <div class="ff full"><label class="fl">Sistema de pagamento</label>
+        <div class="ff"><label class="fl">Sistema de pagamento</label>
           <select class="fi" id="f_sys" onchange="_parcRecalc()">
-            <option value="">Cartão / direto — dia fixo do mês</option>
-            <option value="klarna"${d&&d.sys==='klarna'?' selected':''}>Klarna — cobra a cada 30 dias</option>
-            <option value="sequra"${d&&d.sys==='sequra'?' selected':''}>Sequra — dia fixo do mês</option>
+            <option value="">Cartão / direto</option>
+            <option value="klarna"${d&&d.sys==='klarna'?' selected':''}>Klarna</option>
+            <option value="sequra"${d&&d.sys==='sequra'?' selected':''}>Sequra</option>
           </select>
         </div>
-        <div class="ff full"><label class="fl" style="display:flex;align-items:center;gap:.55rem;cursor:pointer;font-weight:400">
+        <div class="ff" style="align-self:end"><label class="fl" style="display:flex;align-items:center;gap:.55rem;cursor:pointer;font-weight:400;padding:.55rem 0">
           <input type="checkbox" id="f_autoDebit" ${d&&d.autoDebit?'checked':''} style="width:15px;height:15px;accent-color:var(--grn);flex-shrink:0">
           <span style="font-weight:600">Débito automático</span>
-          <span class="tmut" style="font-size:.72rem">(incluído na fatura sem precisar marcar)</span>
         </label></div>
 
         <!-- TOGGLE -->
@@ -4795,12 +4789,6 @@ function buildForm(type, d) {
         <div class="ff">
           <label class="fl">Nº Parcelas</label>
           <input class="fi fiu" id="f_num" type="number" min="1" max="72" value="${numVal}" oninput="calcFromTotal()">
-        </div>
-
-        <!-- Calculated result (shown in both modes) -->
-        <div class="ff" id="pCalcRow">
-          <label class="fl" id="pCalcLbl">Total calculado</label>
-          <div class="fi" style="background:var(--s3);font-weight:700;cursor:default" id="pCalcVal">—</div>
         </div>
 
         <div class="ff">
