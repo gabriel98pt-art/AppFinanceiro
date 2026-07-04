@@ -682,6 +682,13 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
   </div>
   <div class="kg mb2" id="recKpis"></div>
   <div class="cc mb2" id="recMiniChart" style="display:none"><div class="slbl">📈 Evolução — últimos 6 meses</div><canvas id="chRecMini" style="max-height:130px"></canvas></div>
+  <div class="tc mb2">
+    <div class="tch">
+      <span class="slbl" style="margin:0">🔁 Receitas Recorrentes</span>
+      <button class="btn pri sm" onclick="openModal('recrule')">+ Adicionar</button>
+    </div>
+    <div id="recRulesBody"></div>
+  </div>
   <div class="tc">
     <div class="tch">
       <span class="slbl" style="margin:0">📋 Registos</span>
@@ -2803,10 +2810,65 @@ function renderDashboard() {
 }
 
 // ================================================================
+// RECEITAS RECORRENTES
+// ================================================================
+// Gera lançamentos em falta até hoje para cada regra em S.cfg.recRules.
+// Cada lançamento criado leva _rrid (id da regra) — a verificação por
+// regra+data garante que nunca se criam duplicados, mesmo correndo 2x.
+function processRecRules() {
+  var rules = S.cfg.recRules || [];
+  if (!rules.length) return 0;
+  var today = todayStr();
+  var created = 0;
+  rules.forEach(function(r) {
+    if (!r.start || !(r.val > 0)) return;
+    var existing = {};
+    S.rec.forEach(function(x){ if (x._rrid === r.id) existing[x.date] = 1; });
+    var skip = r.skip || {}; // datas apagadas/movidas pelo utilizador — não recriar
+    var startDay = parseInt(r.start.slice(8, 10));
+    var d = r.start, guard = 0;
+    while (d <= today && guard++ < 1000) {
+      if (r.until && d > r.until) break;
+      if (!existing[d] && !skip[d]) {
+        S.rec.push({id:nid(), date:d, src:r.src||'Receita', val:r.val, card:r.card||'', notes:r.notes||'🔁 automático', _rrid:r.id});
+        created++;
+      }
+      if (r.freq === 'weekly') {
+        var nx = new Date(d + 'T00:00:00'); nx.setDate(nx.getDate() + 7);
+        d = nx.getFullYear() + '-' + pad2(nx.getMonth()+1) + '-' + pad2(nx.getDate());
+      } else {
+        var ymN = addMonths(d.slice(0,7), 1);
+        var lastN = new Date(parseInt(ymN.slice(0,4)), parseInt(ymN.slice(5,7)), 0).getDate();
+        d = ymN + '-' + pad2(Math.min(startDay, lastN));
+      }
+    }
+  });
+  return created;
+}
+
+// ================================================================
 // RECEITAS
 // ================================================================
 function renderReceitas() {
   var recYearVal = globalMonth.slice(0,4);
+
+  // Regras de receitas recorrentes
+  var rrEl = document.getElementById('recRulesBody');
+  if (rrEl) {
+    var _rules = S.cfg.recRules || [];
+    rrEl.innerHTML = _rules.length ? _rules.map(function(r) {
+      var freqLbl = r.freq === 'weekly' ? 'Semanal' : 'Mensal';
+      var det = freqLbl + ' · desde ' + fmtDate(r.start) + (r.until ? ' · até ' + fmtDate(r.until) : '');
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.5rem .9rem;border-top:1px solid var(--brd);font-size:.8rem">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600">🔁 ${_esc(r.src||'Receita')}${r.card?' <span class="tmut" style="font-weight:400;font-size:.7rem">→ '+_esc(r.card)+'</span>':''}</div>
+          <div class="tmut" style="font-size:.68rem">${det}</div>
+        </div>
+        <span class="tgrn bold" style="white-space:nowrap">${fmt(r.val)}</span>
+        <div class="ac"><button class="ic e" onclick="openModal('recrule',${r.id})">✏</button><button class="ic d" onclick="delRec('recrule',${r.id})">🗑</button></div>
+      </div>`;
+    }).join('') : '<div class="tmut" style="padding:.6rem .9rem;font-size:.75rem">Nenhuma receita recorrente — cria uma para o vencimento ser lançado sozinho todos os meses ou semanas.</div>';
+  }
 
   // Source filter populate
   var srcFiltEl = document.getElementById('recSrcFilt');
@@ -4414,18 +4476,18 @@ function calcFrotaVal() {
 var mType = null, mId = null, _rcCard = null, _rcYm = null, _mToast = null;
 var MODAL_TITLES = {
   receita:'Receita', dfixa:'Despesa Fixa', dcorr:'Despesa Corrente',
-  carga:'Carga Elétrica', limp:'Despesa do Veículo', vehfix:'Despesa Fixa Veículo', vehkm:'Km & Tempo Semanal', parc:'Parcela', evt:'Evento', fund:'Fundo de Poupança', trf:'Transferência Interna', contrib:'Contribuição', reconcile:'Reconciliação', fatmanual:'Fatura'
+  carga:'Carga Elétrica', limp:'Despesa do Veículo', vehfix:'Despesa Fixa Veículo', vehkm:'Km & Tempo Semanal', parc:'Parcela', evt:'Evento', fund:'Fundo de Poupança', trf:'Transferência Interna', contrib:'Contribuição', reconcile:'Reconciliação', fatmanual:'Fatura', recrule:'Receita Recorrente'
 };
 
 // Type → delRec key mapping
-var DEL_TYPE_MAP = {receita:'rec',dfixa:'df',dcorr:'dc',carga:'cg',limp:'lp',vehfix:'vehdf',vehkm:'vehkm',parc:'par',evt:'evt',fund:'fnd',trf:'trf'};
+var DEL_TYPE_MAP = {receita:'rec',dfixa:'df',dcorr:'dc',carga:'cg',limp:'lp',vehfix:'vehdf',vehkm:'vehkm',parc:'par',evt:'evt',fund:'fnd',trf:'trf',recrule:'recrule'};
 
 function openModal(type, id) {
   mType = type;
   mId = (id !== undefined && id !== null) ? id : null;
   var data = null;
   if (mId !== null) {
-    var src = {receita:S.rec,dfixa:S.df,dcorr:S.dc,carga:S.veh.cg,limp:S.veh.lp,vehfix:S.veh.df,vehkm:S.veh.km,parc:S.par,evt:S.evt,fund:S.fnds};
+    var src = {receita:S.rec,dfixa:S.df,dcorr:S.dc,carga:S.veh.cg,limp:S.veh.lp,vehfix:S.veh.df,vehkm:S.veh.km,parc:S.par,evt:S.evt,fund:S.fnds,recrule:(S.cfg.recRules||[])};
     data = (src[type]||[]).find(function(x){return x.id===mId;});
   }
   var title = document.getElementById('modalTitle');
@@ -4700,6 +4762,21 @@ function buildForm(type, d) {
         : `<div class="inf" style="margin-bottom:.75rem">App calcula: <strong>${fmt(_appBal)}</strong></div>`;
       return `<div class="fg">${_rinfo}<div class="ff full"><label class="fl">Saldo real no banco (€)</label><input class="fi fiu" id="f_real_bal" type="text" inputmode="decimal" placeholder="${_appBal !== null ? _appBal.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2}) : '0,00'}" autofocus oninput="moneyMask(event,2)"></div></div>`;
     }
+    case 'recrule': {
+      var soR = selOpts(S.cfg.src, d&&d.src);
+      var poR = selOpts(S.cfg.pay, d&&d.card);
+      var _fqR = (d&&d.freq)||'monthly';
+      return `<div class="fg">
+        <div class="ff"><label class="fl">Fonte</label><select class="fi" id="f_src">${soR}</select></div>
+        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
+        <div class="ff"><label class="fl">Frequência</label><select class="fi" id="f_freq"><option value="monthly"${_fqR==='monthly'?' selected':''}>Mensal</option><option value="weekly"${_fqR==='weekly'?' selected':''}>Semanal</option></select></div>
+        <div class="ff"><label class="fl">Conta de Destino</label><select class="fi" id="f_card">${poR}</select></div>
+        <div class="ff"><label class="fl">Primeira receita</label><input class="fi fiu" id="f_start" type="date" value="${d&&d.start?d.start:defaultDate()}"></div>
+        <div class="ff"><label class="fl">Terminar em <span class="tmut" style="font-weight:400;text-transform:none">(opcional)</span></label><input class="fi" id="f_until" type="date" value="${d&&d.until?d.until:''}"></div>
+        <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
+        <div class="ff full"><span class="tmut" style="font-size:.72rem">🔁 A app lança esta receita sozinha na data certa — mensal repete no mesmo dia de cada mês, semanal de 7 em 7 dias. Cada lançamento criado pode ser editado ou apagado individualmente na lista de Registos.</span></div>
+      </div>`;
+    }
     case 'fatmanual': {
       var _hasCur = d && d.cur != null;
       return `<div class="fg">
@@ -4796,6 +4873,11 @@ function validateForm(type) {
       if (!fv('f_kmdate')) return 'Data obrigatória.';
       if (!(ff('f_km') > 0)) return 'Km percorridos deve ser maior que zero.';
       return null;
+    case 'recrule':
+      if (!(ff('f_val') > 0)) return 'Valor deve ser maior que zero.';
+      if (!fv('f_start')) return 'Data da primeira receita obrigatória.';
+      { var _ruV = fv('f_until'); if (_ruV && _ruV < fv('f_start')) return '"Terminar em" deve ser posterior à primeira receita.'; }
+      return null;
   }
   return null;
 }
@@ -4809,7 +4891,15 @@ function saveModal() {
   switch(mType) {
     case 'receita': {
       var o = {date:gv('f_date'),src:gv('f_src'),val:gm('f_val'),card:gv('f_card'),notes:gv('f_notes')};
-      if (id!==null) { var _t=S.rec.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
+      if (id!==null) {
+        var _t=S.rec.find(function(x){return x.id===id;});
+        if(_t) {
+          // Se for gerada por regra recorrente e a data mudou, marca a data antiga
+          // como tratada — senão o motor recriava o lançamento original
+          if (_t._rrid && _t.date !== o.date) _recRuleSkip(id, _t.date);
+          Object.assign(_t,o);
+        }
+      }
       else S.rec.push(Object.assign({id:nid()}, o));
       break;
     }
@@ -4958,6 +5048,15 @@ function saveModal() {
       else S.veh.df.push(Object.assign({id:nid()}, o));
       break;
     }
+    case 'recrule': {
+      var o = {src:gv('f_src'), val:gm('f_val'), card:gv('f_card'), freq:gv('f_freq'), start:gv('f_start'), until:gv('f_until')||null, notes:gv('f_notes')};
+      if (!S.cfg.recRules) S.cfg.recRules = [];
+      if (id!==null) { var _t=S.cfg.recRules.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
+      else S.cfg.recRules.push(Object.assign({id:nid()}, o));
+      var _rrGen = processRecRules();
+      if (_rrGen) _mToast = '🔁 Regra guardada — ' + _rrGen + ' receita(s) lançada(s)';
+      break;
+    }
     case 'vehkm': {
       var _kmWr = _weekRangeOfDate(gv('f_kmdate'));
       var o = {weekFrom:_kmWr.from, weekTo:_kmWr.to, km:gf('f_km'), h:gi('f_h')||0, m:gi('f_m')||0, notes:gv('f_notes')};
@@ -5010,9 +5109,20 @@ function _initSwipe(tbodyId, type) {
   });
 }
 
+// Receita gerada por regra recorrente: ao apagar/mover, memoriza a data na regra
+// para o processRecRules não a recriar no próximo arranque
+function _recRuleSkip(recId, dateOverride) {
+  var r = S.rec.find(function(x){return x.id===recId;});
+  if (!r || !r._rrid) return;
+  var rule = (S.cfg.recRules||[]).find(function(x){return x.id===r._rrid;});
+  if (!rule) return;
+  if (!rule.skip) rule.skip = {};
+  rule.skip[dateOverride || r.date] = 1;
+}
+
 function delRecSwipe(type, id) {
   snapshot();
-  if (type === 'rec') S.rec = S.rec.filter(function(x){return x.id!==id;});
+  if (type === 'rec') { _recRuleSkip(id); S.rec = S.rec.filter(function(x){return x.id!==id;}); }
   else if (type === 'dc') S.dc = S.dc.filter(function(x){return x.id!==id;});
   saveState(); renderActive();
   showToast('🗑 Eliminado — toca ↩️ para desfazer');
@@ -5033,10 +5143,12 @@ function delRec(type, id) {
         + (_nRem  > 0 ? '\n• ' + _nRem  + ' ainda por pagar' : '') + '.';
   } else if (type === 'cg' || type === 'lp') {
     msg = 'Eliminar este registo e a entrada automática em Despesas Correntes?';
+  } else if (type === 'recrule') {
+    msg = 'Eliminar esta regra de receita recorrente?\n\nOs lançamentos já criados são mantidos — se precisares, apaga-os individualmente na lista de Registos.';
   }
   if (!confirm(msg)) return;
   snapshot();
-  if (type==='rec') S.rec = S.rec.filter(function(x){return x.id!==id;});
+  if (type==='rec') { _recRuleSkip(id); S.rec = S.rec.filter(function(x){return x.id!==id;}); }
   else if (type==='df') S.df = S.df.filter(function(x){return x.id!==id;});
   else if (type==='dc') S.dc = S.dc.filter(function(x){return x.id!==id;});
   else if (type==='cg') {
@@ -5056,6 +5168,7 @@ function delRec(type, id) {
   else if (type==='trf') S.trf = (S.trf||[]).filter(function(x){return x.id!==id;});
   else if (type==='vehdf') S.veh.df = (S.veh.df||[]).filter(function(x){return x.id!==id;});
   else if (type==='vehkm') S.veh.km = (S.veh.km||[]).filter(function(x){return x.id!==id;});
+  else if (type==='recrule') S.cfg.recRules = (S.cfg.recRules||[]).filter(function(x){return x.id!==id;});
   saveState();
   renderTab(CUR);
   showToast('🗑 Eliminado');
@@ -6871,6 +6984,29 @@ function exportCSV() {
       '0,00', n2(t.val), t.from||'', t.to||'', 'Não', '', t.notes||'']);
   });
 
+  // Despesas fixas (app + veículo): uma linha por mês em que a regra esteve ativa,
+  // até ao mês atual — assim o total do Excel bate com o total da app
+  var _csvCurYm = currentYm();
+  function _csvFixRows(list, sec, tipo, withPaid) {
+    (list||[]).forEach(function(d) {
+      var m = d.activeFrom || (_csvCurYm.slice(0,4) + '-01');
+      var guard = 0;
+      while (m <= _csvCurYm && guard++ < 240) {
+        if (isActiveForYm(d, m)) {
+          var pt = m.split('-');
+          var lastD = new Date(parseInt(pt[0]), parseInt(pt[1]), 0).getDate();
+          var dt = m + '-' + pad2(Math.min(d.day || 1, lastD));
+          var ref = withPaid ? (isPaidInYm(d, m) ? 'Pago' : 'Previsto') : '';
+          dataRows.push([dt, yr(dt), mo(dt), sec, tipo, d.name||'', d.cat||'',
+            '0,00', n2(d.val), d.card||'', '', 'Sim', ref, d.notes||'']);
+        }
+        m = addMonths(m, 1);
+      }
+    });
+  }
+  _csvFixRows(S.df, 'Despesas Fixas', 'Despesa Fixa', true);
+  _csvFixRows((S.veh||{}).df, 'Veículo', 'Fixa Veículo', false);
+
   dataRows.sort(function(a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0; });
 
   downloadCsv('financas_analitico_' + todayStr() + '.csv', [HDR].concat(dataRows));
@@ -7079,6 +7215,13 @@ document.addEventListener('keydown', function(e) {
       }
       S.cfg._mig_balsnap_array_2026 = true;
       saveState();
+    }
+
+    // Receitas recorrentes: lança as que ficaram em falta desde a última visita
+    var _rrNew = processRecRules();
+    if (_rrNew) {
+      saveState();
+      setTimeout(function(){ showToast('🔁 ' + _rrNew + ' receita(s) recorrente(s) lançada(s)'); }, 600);
     }
 
     document.documentElement.dataset.theme = (S.cfg && S.cfg.theme) || 'dark';
