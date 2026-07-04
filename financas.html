@@ -844,7 +844,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
       </select>
     </div>
     <div class="tw"><table>
-      <thead><tr><th>Data</th><th>Local</th><th>kWh</th><th>Valor</th><th>Cartão</th><th>Notas</th><th></th></tr></thead>
+      <thead><tr><th>Data</th><th>Local</th><th>kWh</th><th>Valor</th><th title="Custo por kWh (Valor ÷ kWh)">€/kWh</th><th>Cartão</th><th>Notas</th><th></th></tr></thead>
       <tbody id="cgBody" class="anim"></tbody><tfoot id="cgFoot"></tfoot>
     </table></div>
     </div>
@@ -3315,12 +3315,22 @@ function renderVeiculo() {
   }).sort(function(a,b){return b.date>a.date?1:-1;});
   var _cgPeriodLbl = VEH_WEEK ? ('Semana ' + _vehWr.label) : monthLabel(ym);
   var _cgTotWeek = sumVal(cg);
+  // Custo por kWh: Valor ÷ kWh (só quando ambos existem)
+  function _cgKwhCost(d) {
+    var k = safeNum(d.kwh, 0), v = safeNum(d.val, 0);
+    if (!(k > 0) || !(v > 0)) return '<span class="tmut">—</span>';
+    return '€' + (v / k).toLocaleString('pt-PT', {minimumFractionDigits:2, maximumFractionDigits:3});
+  }
   var cgEl = document.getElementById('cgBody');
   if (cgEl) cgEl.innerHTML = cg.length ? cg.map(function(d) {
-    return `<tr><td title="${fmtDate(d.date)}">${fmtDateShort(d.date)}</td><td>${d.local||'—'}${d.frota?' <span class="tmut" style="font-size:.62rem;border:1px solid var(--brd);border-radius:99px;padding:.05rem .35rem;margin-left:.25rem">🚗 frota</span>':''}</td><td>${d.kwh||'—'}</td><td class="tylw bold">${fmt(d.val)}</td><td>${d.card||'—'}</td><td>${d.notes||'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('carga',${d.id})">✏</button><button class="ic d" onclick="delRec('cg',${d.id})">🗑</button></div></td></tr>`;
-  }).join('') : _emptyRow(7,'⚡', VEH_WEEK ? 'Nenhuma carga esta semana' : 'Nenhuma carga em '+monthLabel(ym),'Regista sessões de carregamento com o botão +');
+    return `<tr><td title="${fmtDate(d.date)}">${fmtDateShort(d.date)}</td><td>${d.local||'—'}${d.frota?' <span class="tmut" style="font-size:.62rem;border:1px solid var(--brd);border-radius:99px;padding:.05rem .35rem;margin-left:.25rem">🚗 frota</span>':''}</td><td>${d.kwh||'—'}</td><td class="tylw bold">${fmt(d.val)}</td><td style="font-size:.78rem">${_cgKwhCost(d)}</td><td>${d.card||'—'}</td><td>${d.notes||'—'}</td><td><div class="ac"><button class="ic e" onclick="openModal('carga',${d.id})">✏</button><button class="ic d" onclick="delRec('cg',${d.id})">🗑</button></div></td></tr>`;
+  }).join('') : _emptyRow(8,'⚡', VEH_WEEK ? 'Nenhuma carga esta semana' : 'Nenhuma carga em '+monthLabel(ym),'Regista sessões de carregamento com o botão +');
   var cgFt = document.getElementById('cgFoot');
-  if (cgFt) cgFt.innerHTML = `<tr><td colspan="3">Total ${_cgPeriodLbl}</td><td class="tylw">${fmt(_cgTotWeek)}</td><td colspan="3"></td></tr>`;
+  // Média €/kWh do período (total gasto ÷ total kWh das cargas com kWh registado)
+  var _cgKwhTot = 0, _cgValComKwh = 0;
+  cg.forEach(function(d){ var k = safeNum(d.kwh,0); if (k > 0) { _cgKwhTot += k; _cgValComKwh += safeNum(d.val,0); } });
+  var _cgAvg = _cgKwhTot > 0 ? '€' + (_cgValComKwh/_cgKwhTot).toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:3}) + ' méd.' : '';
+  if (cgFt) cgFt.innerHTML = `<tr><td colspan="3">Total ${_cgPeriodLbl}</td><td class="tylw">${fmt(_cgTotWeek)}</td><td style="font-size:.72rem;color:var(--mut)">${_cgAvg}</td><td colspan="3"></td></tr>`;
 
   var lpTipoFiltEl = document.getElementById('lpTipoFilt');
   if (lpTipoFiltEl) {
