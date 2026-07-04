@@ -565,6 +565,8 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
   .srch-bar input,.srch-bar select{font-size:1rem}
   .qdet input{font-size:1rem}
 }
+/* Separador vertical entre anos na grelha de Parcelas */
+.yr-sep{border-left:2px solid rgba(124,130,160,.38)!important}
 /* Modo organizar secções */
 .sec-editing{position:relative;outline:2px dashed var(--blu);outline-offset:3px;border-radius:8px}
 .sec-handle{position:absolute;top:-13px;right:10px;display:flex;gap:.3rem;z-index:60}
@@ -2115,6 +2117,29 @@ function parcMonths(p) {
   return ms;
 }
 
+// Valor de uma parcela num mês específico — fonte única usada em todo o lado:
+// 1) ajuste manual desse mês (p.ov[ym]), se existir
+// 2) divisão exata do total em cêntimos — o resto vai às primeiras parcelas
+//    (ex: 55,99 em 3× → 18,67 + 18,66 + 18,66)
+// 3) parcelas antigas sem total guardado: vp uniforme (comportamento original)
+function parcVal(p, ym) {
+  if (p.ov && p.ov[ym] != null) return safeNum(p.ov[ym], 0);
+  var idx = parcMonths(p).indexOf(ym);
+  if (idx < 0) return safeNum(p.vp, 0);
+  return _parcBaseVal(p, idx);
+}
+function _parcBaseVal(p, idx) {
+  var n = p.num || 1;
+  var totC = p.total ? toCents(p.total) : toCents(p.vp) * n;
+  var base = Math.floor(totC / n);
+  var extra = totC - base * n;
+  return fromCents(base + (idx < extra ? 1 : 0));
+}
+// Soma real da compra, contando ajustes mensais
+function parcTotal(p) {
+  return sumMoney(parcMonths(p), function(m){ return parcVal(p, m); });
+}
+
 function parcDate(p, ym) {
   // Sistemas tipo Klarna cobram a cada 30 dias a contar da 1ª cobrança,
   // não num dia fixo do mês — devolve a data exata dessa ocorrência
@@ -2137,7 +2162,7 @@ function parcDate(p, ym) {
 // Totals
 function totParcMonth(ym) {
   return S.par.reduce(function(s, p) {
-    return parcMonths(p).indexOf(ym) >= 0 ? s + p.vp : s;
+    return parcMonths(p).indexOf(ym) >= 0 ? s + parcVal(p, ym) : s;
   }, 0);
 }
 function totFixas(ym) {
@@ -2162,7 +2187,7 @@ function totDespRealized(ym) {
   if (ym !== curYm) return totDesp(ym);
   var todayDay = parseInt(today.slice(8));
   var fix = sumVal(S.df.filter(function(d){ return isActiveForYm(d,ym) && (isPaidInYm(d,ym) || d.day <= todayDay); }));
-  var prc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(ym)>=0 && p.py[ym] ? s+p.vp : s; }, 0);
+  var prc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(ym)>=0 && p.py[ym] ? s+parcVal(p,ym) : s; }, 0);
   return fix + totCorrManual(ym) + prc + totVeh(ym);
 }
 
@@ -2661,7 +2686,7 @@ function renderDashboard() {
   if (isCurrentYm) {
     // current month: only count df already paid or day has passed; parc only if paid
     fix = sumVal(S.df.filter(function(d){ return isActiveForYm(d,ym) && (isPaidInYm(d,ym) || d.day <= _todayDay); }));
-    prc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(ym)>=0 && p.py[ym] ? s+p.vp : s; }, 0);
+    prc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(ym)>=0 && p.py[ym] ? s+parcVal(p,ym) : s; }, 0);
     // projected totals (full month) for display
     fixPrev = totFixas(ym); prcPrev = totParcMonth(ym);
   } else {
@@ -2681,7 +2706,7 @@ function renderDashboard() {
     _cmpRec = sumVal(S.rec.filter(function(r){ return inMonth(r.date, prevYm) && parseInt(r.date.slice(8)) <= _todayDay; }));
     var _cmpCorr = sumVal(S.dc.filter(function(d){ return inMonth(d.date, prevYm) && parseInt(d.date.slice(8)) <= _todayDay && !d._src; }));
     var _cmpFix  = sumVal(S.df.filter(function(d){ return isActiveForYm(d, prevYm) && (d.day||1) <= _todayDay; }));
-    var _cmpParc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(prevYm)>=0 && parseInt((p.fd||'').slice(8)||0) <= _todayDay ? s+p.vp : s; }, 0);
+    var _cmpParc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(prevYm)>=0 && parseInt((p.fd||'').slice(8)||0) <= _todayDay ? s+parcVal(p,prevYm) : s; }, 0);
     var _cmpVeh  = sumVal(S.veh.cg.filter(function(d){ return inMonth(d.date, prevYm) && parseInt(d.date.slice(8)) <= _todayDay; }))
                  + sumVal(S.veh.lp.filter(function(d){ return inMonth(d.date, prevYm) && parseInt(d.date.slice(8)) <= _todayDay; }));
     _cmpDesp = _cmpCorr + _cmpFix + _cmpParc + _cmpVeh;
@@ -3206,7 +3231,7 @@ function _autoDebitParcVal(card, ym) {
   return S.par.reduce(function(s, p) {
     if (p.card !== card || !p.autoDebit) return s;
     if (parcMonths(p).indexOf(ym) < 0) return s;
-    return s + p.vp;
+    return s + parcVal(p, ym);
   }, 0);
 }
 
@@ -3482,6 +3507,7 @@ function movParc(idx, dir) {
 // ================================================================
 var PARC_MONTHS = [];
 var PARC_LABELS = [];
+var PARC_YRBRK = [];
 function buildParcMonths() {
   var set = {};
   S.par.forEach(function(p) { parcMonths(p).forEach(function(m){ set[m]=1; }); });
@@ -3498,27 +3524,24 @@ function buildParcMonths() {
     for (var i=0;i<12;i++) months.push(addMonths(cur,i));
   }
   PARC_MONTHS = months;
-  PARC_LABELS = months.map(function(m){
-    var lbl = MN[parseInt(m.slice(5))-1];
-    // Ano curto quando o mês não é do ano atual (grelhas que atravessam anos)
-    return m.slice(0,4) !== cur.slice(0,4) ? lbl + ' ' + m.slice(2,4) : lbl;
-  });
+  PARC_LABELS = months.map(function(m){ return MN[parseInt(m.slice(5))-1]; });
+  // Colunas onde muda o ano — recebem um separador vertical mais forte
+  PARC_YRBRK = months.map(function(m,i){ return i > 0 && m.slice(0,4) !== months[i-1].slice(0,4); });
 }
 
 function renderParcelas() {
   buildParcMonths();
   var totM = totParcMonth(globalMonth);
   var totMPaid = S.par.reduce(function(s,p){
-    return parcMonths(p).indexOf(globalMonth)>=0 && p.py[globalMonth] ? s+p.vp : s;
+    return parcMonths(p).indexOf(globalMonth)>=0 && p.py[globalMonth] ? s+parcVal(p,globalMonth) : s;
   }, 0);
   var totMPending = totM - totMPaid;
   var totDiv = S.par.reduce(function(s,p){
-    var rem = parcMonths(p).filter(function(m){return !p.py[m];}).length;
-    return s + rem * p.vp;
+    return s + sumMoney(parcMonths(p).filter(function(m){return !p.py[m];}), function(m){ return parcVal(p,m); });
   }, 0);
 
   var _parcAtivas = S.par.filter(function(p){ var ms=parcMonths(p); return ms.filter(function(m){return !p.py[m];}).length>0; }).length;
-  var _totParc = S.par.reduce(function(s,p){ return s + p.vp * (parcMonths(p)||[]).length; }, 0);
+  var _totParc = S.par.reduce(function(s,p){ return s + parcTotal(p); }, 0);
   var badge = document.getElementById('parcAtivaBadge');
   if (badge) badge.textContent = _parcAtivas ? _parcAtivas + ' ativas' : '';
   var kEl = document.getElementById('parcKpis');
@@ -3576,7 +3599,7 @@ function renderParcelas() {
     t += '<th style="width:28px;text-align:center" title="Arrastar">⠿</th><th style="min-width:130px">Nome</th><th style="min-width:90px">Categoria</th><th>€/mês</th>';
     for (var mi = 0; mi < PARC_MONTHS.length; mi++) {
       var hlM = PARC_MONTHS[mi] === globalMonth ? 'background:rgba(77,143,255,.12)' : '';
-      t += `<th style="text-align:center;padding:.3rem .1rem;font-size:.6rem;${hlM}">${PARC_LABELS[mi]}</th>`;
+      t += `<th class="${PARC_YRBRK[mi]?'yr-sep':''}" style="text-align:center;padding:.3rem .1rem;font-size:.6rem;${hlM}" title="${monthLabelFull(PARC_MONTHS[mi])}">${PARC_LABELS[mi]}</th>`;
     }
     t += '<th style="text-align:center">Pago</th><th>Restante</th><th>Progresso</th><th style="text-align:center">Ações</th></tr></thead>';
     t += isDone ? '<tbody>' : '<tbody id="parcTbody">';
@@ -3603,28 +3626,32 @@ function renderParcelas() {
       for (var ci = 0; ci < PARC_MONTHS.length; ci++) {
         var cm = PARC_MONTHS[ci];
         var hl2 = cm === globalMonth ? 'background:rgba(77,143,255,.05)' : '';
+        var brkC = PARC_YRBRK[ci] ? 'yr-sep' : '';
         var isActive = ms.indexOf(cm) >= 0;
         if (!isActive) {
-          t += `<td style="text-align:center;${hl2}"><span class="tmut" style="font-size:.55rem">—</span></td>`;
+          t += `<td class="${brkC}" style="text-align:center;${hl2}"><span class="tmut" style="font-size:.55rem">—</span></td>`;
         } else {
           var ip = p.py[cm];
           var dt = parcDate(p, cm);
           var ds = fmtDateShort(dt);
+          var cv = parcVal(p, cm);
+          var isOv = !!(p.ov && p.ov[cm] != null);
+          var ovMark = isOv ? '<span style="color:var(--ylw);font-weight:800" title="Valor ajustado neste mês: '+fmt(cv)+'">*</span>' : '';
           var fatPaidThisMonth = p.autoDebit && (S.cfg.fatPaid||{})[p.card] && (S.cfg.fatPaid||{})[p.card][cm] && (S.cfg.fatPaid||{})[p.card][cm].paid;
           if (ip) {
             var unPayClick = p.autoDebit ? '' : `onclick="unpayParc(${p.id},'${cm}')"`;
-            var unPayTitle = p.autoDebit ? 'Pago via fatura do cartão' : 'Clique para desmarcar';
-            t += `<td style="text-align:center;padding:.18rem .06rem;${hl2}"><div class="pmc pmp" ${unPayClick} title="${unPayTitle}"><span style="font-size:.72rem;color:var(--grn);font-weight:800;line-height:1">${p.autoDebit?'⚡':'✓'}</span><span class="pmd">${ds}</span></div></td>`;
+            var unPayTitle = p.autoDebit ? 'Pago via fatura do cartão' : 'Clique para desmarcar — '+fmt(cv);
+            t += `<td class="${brkC}" style="text-align:center;padding:.18rem .06rem;${hl2}"><div class="pmc pmp" ${unPayClick} title="${unPayTitle}"><span style="font-size:.72rem;color:var(--grn);font-weight:800;line-height:1">${p.autoDebit?'⚡':'✓'}</span><span class="pmd">${ds}${ovMark}</span></div></td>`;
           } else if (p.autoDebit) {
-            t += `<td style="text-align:center;padding:.18rem .06rem;${hl2}"><div class="pmc" title="Débito automático — será pago com a fatura" style="cursor:default"><span style="font-size:.58rem;color:var(--mut);font-weight:600">auto</span><span class="pmd" style="color:var(--mut)">${ds}</span></div></td>`;
+            t += `<td class="${brkC}" style="text-align:center;padding:.18rem .06rem;${hl2}"><div class="pmc" title="Débito automático — será pago com a fatura (${fmt(cv)})" style="cursor:default"><span style="font-size:.58rem;color:var(--mut);font-weight:600">auto</span><span class="pmd" style="color:var(--mut)">${ds}${ovMark}</span></div></td>`;
           } else {
-            t += `<td style="text-align:center;padding:.18rem .06rem;${hl2}"><div class="pmc pma" onclick="payParc(${p.id},'${cm}','${dt}')" title="Marcar como pago — ${fmt(p.vp)}" style="cursor:pointer"><span class="pmd" style="font-size:.6rem;font-weight:600;color:var(--blu)">${ds}</span></div></td>`;
+            t += `<td class="${brkC}" style="text-align:center;padding:.18rem .06rem;${hl2}"><div class="pmc pma" onclick="payParc(${p.id},'${cm}','${dt}')" title="Marcar como pago — ${fmt(cv)}" style="cursor:pointer"><span class="pmd" style="font-size:.6rem;font-weight:600;color:var(--blu)">${ds}${ovMark}</span></div></td>`;
           }
         }
       }
 
       t += `<td style="text-align:center;font-size:.77rem"><span class="tgrn bold">${paid}</span><span class="tmut">/${ms.length}</span></td>`;
-      t += `<td class="tred bold">${fmt(rem * p.vp)}</td>`;
+      t += `<td class="tred bold">${fmt(sumMoney(ms.filter(function(m){return !p.py[m];}), function(m){ return parcVal(p, m); }))}</td>`;
       t += `<td style="white-space:nowrap"><div class="pb" style="width:48px;display:inline-block;vertical-align:middle"><div class="pf" style="width:${pct}%;background:${col}"></div></div><span style="font-size:.6rem;color:var(--mut);margin-left:.2rem">${pct}%</span></td>`;
       var hasUnpaid = ms.filter(function(m){return !p.py[m];}).length > 0;
       t += `<td><div class="ac"><button class="ic e" onclick="openModal('parc',${p.id})" title="Editar">✏</button>${hasUnpaid&&!isDone?`<button class="ic" onclick="quitarParc(${p.id})" title="Quitar antecipadamente" style="font-size:.65rem;background:rgba(245,166,35,.1);color:var(--ylw);border:1px solid rgba(245,166,35,.25)">Quitar</button>`:''}${!isDone?`<button class="ic d" onclick="delRec('par',${p.id})" title="Eliminar">🗑</button>`:''}</div></td></tr>`;
@@ -3673,7 +3700,7 @@ function payParc(id, month, date) {
   p.py[month] = true;
   var ms = parcMonths(p);
   var idx = Math.max(1, ms.indexOf(month) + 1);
-  S.dc.push({id:nid(), date:date, name:p.name, cat:p.cat||'Parcelas', val:p.vp, card:p.card||'', notes:idx+'ª de '+p.num, _src:'parc', _pid:id, _pm:month});
+  S.dc.push({id:nid(), date:date, name:p.name, cat:p.cat||'Parcelas', val:parcVal(p, month), card:p.card||'', notes:idx+'ª de '+p.num, _src:'parc', _pid:id, _pm:month});
   // Navigate to show this entry
   globalMonth = month;
   S.cfg.lastMonth = globalMonth;
@@ -3689,12 +3716,12 @@ function quitarParc(id) {
   var ms = parcMonths(p);
   var unpaid = ms.filter(function(m){ return !p.py[m]; });
   if (!unpaid.length) { showToast('Todas as parcelas já estão pagas'); return; }
-  var total = unpaid.length * p.vp;
+  var total = sumMoney(unpaid, function(m){ return parcVal(p, m); });
   if (!confirm('Quitar "'+p.name+'"?\n\n'+unpaid.length+' parcela(s) em aberto → '+fmt(total)+'\n\nUma despesa de '+fmt(total)+' será criada no mês actual.')) return;
   snapshot();
   var today = todayStr();
   unpaid.forEach(function(m){ p.py[m] = true; });
-  S.dc.push({id:nid(), date:today, name:p.name+' (quitação)', cat:p.cat||'Parcelas', val:total, card:p.card||'', notes:'Quitação antecipada — '+unpaid.length+'x'+fmt(p.vp), _src:'parc', _pid:id, _pm:'quit'});
+  S.dc.push({id:nid(), date:today, name:p.name+' (quitação)', cat:p.cat||'Parcelas', val:total, card:p.card||'', notes:'Quitação antecipada — '+unpaid.length+' parcela(s)', _src:'parc', _pid:id, _pm:'quit'});
   globalMonth = today.slice(0,7);
   S.cfg.lastMonth = globalMonth;
   saveState(); renderParcelas(); updateGlobalNav();
@@ -4325,7 +4352,7 @@ function renderMetas() {
   var desp;
   if (_isCurrentYmM) {
     var _fix = sumVal(S.df.filter(function(d){ return isActiveForYm(d,ym) && (isPaidInYm(d,ym) || d.day <= _todDayM); }));
-    var _prc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(ym)>=0 && p.py[ym] ? s+p.vp : s; }, 0);
+    var _prc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(ym)>=0 && p.py[ym] ? s+parcVal(p,ym) : s; }, 0);
     desp = _fix + _prc + totCorrManual(ym) + totVeh(ym);
   } else {
     desp = totDesp(ym);
@@ -4506,7 +4533,21 @@ function _parcPreview(vp, num) {
     var lastDay = new Date(parseInt(lm.slice(0,4)), parseInt(lm.slice(5,7)), 0).getDate();
     last = lm + '-' + pad2(Math.min(parseInt(fd.slice(8,10)), lastDay));
   }
-  el.innerHTML = '📋 <strong>' + num + '×</strong> de <strong>' + fmt(vp) + '</strong> = <strong>' + fmt(fromCents(toCents(vp) * num)) + '</strong>'
+  // Divisão exata: se o total não divide certinho, a(s) primeira(s) leva(m) +1 cêntimo
+  var totC = _parcActiveMode() === 2 ? toCents(moneyVal((document.getElementById('f_total')||{}).value)) : toCents(vp) * num;
+  // Ao editar sem mexer em valor/nº, usa o total exato guardado (ex: 55,99, não 55,98)
+  if (mType === 'parc' && mId != null) {
+    var _pEd = S.par.find(function(x){return x.id===mId;});
+    if (_pEd && _pEd.total && Math.abs(toCents(_pEd.vp) - toCents(vp)) < 1 && _pEd.num === num) totC = toCents(_pEd.total);
+  }
+  var baseC = Math.floor(totC / num), extraC = totC - baseC * num;
+  var valLine;
+  if (extraC > 0) {
+    valLine = '<strong>' + num + '×</strong> = <strong>' + fmt(fromCents(totC)) + '</strong> (' + extraC + '× de ' + fmt(fromCents(baseC+1)) + ', restantes de ' + fmt(fromCents(baseC)) + ')';
+  } else {
+    valLine = '<strong>' + num + '×</strong> de <strong>' + fmt(fromCents(baseC)) + '</strong> = <strong>' + fmt(fromCents(totC)) + '</strong>';
+  }
+  el.innerHTML = '📋 ' + valLine
     + '<br>1ª cobrança a <strong>' + fmtDate(fd) + '</strong> · última a <strong>' + fmtDate(last) + '</strong>';
   row.style.display = '';
 }
@@ -4514,6 +4555,56 @@ function _parcPreview(vp, num) {
 // Mantidas por compatibilidade com os oninput existentes
 function onParcValChange() { _parcRecalc(); }
 function calcFromTotal() { _parcRecalc(); }
+
+// ── Ajuste do valor de um mês específico (p.ov[ym]) ──
+function _parcOvRefresh(p) {
+  var el = document.getElementById('pOvList');
+  if (!el) return;
+  var ov = p.ov || {};
+  var ks = Object.keys(ov).sort();
+  el.innerHTML = ks.length ? ('Ajustados: ' + ks.map(function(m){
+    return monthLabel(m) + ' → <strong>' + fmt(ov[m]) + '</strong> <span style="cursor:pointer;color:var(--red)" onclick="removeParcOv(\'' + m + '\')" title="Remover ajuste">✕</span>';
+  }).join(' · ')) : '';
+}
+// Ao escolher um mês, pré-preenche o valor atual dessa parcela
+function _parcOvPickMonth() {
+  var p = S.par.find(function(x){return x.id===mId;});
+  if (!p) return;
+  var m = (document.getElementById('f_ovM')||{}).value;
+  var inp = document.getElementById('f_ovV');
+  if (inp && m) inp.value = moneyDisp(parcVal(p, m), 2);
+}
+function applyParcOv() {
+  var p = S.par.find(function(x){return x.id===mId;});
+  if (!p) return;
+  var m = (document.getElementById('f_ovM')||{}).value;
+  var v = moneyVal((document.getElementById('f_ovV')||{}).value);
+  if (!m || !(v > 0)) { showToast('⚠ Escolhe o mês e um valor válido', true); return; }
+  snapshot();
+  if (!p.ov) p.ov = {};
+  p.ov[m] = v;
+  _parcOvSyncDc(p, m);
+  saveState();
+  _parcOvRefresh(p);
+  renderParcelas();
+  showToast('✓ ' + monthLabel(m) + ' ajustado para ' + fmt(v));
+}
+function removeParcOv(m) {
+  var p = S.par.find(function(x){return x.id===mId;});
+  if (!p || !p.ov) return;
+  snapshot();
+  delete p.ov[m];
+  _parcOvSyncDc(p, m);
+  saveState();
+  _parcOvRefresh(p);
+  renderParcelas();
+  showToast('↩ Ajuste de ' + monthLabel(m) + ' removido');
+}
+// Mês já pago: corrige também a despesa que foi criada por esse pagamento
+function _parcOvSyncDc(p, m) {
+  var dc = S.dc.find(function(x){ return x._src==='parc' && x._pid===p.id && x._pm===m; });
+  if (dc) dc.val = parcVal(p, m);
+}
 
 // Carga Elétrica — modo "Frota": calcula o valor a partir do tarifário em Definições
 function toggleFrotaCarga() {
@@ -4577,7 +4668,10 @@ function openModal(type, id) {
   var modal = document.getElementById('mainModal');
   if (modal) modal.classList.add('on');
   // Parcelas: mostrar logo o resumo (total, 1ª/última cobrança) ao editar
-  if (type === 'parc') _parcRecalc();
+  if (type === 'parc') {
+    _parcRecalc();
+    if (data) { _parcOvRefresh(data); _parcOvPickMonth(); }
+  }
 }
 
 function modalDelete(type, id) {
@@ -4800,6 +4894,16 @@ function buildForm(type, d) {
         <div class="ff full" id="pSummaryRow" style="display:none">
           <div class="inf" id="pSummary" style="font-size:.78rem;line-height:1.7"></div>
         </div>
+        ${d ? `<!-- Ajustar o valor de um mês específico (só ao editar) -->
+        <div class="ff full" style="border-top:1px solid var(--brd);padding-top:.7rem">
+          <label class="fl">Ajustar um mês <span class="tmut" style="font-weight:400;text-transform:none">(opcional — só muda esse mês)</span></label>
+          <div class="row g1">
+            <select class="sel" id="f_ovM" style="flex:1.2" onchange="_parcOvPickMonth()">${parcMonths(d).map(function(m){return '<option value="'+m+'">'+monthLabel(m)+'</option>';}).join('')}</select>
+            <input class="fi" id="f_ovV" type="text" inputmode="decimal" placeholder="0,00" style="flex:1" oninput="moneyMask(event,2)">
+            <button type="button" class="btn sec sm" onclick="applyParcOv()">Aplicar</button>
+          </div>
+          <div id="pOvList" class="tmut" style="font-size:.72rem;margin-top:.35rem;line-height:1.6"></div>
+        </div>` : ''}
       </div>`;
     }
     case 'evt': return `<div class="fg">
@@ -5047,8 +5151,20 @@ function saveModal() {
     }
     case 'parc': {
       var _ad2 = !!(document.getElementById('f_autoDebit') && document.getElementById('f_autoDebit').checked);
-      var o = {name:gv('f_name'),cat:gv('f_cat'),card:gv('f_card'),vp:gm('f_val'),num:gi('f_num'),fd:gv('f_fd'),autoDebit:_ad2,sys:gv('f_sys')||null};
-      if (id!==null) { var _t=S.par.find(function(x){return x.id===id;}); if(_t) Object.assign(_t,o); }
+      var _vpS = gm('f_val'), _numS = gi('f_num');
+      // Total exato: no modo "sei o total" guarda o valor introduzido (ex: 55,99);
+      // no modo por parcela é simplesmente vp × n
+      var _totS = _parcActiveMode() === 2 ? (moneyVal(gv('f_total')) || null) : null;
+      if (!_totS) _totS = fromCents(toCents(_vpS) * _numS);
+      var o = {name:gv('f_name'),cat:gv('f_cat'),card:gv('f_card'),vp:_vpS,num:_numS,fd:gv('f_fd'),autoDebit:_ad2,sys:gv('f_sys')||null,total:_totS};
+      if (id!==null) {
+        var _t=S.par.find(function(x){return x.id===id;});
+        if(_t) {
+          // Editar sem mexer em valor/nº não pode perder o total exato original
+          if (_parcActiveMode() === 1 && _t.total && Math.abs(toCents(_t.vp)-toCents(_vpS)) < 1 && _t.num === _numS) o.total = _t.total;
+          Object.assign(_t,o);
+        }
+      }
       else S.par.push(Object.assign({id:nid(),py:{}}, o));
       break;
     }
