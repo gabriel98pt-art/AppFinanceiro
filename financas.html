@@ -2179,7 +2179,8 @@ function totVeh(ym) {
   return cg + lp + fix;
 }
 function totRec(ym) {
-  return sumVal(S.rec.filter(function(r) { return inMonth(r.date, ym); }));
+  // Ajustes de reconciliação (_src:'recon') são correções de saldo, não receitas do mês
+  return sumVal(S.rec.filter(function(r) { return inMonth(r.date, ym) && r._src !== 'recon'; }));
 }
 function totDesp(ym) { return totFixas(ym) + totCorrManual(ym) + totParcMonth(ym) + totVeh(ym); }
 function totDespRealized(ym) {
@@ -2703,7 +2704,7 @@ function renderDashboard() {
   // Comparação same-period: se estamos no mês atual, compara até ao mesmo dia do mês anterior
   var _cmpRec, _cmpDesp, _cmpLabel;
   if (isCurrentYm) {
-    _cmpRec = sumVal(S.rec.filter(function(r){ return inMonth(r.date, prevYm) && parseInt(r.date.slice(8)) <= _todayDay; }));
+    _cmpRec = sumVal(S.rec.filter(function(r){ return inMonth(r.date, prevYm) && parseInt(r.date.slice(8)) <= _todayDay && r._src !== 'recon'; }));
     var _cmpCorr = sumVal(S.dc.filter(function(d){ return inMonth(d.date, prevYm) && parseInt(d.date.slice(8)) <= _todayDay && !d._src; }));
     var _cmpFix  = sumVal(S.df.filter(function(d){ return isActiveForYm(d, prevYm) && (d.day||1) <= _todayDay; }));
     var _cmpParc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(prevYm)>=0 && parseInt((p.fd||'').slice(8)||0) <= _todayDay ? s+parcVal(p,prevYm) : s; }, 0);
@@ -2928,8 +2929,8 @@ function renderReceitas() {
   }
 
   // Totals
-  var annRecs = S.rec.filter(function(r){ return r.date && r.date.startsWith(recYearVal); });
-  var mnRecs = S.rec.filter(function(r){ return inMonth(r.date, globalMonth); });
+  var annRecs = S.rec.filter(function(r){ return r.date && r.date.startsWith(recYearVal) && r._src !== 'recon'; });
+  var mnRecs = S.rec.filter(function(r){ return inMonth(r.date, globalMonth) && r._src !== 'recon'; });
   var mnTot = sumVal(mnRecs);
   var prevYm = addMonths(globalMonth, -1);
   var prevTot = totRec(prevYm);
@@ -2954,7 +2955,7 @@ function renderReceitas() {
   // Maior receita
   var _maxRec = mnRecs.length ? Math.max.apply(null, mnRecs.map(function(r){return r.val;})) : 0;
 
-  var _prevMnRecs = S.rec.filter(function(r){ return inMonth(r.date, prevYm); });
+  var _prevMnRecs = S.rec.filter(function(r){ return inMonth(r.date, prevYm) && r._src !== 'recon'; });
   var _prevRecVenc = sumVal(_prevMnRecs.filter(function(r){ return r.src && r.src.toLowerCase().indexOf('vencimento') >= 0; }));
   var _prevTrfIn = sumVal(_prevMnRecs.filter(function(r){ return r.src && r.src.toLowerCase().indexOf('transfer') >= 0; }));
   var _prevMaxRec = _prevMnRecs.length ? Math.max.apply(null, _prevMnRecs.map(function(r){return r.val;})) : 0;
@@ -3841,8 +3842,8 @@ function openDayModal(day) {
 function cardBalAtDate(card, endDate) {
   var snap = getCardSnap(card, endDate);
   if (snap.date === '0000-01-01') return null;
-  var recIn  = sumVal(S.rec.filter(function(r){ return r.card===card && r.date>snap.date && r.date<=endDate; }));
-  var dcOut  = sumVal(S.dc.filter(function(d){  return d.card===card && d.date>snap.date && d.date<=endDate; }));
+  var recIn  = sumVal(S.rec.filter(function(r){ return r.card===card && r.date>=snap.date && r.date<=endDate; }));
+  var dcOut  = sumVal(S.dc.filter(function(d){  return d.card===card && d.date>=snap.date && d.date<=endDate; }));
   var trfIn  = sumVal((S.trf||[]).filter(function(t){ return t.to===card   && t.date>=snap.date && t.date<=endDate; }));
   var trfOut = sumVal((S.trf||[]).filter(function(t){ return t.from===card && t.date>=snap.date && t.date<=endDate; }));
   return snap.val + recIn - dcOut + trfIn - trfOut;
@@ -3893,8 +3894,8 @@ function openReconcileModal(card) {
   if (!isFirst) {
     var snapDate = snap.date;
     appBal = snap.val
-      + sumVal(S.rec.filter(function(r){return r.card===card&&r.date>snapDate&&r.date<=today;}))
-      - sumVal(S.dc.filter(function(d){return d.card===card&&d.date>snapDate&&d.date<=today;}))
+      + sumVal(S.rec.filter(function(r){return r.card===card&&r.date>=snapDate&&r.date<=today;}))
+      - sumVal(S.dc.filter(function(d){return d.card===card&&d.date>=snapDate&&d.date<=today;}))
       + sumVal((S.trf||[]).filter(function(t){return t.to===card&&t.date>=snapDate&&t.date<=today;}))
       - sumVal((S.trf||[]).filter(function(t){return t.from===card&&t.date>=snapDate&&t.date<=today;}));
   }
@@ -4020,8 +4021,8 @@ function renderCartoes() {
     var snap     = getCardSnap(card, balDate);
     var snapVal  = snap.val;
     var snapDate = snap.date;
-    var allRecIn  = sumVal(S.rec.filter(function(r){return r.card===card&&r.date>snapDate&&r.date<=balDate;}));
-    var allDcOut  = sumVal(S.dc.filter(function(d){return d.card===card&&d.date>snapDate&&d.date<=balDate;}));
+    var allRecIn  = sumVal(S.rec.filter(function(r){return r.card===card&&r.date>=snapDate&&r.date<=balDate;}));
+    var allDcOut  = sumVal(S.dc.filter(function(d){return d.card===card&&d.date>=snapDate&&d.date<=balDate;}));
     var allTrfIn  = sumVal((S.trf||[]).filter(function(t){return t.to===card&&t.date>=snapDate&&t.date<=balDate;}));
     var allTrfOut = sumVal((S.trf||[]).filter(function(t){return t.from===card&&t.date>=snapDate&&t.date<=balDate;}));
     var acum = snapVal + allRecIn - allDcOut + allTrfIn - allTrfOut;
@@ -5201,8 +5202,8 @@ function saveModal() {
       if (!_risFirst) {
         var _rsd = _rsnap.date;
         var _rAppBal = _rsnap.val
-          + sumVal(S.rec.filter(function(r){return r.card===_rcard&&r.date>_rsd&&r.date<=_today2;}))
-          - sumVal(S.dc.filter(function(d){return d.card===_rcard&&d.date>_rsd&&d.date<=_today2;}))
+          + sumVal(S.rec.filter(function(r){return r.card===_rcard&&r.date>=_rsd&&r.date<=_today2;}))
+          - sumVal(S.dc.filter(function(d){return d.card===_rcard&&d.date>=_rsd&&d.date<=_today2;}))
           + sumVal((S.trf||[]).filter(function(t){return t.to===_rcard&&t.date>=_rsd&&t.date<=_today2;}))
           - sumVal((S.trf||[]).filter(function(t){return t.from===_rcard&&t.date>=_rsd&&t.date<=_today2;}));
         var _rdiff = parseFloat((_real - _rAppBal).toFixed(2));
@@ -5214,7 +5215,10 @@ function saveModal() {
       } else { _mToast = '✓ Saldo inicial definido: ' + fmt(_real); }
       var _sdTrfIn  = sumVal((S.trf||[]).filter(function(t){return t.to===_rcard&&t.date===_today2;}));
       var _sdTrfOut = sumVal((S.trf||[]).filter(function(t){return t.from===_rcard&&t.date===_today2;}));
-      var _snapStoredVal = fromCents(toCents(_real) - toCents(_sdTrfIn) + toCents(_sdTrfOut));
+      // Desconta também rec/dc do próprio dia — os saldos usam >= e voltam a somá-los
+      var _sdRecIn  = sumVal(S.rec.filter(function(r){return r.card===_rcard&&r.date===_today2;}));
+      var _sdDcOut  = sumVal(S.dc.filter(function(d){return d.card===_rcard&&d.date===_today2;}));
+      var _snapStoredVal = fromCents(toCents(_real) - toCents(_sdTrfIn) + toCents(_sdTrfOut) - toCents(_sdRecIn) + toCents(_sdDcOut));
       if (!S.cfg.balSnap) S.cfg.balSnap = {};
       var _rarr = S.cfg.balSnap[_rcard];
       if (!Array.isArray(_rarr)) _rarr = _rarr ? [_rarr] : [];
@@ -7313,6 +7317,25 @@ document.addEventListener('keydown', function(e) {
 (function() {
   try {
     globalMonth = currentYm();
+
+    // Migração única: fotografias de saldo passam a descontar rec/dc do próprio dia
+    // (os cálculos de saldo passaram de > para >= na data da fotografia; sem este
+    // ajuste, lançamentos do dia da reconciliação contariam em dobro)
+    if (!S.cfg._mig_snap_sameday) {
+      Object.keys(S.cfg.balSnap || {}).forEach(function(_msCard) {
+        var _msRaw = S.cfg.balSnap[_msCard];
+        var _msArr = Array.isArray(_msRaw) ? _msRaw : (_msRaw ? [_msRaw] : []);
+        _msArr.forEach(function(s) {
+          if (!s || !s.date) return;
+          var _msRec = sumVal(S.rec.filter(function(r){return r.card===_msCard&&r.date===s.date;}));
+          var _msDc  = sumVal(S.dc.filter(function(d){return d.card===_msCard&&d.date===s.date;}));
+          s.val = fromCents(toCents(s.val) - toCents(_msRec) + toCents(_msDc));
+        });
+        S.cfg.balSnap[_msCard] = _msArr;
+      });
+      S.cfg._mig_snap_sameday = true;
+      saveState();
+    }
 
 
     // Backup único dos arrays afetados pelas migrações de dedup
