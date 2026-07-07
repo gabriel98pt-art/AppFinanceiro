@@ -1167,9 +1167,11 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
       <div class="eyebrow">Os seus dados <b>TVDE</b></div>
       <button class="tvd-btn" onclick="document.getElementById('tvdFileImport').click()">⬆ Importar backup do Controle Motorista (.json)</button>
       <input type="file" id="tvdFileImport" accept=".json" hidden onchange="tvdImportFile(this)">
-      <button class="tvd-btn ghost" onclick="tvdExportJSON()">⬇ Exportar backup TVDE (.json)</button>
-      <div id="tvdExportBox"></div>
-      <div class="note">A importação lê o ficheiro que o Controle Motorista exporta em Ajustes → “Guardar cópia de segurança”. Antes de gravar, mostra um resumo e pede confirmação — e substitui os dados TVDE daqui (os registos das finanças não são tocados). O backup exportado aqui também pode ser reposto na app antiga.</div>
+      <button class="tvd-btn ghost" onclick="tvdExportJSON()">⬇ Guardar cópia de segurança TVDE (.json + .csv)</button>
+      <button class="tvd-btn ghost" onclick="tvdCSVSemanas()">📄 Exportar semanas p/ Excel ou Sheets (CSV)</button>
+      <button class="tvd-btn ghost" onclick="tvdCSVResumo()">🧾 Baixar resumo (CSV)</button>
+      <button class="tvd-btn danger" onclick="tvdApagarTudo()">Apagar todos os dados TVDE</button>
+      <div class="note">A importação lê o ficheiro que o Controle Motorista exporta em Ajustes → “Guardar cópia de segurança”. Antes de gravar, mostra um resumo e pede confirmação — e substitui os dados TVDE daqui (os registos das finanças não são tocados). O backup exportado aqui também pode ser reposto na app antiga. Apagar os dados TVDE não toca nas finanças e pode ser desfeito com o ↩ do topo.</div>
     </div>
   </div>
 </div>
@@ -8965,16 +8967,87 @@ function tvdImportFile(inp){
   rd.onerror=function(){ showToast("⚠ Não consegui ler o ficheiro", true); };
   rd.readAsText(f);
 }
+function tvdBaixar(conteudo,tipo,nome){
+  var blob=new Blob([conteudo],{type:tipo});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=nome; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); },4000);
+}
+// CSV com ; e vírgula decimal — abre no Excel e importa no Google Sheets
+function cn(v){ return (Math.round(v*100)/100).toFixed(2).replace(".",","); }
+function dataPT(d){ return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear(); }
+function csvSemanas(){
+  var t0=TV(), cfg=t0.cfg, linhas=[];
+  // exportações mantêm SEMPRE todas as colunas, mesmo com campos desligados
+  linhas.push(["Semana","Início","Fim","Faturamento (€)","% Frota","Frota (€)","Portagens (€)","Aluguel (€)","Recarga frota (€)","Extra (€)","Gorjetas (€)","Recarga própria (€)","Receita (€)","Lucro bruto (€)","Horas","Ganhos/h (€)","Viagens","€/Viagem","Custos (€)","% Custo"].join(";"));
+  weekNums().forEach(function(n){
+    var w=t0.weeks[n]; if(!(w.fat>0)) return;
+    var c=calc(w,cfg), pct=w.pct!=null?w.pct:cfg.pctFrota;
+    linhas.push([n,dataPT(wkStart(n)),dataPT(wkEnd(n)),cn(w.fat),cn(pct),cn(c.frota),cn(w.port||0),cn(w.alu||0),cn(w.recF||0),cn(w.extra||0),cn(w.gorj||0),cn(w.recP||0),cn(c.receita),cn(c.lucro),cn(w.horas||0),c.ganhosH?cn(c.ganhosH):"",w.viag||0,c.eurViag?cn(c.eurViag):"",cn(c.custos),c.pctCusto?cn(c.pctCusto*100)+"%":""].join(";"));
+  });
+  if(t0.desp.length){
+    linhas.push("");
+    linhas.push(["Despesas","Data","Categoria","Valor (€)","Semana","Descrição"].join(";"));
+    t0.desp.forEach(function(d){
+      linhas.push(["",String(d.d||"").split("-").reverse().join("/"),String(d.cat||"").replace(/;/g,","),cn(d.val||0),(d.sem!=null?d.sem:""),String(d.desc||"").replace(/;/g,",")].join(";"));
+    });
+  }
+  return linhas.join("\r\n");
+}
+function csvResumo(){
+  var t=totals(), per=periodData(), ms=monthData();
+  var L=[];
+  L.push("RESUMO — TVDE");
+  L.push("Gerado em;"+dataPT(new Date()));
+  L.push("");
+  L.push("TOTAIS");
+  L.push("Semanas registadas;"+t.n);
+  L.push("Faturamento (€);"+cn(t.fat));
+  L.push("Receita (€);"+cn(t.receita));
+  L.push("Custos (€);"+cn(t.custos));
+  L.push("Lucro bruto (€);"+cn(t.lucro));
+  L.push("Seg. Social (€);"+cn(t.lucro-t.lucroLiq));
+  L.push("Lucro líquido (€);"+cn(t.lucroLiq));
+  L.push("Horas;"+cn(t.horas));
+  L.push("Viagens;"+t.viag);
+  L.push("Ganhos por hora (€);"+cn(t.mediaGH));
+  L.push("Lucro por viagem (€);"+(t.viag?cn(t.lucro/t.viag):""));
+  L.push("Média semanal (€);"+cn(t.mediaSem));
+  L.push("");
+  L.push("POR MÊS");
+  L.push("Mês;Lucro (€)");
+  ms.forEach(function(o){ L.push(o.m+";"+cn(o.lucro)); });
+  L.push("");
+  L.push("POR PERÍODO DE 4 SEMANAS");
+  L.push("Período;Lucro líquido (€);Horas;Viagens");
+  per.forEach(function(o){ L.push(periodLabel(o.p)+";"+cn(o.liq)+";"+cn(o.horas)+";"+o.viag); });
+  return L.join("\r\n");
+}
 function tvdExportJSON(){
   var t0=TV();
   var out={cfg:t0.cfg,weeks:t0.weeks,seg:t0.seg,desp:t0.desp,meta:{lastExport:Date.now()}};
-  var blob=new Blob([JSON.stringify(out,null,1)],{type:"application/json"});
-  var a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="controle-motorista-"+isoDate(new Date())+".json";
-  a.click();
-  setTimeout(function(){ URL.revokeObjectURL(a.href); },4000);
-  showToast("✓ Backup TVDE exportado (compatível com a app antiga)");
+  tvdBaixar(JSON.stringify(out,null,1),"application/json","controle-motorista-"+isoDate(new Date())+".json");
+  setTimeout(function(){ tvdBaixar("\uFEFF"+csvSemanas(),"text/csv;charset=utf-8","controle-motorista-planilha-"+isoDate(new Date())+".csv"); },300);
+  showToast("✓ Backup TVDE exportado — .json (repõe aqui ou na app antiga) + .csv");
+}
+function tvdCSVSemanas(){
+  tvdBaixar("\uFEFF"+csvSemanas(),"text/csv;charset=utf-8","controle-motorista-planilha-"+isoDate(new Date())+".csv");
+  showToast("✓ CSV das semanas exportado");
+}
+function tvdCSVResumo(){
+  tvdBaixar("\uFEFF"+csvResumo(),"text/csv;charset=utf-8","controle-motorista-resumo-"+isoDate(new Date())+".csv");
+  showToast("✓ Resumo CSV exportado");
+}
+function tvdApagarTudo(){
+  var n=Object.keys(TV().weeks).length;
+  if(!confirm("Apagar TODOS os dados TVDE ("+n+" semanas)?\nOs registos das finanças não são tocados.")) return;
+  if(!confirm("Tem a certeza? Esta ação apaga o TVDE inteiro (dá para desfazer já a seguir com o ↩ do topo).")) return;
+  snapshot();
+  S.tvde={};
+  TV();
+  saveState();
+  tvdRender();
+  showToast("🗑 Dados TVDE apagados — use ↩ para desfazer");
 }
 
 /* ---------- sub-navegação e render ---------- */
@@ -9260,12 +9333,136 @@ function tvdRenderChart(){
   wrap.scrollLeft=wrap.scrollWidth;
 }
 
+/* ---------- ajustes: parâmetros + "Janela da semana" com preview ---------- */
+var TVD_CFGMAP={tvdCfgMetaSem:"metaSem",tvdCfgMetaMes:"metaMes",tvdCfgMetaHoras:"metaHoras",tvdCfgMetaHora:"metaHora",tvdCfgPct:"pctFrota",tvdCfgAluguel:"aluguel"};
+function tvdParam(id,lbl,val,step,show){
+  return '<label'+(show?'':' style="display:none"')+'><span class="k">'+lbl+'</span><input type="number" step="'+step+'" id="'+id+'" value="'+val+'"></label>';
+}
+function tvdRenderAjustes(){
+  var t0=TV(), cfg=t0.cfg, box=document.getElementById("tvdAjustesBox");
+  var hOn=campoOn("horas"), aOn=campoOn("alu");
+  box.innerHTML=
+    '<div class="tvd-card"><div class="eyebrow">Parâmetros</div><div class="tvd-grid2">'
+    +tvdParam("tvdCfgMetaSem","Meta semanal (€)",cfg.metaSem,1,true)
+    +tvdParam("tvdCfgMetaMes","Meta mensal (€)",cfg.metaMes,1,true)
+    +tvdParam("tvdCfgMetaHoras","Meta de horas/semana",cfg.metaHoras,1,hOn)
+    +tvdParam("tvdCfgMetaHora","Meta €/hora mínima",cfg.metaHora,0.1,hOn)
+    +tvdParam("tvdCfgPct","% Frota (semanas novas)",cfg.pctFrota,0.1,true)
+    +tvdParam("tvdCfgAluguel","Aluguel semanal (€)",cfg.aluguel,1,aOn)
+    +'</div><div class="note">A % Frota fica gravada dentro de cada semana ao guardar — mudar aqui só vale para semanas novas, o histórico não é alterado.</div></div>'
+    +'<div class="tvd-card"><div class="eyebrow">Janela da semana <b>monte à sua maneira</b></div><div class="jsplit"><div class="tvd-lists">'
+    +'<div class="subh">Quadros (ordem dos blocos da consulta)</div><div id="tvdQuadrosBox"></div>'
+    +'<div class="subh">Campos de valores</div><div class="campo"><span class="nm">Faturamento</span><span class="s">sempre pedido — é a base das contas</span></div><div id="tvdCamposBox"></div>'
+    +'<div class="subh">Resultado (contas da semana)</div><div id="tvdContasBox"></div>'
+    +'<div class="note">Interruptor = aparece ou não · setas ↑↓ = ordem. Um campo desligado some do TVDE inteiro (formulário, consulta, resumo e tabelas), mas nada é apagado: os valores antigos ficam guardados, continuam nas contas e voltam a aparecer se religar. As linhas do Resultado só mudam a consulta. <b>Mini-cartões:</b> toque num deles na pré-visualização ao lado para trocar o que mostra.</div>'
+    +'</div><div class="prev"><div class="prevlab" id="tvdPrevLab">Pré-visualização</div><div id="tvdPrevBox"></div></div></div></div>';
+  Object.keys(TVD_CFGMAP).forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.addEventListener("change",function(){
+      snapshot();
+      TV().cfg[TVD_CFGMAP[id]]=parseFloat(el.value)||0;
+      saveState(); tvdRenderPreview();
+    });
+  });
+  tvdRenderCampos(); tvdRenderContas(); tvdRenderQuadros(); tvdRenderPreview();
+}
+// lista genérica {k,on}: interruptor + setas
+function tvdRenderOnList(boxId,defs,getArr,onChange){
+  var arr=getArr(), box=document.getElementById(boxId);
+  if(!box) return;
+  box.innerHTML=arr.map(function(c,i){
+    var def=defs.find(function(d){return d.k===c.k;});
+    return '<div class="campo'+(c.on?'':' off')+'">'
+      +'<input type="checkbox" '+(c.on?'checked':'')+' data-k="'+c.k+'" aria-label="Mostrar '+def.nm+'">'
+      +'<span class="nm">'+def.nm+'</span>'
+      +'<button class="mv" data-k="'+c.k+'" data-d="-1" '+(i===0?'disabled':'')+' aria-label="Subir '+def.nm+'">↑</button>'
+      +'<button class="mv" data-k="'+c.k+'" data-d="1" '+(i===arr.length-1?'disabled':'')+' aria-label="Descer '+def.nm+'">↓</button></div>';
+  }).join("");
+  box.querySelectorAll("input").forEach(function(inp){
+    inp.addEventListener("change",function(){
+      snapshot();
+      getArr().find(function(c){return c.k===inp.dataset.k;}).on=inp.checked;
+      onChange();
+    });
+  });
+  box.querySelectorAll(".mv").forEach(function(b){
+    b.addEventListener("click",function(){
+      var a=getArr(), i=a.findIndex(function(c){return c.k===b.dataset.k;}), j=i+(+b.dataset.d);
+      if(j<0||j>=a.length) return;
+      snapshot();
+      var tmp=a[i]; a[i]=a[j]; a[j]=tmp;
+      onChange();
+    });
+  });
+}
+function tvdRenderCampos(){
+  tvdRenderOnList("tvdCamposBox",CAMPOS_DEF,function(){return TV().cfg.campos;},function(){
+    // ligar/desligar um campo mexe no TVDE todo: chips, resumo, listas, tabelas, parâmetros
+    TV().cfg.chips=normChipSlots(TV().cfg.chips,TV().cfg.campos);
+    saveState(); tvdRenderAjustes();
+  });
+}
+function tvdRenderContas(){
+  tvdRenderOnList("tvdContasBox",CONTAS_DEF,function(){return TV().cfg.contas;},function(){
+    saveState(); tvdRenderContas(); tvdRenderPreview();
+  });
+}
+function tvdRenderQuadros(){
+  var arr=TV().cfg.quadros, box=document.getElementById("tvdQuadrosBox");
+  if(!box) return;
+  box.innerHTML=arr.map(function(k,i){
+    var def=QUADROS_DEF.find(function(q){return q.k===k;});
+    return '<div class="campo"><span class="nm">'+def.nm+'</span>'
+      +'<button class="mv" data-k="'+k+'" data-d="-1" '+(i===0?'disabled':'')+' aria-label="Subir '+def.nm+'">↑</button>'
+      +'<button class="mv" data-k="'+k+'" data-d="1" '+(i===arr.length-1?'disabled':'')+' aria-label="Descer '+def.nm+'">↓</button></div>';
+  }).join("");
+  box.querySelectorAll(".mv").forEach(function(b){
+    b.addEventListener("click",function(){
+      var a=TV().cfg.quadros, i=a.indexOf(b.dataset.k), j=i+(+b.dataset.d);
+      if(j<0||j>=a.length) return;
+      snapshot();
+      var tmp=a[i]; a[i]=a[j]; a[j]=tmp;
+      saveState(); tvdRenderQuadros(); tvdRenderPreview();
+    });
+  });
+}
+// toque num mini-cartão do preview: passa para a próxima métrica livre (SÓ aqui — na janela real não é clicável)
+function tvdWireChips(root){
+  root.querySelectorAll(".chip[data-slot]").forEach(function(el){
+    el.addEventListener("click",function(){
+      var keys=chipKeysDisponiveis(TV().cfg.campos), cur=TV().cfg.chips, i=+el.dataset.slot;
+      var idx=keys.indexOf(cur[i]);
+      do{ idx=(idx+1)%keys.length; }while(cur.indexOf(keys[idx])>=0&&keys[idx]!==cur[i]);
+      snapshot();
+      cur[i]=keys[idx];
+      saveState(); tvdRenderPreview();
+    });
+  });
+}
+function tvdRenderPreview(){
+  var box=document.getElementById("tvdPrevBox"), lab=document.getElementById("tvdPrevLab");
+  if(!box) return;
+  var ns=weekNums();
+  if(!ns.length){
+    lab.textContent="Pré-visualização";
+    box.innerHTML='<div class="tvd-empty">Registe uma semana para ver a pré-visualização.</div>';
+    return;
+  }
+  var n=ns[ns.length-1]; // última semana registada
+  lab.textContent="Pré-visualização · Semana "+n;
+  box.innerHTML=consultaHTML(n,true);
+  tvdWireChips(box);
+}
+
 /* exports p/ onclick e integração */
 window.tvdRender=tvdRender;
 window.tvdSw=tvdSw;
 window.tvdOpenView=tvdOpenView;
 window.tvdImportFile=tvdImportFile;
 window.tvdExportJSON=tvdExportJSON;
+window.tvdCSVSemanas=tvdCSVSemanas;
+window.tvdCSVResumo=tvdCSVResumo;
+window.tvdApagarTudo=tvdApagarTudo;
 window.tvdAddWeek=tvdAddWeek;
 window.tvdEditFromView=tvdEditFromView;
 window.tvdSaveWeek=tvdSaveWeek;
