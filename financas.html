@@ -3235,6 +3235,11 @@ function _autoDebitParcVal(card, ym) {
   }, 0);
 }
 
+// Transferências que saem do cartão de crédito entram na fatura do mês (como uma compra)
+function _trfOutFatVal(card, ym) {
+  return sumVal((S.trf||[]).filter(function(t){ return t.from===card && inMonth(t.date, ym); }));
+}
+
 function togglePaid(id, val, ym) {
   var _ym = ym || globalMonth;
   snapshot();
@@ -3910,7 +3915,8 @@ function openFatManualModal(card, ym) {
   var fatCalc = sumVal(S.df.filter(function(d){return d.card===card&&isActiveForYm(d,ym);}))
              + sumVal((S.veh.df||[]).filter(function(d){return d.card===card&&isActiveForYm(d,ym);}))
              + sumVal(S.dc.filter(function(d){return inMonth(d.date,ym)&&d.card===card&&d._src!=='fat';}))
-             + _autoDebitParcVal(card, ym);
+             + _autoDebitParcVal(card, ym)
+             + _trfOutFatVal(card, ym);
   _rcCard = card; _rcYm = ym;
   mType = 'fatmanual'; mId = null;
   var title = document.getElementById('modalTitle');
@@ -3946,7 +3952,8 @@ function payFatura(card, ym) {
   var fatCalc = sumVal(S.df.filter(function(d){return d.card===card&&isActiveForYm(d,ym);}))
              + sumVal((S.veh.df||[]).filter(function(d){return d.card===card&&isActiveForYm(d,ym);}))
              + sumVal(S.dc.filter(function(d){return inMonth(d.date,ym)&&d.card===card&&d._src!=='fat';}))
-             + _autoDebitParcVal(card, ym);
+             + _autoDebitParcVal(card, ym)
+             + _trfOutFatVal(card, ym);
   var fatManualVal = (S.cfg.fatManual||{})[card] && (S.cfg.fatManual||{})[card][ym];
   var fat = fatManualVal != null ? fatManualVal : fatCalc;
   snapshot();
@@ -4051,7 +4058,8 @@ function renderCartoes() {
     if (isCredit) {
       var fatCalc = sumVal(dfM.filter(function(d){return d.card===card;}))
                  + sumVal(dcM.filter(function(d){return d.card===card&&d._src!=='fat';}))
-                 + _autoDebitParcVal(card, ym);
+                 + _autoDebitParcVal(card, ym)
+                 + _trfOutFatVal(card, ym);
       var fatManual = (S.cfg.fatManual||{})[card] && (S.cfg.fatManual||{})[card][ym];
       var fat = fatManual != null ? fatManual : fatCalc;
       var fatEntry = (S.cfg.fatPaid||{})[card] && (S.cfg.fatPaid||{})[card][ym];
@@ -4062,7 +4070,7 @@ function renderCartoes() {
         _kpiYm = _nextD.getFullYear() + '-' + pad2(_nextD.getMonth() + 1);
         var _nextDfM = S.df.filter(function(d){return isActiveForYm(d,_kpiYm)&&d.card===card;});
         var _nextDcM = S.dc.filter(function(d){return inMonth(d.date,_kpiYm)&&d.card===card&&d._src!=='fat';});
-        var _nextFatCalc = sumVal(_nextDfM) + sumVal(_nextDcM) + _autoDebitParcVal(card, _kpiYm);
+        var _nextFatCalc = sumVal(_nextDfM) + sumVal(_nextDcM) + _autoDebitParcVal(card, _kpiYm) + _trfOutFatVal(card, _kpiYm);
         var _nextFatManual = (S.cfg.fatManual||{})[card] && (S.cfg.fatManual||{})[card][_kpiYm];
         fat = _nextFatManual != null ? _nextFatManual : _nextFatCalc;
         _kpiLabel = '<div class="ksub" style="color:var(--grn);font-size:.62rem">✓ ' + monthLabel(ym) + ' pago</div>';
@@ -4117,7 +4125,8 @@ function renderCartoes() {
     if (_ctType === 'credit') {
       var _ctFatCalc = sumVal(dfM.filter(function(d){return d.card===c;}))
                      + sumVal(dcM.filter(function(d){return d.card===c&&d._src!=='fat';}))
-                     + _autoDebitParcVal(c, ym);
+                     + _autoDebitParcVal(c, ym)
+                     + _trfOutFatVal(c, ym);
       var _ctFatManual = (S.cfg.fatManual||{})[c] && (S.cfg.fatManual||{})[c][ym];
       return _ctFatManual != null ? _ctFatManual : _ctFatCalc;
     }
