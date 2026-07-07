@@ -8685,10 +8685,9 @@ var CONTAS_DEF = [
   {k:"lucro",nm:"Lucro bruto",off:true} // desligado: já aparece em destaque no topo
 ];
 var CHIPS_DEF = [
-  {k:"horas",nm:"Horas"},{k:"viag",nm:"Viagens"},{k:"ph",nm:"Por hora"},{k:"pv",nm:"Por viagem"},
+  {k:"horas",nm:"Horas"},{k:"ph",nm:"Por hora"},{k:"viag",nm:"Viagens"},{k:"pv",nm:"Por viagem"},
   {k:"fat",nm:"Faturamento"},{k:"receita",nm:"Receita"},{k:"custos",nm:"Custos"},{k:"gorj",nm:"Gorjetas"}
 ];
-var CHIP_DEP = {horas:"horas",ph:"horas",viag:"viag",pv:"viag",gorj:"gorj"};
 var QUADROS_DEF = [
   {k:"hero",nm:"Lucro em destaque"},
   {k:"chips",nm:"Mini-cartões (métricas à escolha)"},
@@ -8703,12 +8702,14 @@ function normOnList(list,defs){
   defs.forEach(function(d){ if(!out.some(function(x){return x.k===d.k;})) out.push({k:d.k,on:!d.off}); });
   return out;
 }
-function chipKeysDisponiveis(campos){
-  var off=function(k){ var c=(campos||[]).find(function(x){return x.k===k;}); return c&&!c.on; };
-  return CHIPS_DEF.map(function(c){return c.k;}).filter(function(k){ return !CHIP_DEP[k]||!off(CHIP_DEP[k]); });
+// Os mini-cartões são INDEPENDENTES dos campos de valores: o utilizador escolhe
+// o que fica em cada parte (pedido explícito — podem até repetir ou mostrar o que
+// está desligado nos valores).
+function chipKeysDisponiveis(){
+  return CHIPS_DEF.map(function(c){return c.k;});
 }
-function normChipSlots(list,campos){
-  var keys=chipKeysDisponiveis(campos), out=[];
+function normChipSlots(list){
+  var keys=chipKeysDisponiveis(), out=[];
   (Array.isArray(list)?list:[]).forEach(function(o){
     var k=(typeof o==="string")?o:(o&&o.on!==false?o.k:null);
     if(k&&keys.indexOf(k)>=0&&out.indexOf(k)<0&&out.length<4) out.push(k);
@@ -8732,7 +8733,10 @@ function tvdNorm(d){
   d=(d&&typeof d==="object"&&!Array.isArray(d))?d:{};
   d.cfg=Object.assign({},TVD_SEEDCFG,d.cfg||{});
   d.cfg.campos=normOnList(d.cfg.campos,CAMPOS_DEF);
-  d.cfg.chips=normChipSlots(d.cfg.chips,d.cfg.campos);
+  d.cfg.chips=normChipSlots(d.cfg.chips);
+  // migração única (07/2026): repõe os 4 mini-cartões pedidos pelo utilizador,
+  // desfazendo o antigo acoplamento aos campos que os deixava só com métricas repetidas
+  if(!d.cfg.chipsV2){ d.cfg.chips=["horas","ph","viag","pv"]; d.cfg.chipsV2=true; }
   d.cfg.contas=normOnList(d.cfg.contas,CONTAS_DEF);
   d.cfg.quadros=normQuadros(d.cfg.quadros);
   d.weeks=_fixMap(d.weeks);
@@ -9437,8 +9441,8 @@ function tvdRenderOnList(boxId,defs,getArr,onChange){
 }
 function tvdRenderCampos(){
   tvdRenderOnList("tvdCamposBox",CAMPOS_DEF,function(){return TV().cfg.campos;},function(){
-    // ligar/desligar um campo mexe no TVDE todo: chips, resumo, listas, tabelas, parâmetros
-    TV().cfg.chips=normChipSlots(TV().cfg.chips,TV().cfg.campos);
+    // ligar/desligar um campo mexe no resto do TVDE (resumo, listas, tabelas, parâmetros);
+    // os mini-cartões NÃO são afetados — são escolhidos à parte
     saveState(); tvdRenderAjustes();
   });
 }
@@ -9470,7 +9474,7 @@ function tvdRenderQuadros(){
 function tvdWireChips(root){
   root.querySelectorAll(".chip[data-slot]").forEach(function(el){
     el.addEventListener("click",function(){
-      var keys=chipKeysDisponiveis(TV().cfg.campos), cur=TV().cfg.chips, i=+el.dataset.slot;
+      var keys=chipKeysDisponiveis(), cur=TV().cfg.chips, i=+el.dataset.slot;
       var idx=keys.indexOf(cur[i]);
       do{ idx=(idx+1)%keys.length; }while(cur.indexOf(keys[idx])>=0&&keys[idx]!==cur[i]);
       snapshot();
