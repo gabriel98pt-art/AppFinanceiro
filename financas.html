@@ -1183,6 +1183,29 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
   <button class="tvd-btn ghost" onclick="document.getElementById('tvdDlgView').close()">Fechar</button>
 </dialog>
 
+<!-- TVDE: editor de semana -->
+<dialog class="tvd-dlg" id="tvdDlgWeek">
+  <h2 id="tvdDlgTitle">Semana</h2>
+  <div class="per tvd-num" id="tvdDlgPer"></div>
+  <label class="f" id="tvdRowWeekN" style="display:none"><span class="k">Semana nº (mude para preencher uma semana antiga)</span>
+    <input type="number" step="1" min="1" inputmode="numeric" id="tvdWNum"></label>
+  <div class="grid2" id="tvdWGrid">
+    <label class="f"><span class="k">Faturamento (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWFat"></label>
+    <label class="f"><span class="k">Portagens (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWPort"></label>
+    <label class="f"><span class="k">Aluguel (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWAlu"></label>
+    <label class="f"><span class="k">Recarga frota (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWRecF"></label>
+    <label class="f"><span class="k">Extra (€) · fora do faturamento, soma ao lucro</span><input type="number" step="0.01" inputmode="decimal" id="tvdWExtra"></label>
+    <label class="f"><span class="k">Gorjetas (€) · só anotação, já vêm no faturamento</span><input type="number" step="0.01" inputmode="decimal" id="tvdWGorj"></label>
+    <label class="f"><span class="k">Recarga própria (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWRecP"></label>
+    <label class="f"><span class="k">Horas</span><input type="number" step="0.5" inputmode="decimal" id="tvdWHoras"></label>
+    <label class="f"><span class="k">Viagens</span><input type="number" step="1" inputmode="numeric" id="tvdWViag"></label>
+  </div>
+  <div class="calc" id="tvdWCalc"></div>
+  <button class="tvd-btn" onclick="tvdSaveWeek()">Guardar semana</button>
+  <button class="tvd-btn danger" id="tvdBtnDelWeek" onclick="tvdDelWeek()">Apagar esta semana</button>
+  <button class="tvd-btn ghost" onclick="document.getElementById('tvdDlgWeek').close()">Fechar</button>
+</dialog>
+
 <!-- MAIN MODAL -->
 <div class="mover" id="mainModal" onclick="if(event.target===this)closeModal()">
   <div class="mbox">
@@ -8972,9 +8995,270 @@ function tvdRender(){
   else if(tvdSec==="ajustes"&&typeof tvdRenderAjustes==="function") tvdRenderAjustes();
 }
 
-/* ---------- stubs (preenchidos nas fases seguintes) ---------- */
-function tvdAddWeek(){ showToast("ℹ O editor de semanas chega na fase seguinte da fusão"); }
-function tvdEditFromView(){ showToast("ℹ O editor de semanas chega na fase seguinte da fusão"); }
+/* ---------- editor de semana ---------- */
+var editN=null, creating=false, editPct=6, hiddenKeys={};
+var WF=["Fat","Port","Alu","RecF","Extra","Gorj","RecP","Horas","Viag"];
+var WKEYS=["fat","port","alu","recF","extra","gorj","recP","horas","viag"];
+function wEl(i){ return document.getElementById("tvdW"+WF[i]); }
+function tvdOpenWeek(n){
+  var t0=TV();
+  editN=n; creating=!t0.weeks[n];
+  editPct=(t0.weeks[n]&&t0.weeks[n].pct!=null)?t0.weeks[n].pct:t0.cfg.pctFrota;
+  var w=t0.weeks[n]||{fat:"",port:0,alu:t0.cfg.aluguel,recF:0,extra:0,gorj:0,recP:0,horas:"",viag:""};
+  document.getElementById("tvdDlgTitle").textContent="Semana "+n;
+  document.getElementById("tvdDlgPer").textContent=wkLabel(n);
+  document.getElementById("tvdRowWeekN").style.display=creating?"":"none";
+  document.getElementById("tvdWNum").value=n;
+  WKEYS.forEach(function(k,i){ wEl(i).value=(w[k]===0)?"":(w[k]==null?"":w[k]); });
+  // ordem e visibilidade dos campos escolhidas em Ajustes; ao guardar,
+  // o valor de um campo escondido é preservado (nunca zerado às escondidas)
+  hiddenKeys={};
+  t0.cfg.campos.forEach(function(c,i){
+    var inp=wEl(WKEYS.indexOf(c.k)), lb=inp.closest("label");
+    lb.style.order=i+1;
+    if(!c.on){ hiddenKeys[c.k]=1; inp.value=""; }
+    lb.style.display=c.on?"":"none";
+  });
+  document.getElementById("tvdBtnDelWeek").style.display=creating?"none":"";
+  tvdLiveCalc();
+  document.getElementById("tvdDlgWeek").showModal();
+}
+function readForm(){
+  var o={pct:editPct}, atual=TV().weeks[editN]||{};
+  WKEYS.forEach(function(k,i){
+    o[k]=hiddenKeys[k]?(atual[k]||0):(parseFloat(wEl(i).value)||0);
+  });
+  return o;
+}
+function tvdLiveCalc(){
+  var c=calc(readForm(),TV().cfg);
+  document.getElementById("tvdWCalc").innerHTML=
+    '<div class="row"><span class="k">'+fN1.format(editPct)+'% frota</span><span class="v tvd-num tvd-bad">'+fEUR.format(c.frota)+'</span></div>'
+    +'<div class="row"><span class="k">Receita</span><span class="v tvd-num">'+fEUR.format(c.receita)+'</span></div>'
+    +'<div class="row"><span class="k">Custos totais</span><span class="v tvd-num tvd-bad">'+fEUR.format(c.custos)+'</span></div>'
+    +'<div class="row hl"><span class="k">Lucro bruto</span><span class="v tvd-num">'+fEUR.format(c.lucro)+'</span></div>'
+    +(hiddenKeys.horas?"":'<div class="row"><span class="k">Ganhos/hora</span><span class="v tvd-num">'+(c.ganhosH?fN1.format(c.ganhosH)+" €/h":"—")+'</span></div>');
+}
+function tvdSaveWeek(){
+  var o=readForm();
+  if(!(o.fat>0)){ showToast("⚠ Preencha o faturamento da semana antes de guardar", true); return; }
+  if(creating&&TV().weeks[editN]&&!confirm("A semana "+editN+" já tem dados. Substituir?")) return;
+  snapshot();
+  TV().weeks[editN]=o;
+  saveState();
+  document.getElementById("tvdDlgWeek").close();
+  tvdRender();
+  showToast("✓ Semana "+editN+" guardada");
+}
+function tvdDelWeek(){
+  if(!confirm("Apagar a semana "+editN+"?")) return;
+  snapshot();
+  delete TV().weeks[editN];
+  saveState();
+  document.getElementById("tvdDlgWeek").close();
+  tvdRender();
+  showToast("🗑 Semana "+editN+" apagada");
+}
+function tvdAddWeek(){
+  var ns=weekNums();
+  tvdOpenWeek(ns.length?Math.max.apply(null,ns)+1:1);
+}
+function tvdEditFromView(){
+  document.getElementById("tvdDlgView").close();
+  if(viewN!=null) tvdOpenWeek(viewN);
+}
+function tvdWireEditor(){
+  WKEYS.forEach(function(k,i){ wEl(i).addEventListener("input",tvdLiveCalc); });
+  document.getElementById("tvdWNum").addEventListener("input",function(){
+    var n=parseInt(this.value,10);
+    if(!(n>=1)) return;
+    editN=n;
+    document.getElementById("tvdDlgTitle").textContent="Semana "+n;
+    document.getElementById("tvdDlgPer").textContent=wkLabel(n);
+  });
+  // Enter guarda (nos campos de valores)
+  document.getElementById("tvdDlgWeek").addEventListener("keydown",function(e){
+    if(e.key==="Enter"&&e.target.tagName==="INPUT"&&e.target.id!=="tvdWNum"){
+      e.preventDefault(); tvdSaveWeek();
+    }
+  });
+}
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",tvdWireEditor);
+else tvdWireEditor();
+
+/* ---------- meses e períodos (Seg. Social editável) ---------- */
+function tvdRenderMeses(){
+  var t0=TV(), cfg=t0.cfg, sec=document.getElementById("tvd-sec-meses");
+  var ms=monthData(), per=periodData();
+  if(!ms.length){ sec.innerHTML='<div class="tvd-card"><div class="tvd-empty">Sem semanas registadas.</div></div>'; return; }
+  var rOn=campoOn("recP"), hOn=campoOn("horas"), vOn=campoOn("viag");
+  var h1='<div class="tvd-card"><div class="eyebrow">Resumo por mês <b>pagamento</b></div><div class="scroll"><table class="tvd-tbl">'
+    +"<tr><th>Mês</th><th>Semanas</th><th>Lucro</th><th>% Meta</th><th>Status</th></tr>"
+    +ms.map(function(o){
+      var s=statusOf(cfg.metaMes?o.lucro/cfg.metaMes:0);
+      return "<tr><td>"+o.m+"</td><td class='tvd-num'>"+o.first+"–"+o.last+"</td>"
+        +"<td class='tvd-num tot'>"+fEUR.format(o.lucro)+"</td>"
+        +"<td class='tvd-num'>"+fPct.format(cfg.metaMes?o.lucro/cfg.metaMes:0)+"</td>"
+        +"<td class='tvd-"+s.cls+"'>"+s.txt+"</td></tr>";
+    }).join("")+"</table></div></div>";
+  var h2='<div class="tvd-card"><div class="eyebrow">Períodos de 4 semanas</div><div class="scroll"><table class="tvd-tbl">'
+    +"<tr><th>Período</th><th>Faturamento</th><th>Receita</th>"+(rOn?"<th>Recarga</th>":"")+"<th>Lucro bruto</th><th>Seg. Social</th><th>Lucro líq.</th>"+(hOn?"<th>Horas</th>":"")+(vOn?"<th>Viagens</th>":"")+"</tr>"
+    +per.map(function(o){
+      return "<tr><td class='tvd-num'>"+periodLabel(o.p)+"</td>"
+        +"<td class='tvd-num'>"+fEUR.format(o.fat)+"</td>"
+        +"<td class='tvd-num'>"+fEUR.format(o.receita)+"</td>"
+        +(rOn?"<td class='tvd-num'>"+fEUR.format(o.recarga)+"</td>":"")
+        +"<td class='tvd-num'>"+fEUR.format(o.lucro)+"</td>"
+        +"<td><input class='mini tvd-num' type='number' step='0.01' value='"+(o.seg||"")+"' data-p='"+o.p+"' aria-label='Segurança Social do período "+o.p+"' placeholder='0,00'></td>"
+        +"<td class='tvd-num tot'>"+fEUR.format(o.liq)+"</td>"
+        +(hOn?"<td class='tvd-num'>"+fN1.format(o.horas)+"</td>":"")
+        +(vOn?"<td class='tvd-num'>"+fInt.format(o.viag)+"</td>":"")+"</tr>";
+    }).join("")
+    +"<tr class='total'><td>Total</td>"
+    +"<td class='tvd-num'>"+fEUR.format(per.reduce(function(a,o){return a+o.fat;},0))+"</td>"
+    +"<td class='tvd-num'>"+fEUR.format(per.reduce(function(a,o){return a+o.receita;},0))+"</td>"
+    +(rOn?"<td class='tvd-num'>"+fEUR.format(per.reduce(function(a,o){return a+o.recarga;},0))+"</td>":"")
+    +"<td class='tvd-num'>"+fEUR.format(per.reduce(function(a,o){return a+o.lucro;},0))+"</td>"
+    +"<td class='tvd-num'>"+fEUR.format(per.reduce(function(a,o){return a+o.seg;},0))+"</td>"
+    +"<td class='tvd-num tot'>"+fEUR.format(per.reduce(function(a,o){return a+o.liq;},0))+"</td>"
+    +(hOn?"<td class='tvd-num'>"+fN1.format(per.reduce(function(a,o){return a+o.horas;},0))+"</td>":"")
+    +(vOn?"<td class='tvd-num'>"+fInt.format(per.reduce(function(a,o){return a+o.viag;},0))+"</td>":"")
+    +"</tr></table></div>"
+    +'<div class="note">O campo “Seg. Social” pode ser preenchido em cada período — é descontado do lucro líquido.</div></div>';
+  sec.innerHTML=h1+h2;
+  sec.querySelectorAll("input.mini").forEach(function(inp){
+    inp.addEventListener("change",function(){
+      snapshot();
+      var v=parseFloat(inp.value);
+      if(v>0) TV().seg[inp.dataset.p]=v; else delete TV().seg[inp.dataset.p];
+      saveState(); tvdRenderMeses();
+    });
+  });
+}
+
+/* ---------- resumo (hero, gráfico, metas, performance) ---------- */
+function tvdRenderResumo(){
+  var t0=TV(), cfg=t0.cfg, sec=document.getElementById("tvd-sec-resumo");
+  var t=totals();
+  if(!t.n){ sec.innerHTML='<div class="tvd-card"><div class="tvd-empty">Sem semanas registadas — registe na secção Semanas ou importe o backup em Ajustes.</div></div>'; return; }
+  var hOn=campoOn("horas"), vOn=campoOn("viag");
+  var cw=weekOfToday();
+  // taxímetro: uma marca por semana, acesa se bateu a meta semanal
+  var ticks="";
+  weekNums().forEach(function(n){
+    var w=t0.weeks[n]; if(!(w.fat>0)) return;
+    ticks+='<i'+(calc(w,cfg).lucro>=cfg.metaSem?' class="on"':'')+' title="Sem. '+n+'"></i>';
+  });
+  var chips=[['<div class="chip"><div class="v tvd-num">'+fEUR0.format(t.receita)+'</div><div class="k">Receita</div></div>',true],
+    ['<div class="chip"><div class="v tvd-num">'+fN1.format(t.horas)+' h</div><div class="k">Horas</div></div>',hOn],
+    ['<div class="chip"><div class="v tvd-num">'+fInt.format(t.viag)+'</div><div class="k">Viagens</div></div>',vOn],
+    ['<div class="chip"><div class="v tvd-num">'+fN1.format(t.mediaGH)+' €</div><div class="k">€/hora</div></div>',hOn]]
+    .filter(function(x){return x[1];}).map(function(x){return x[0];});
+  var heroHtml='<div class="tvd-card"><div class="eyebrow">Lucro líquido total <b>'+(cw>=1?"Hoje · Sem. "+cw:"")+'</b></div>'
+    +'<div class="hero-big tvd-num">'+fEUR.format(t.lucroLiq).replace(/\s?€/,"<small>€</small>")+'</div>'
+    +'<div class="hero-cap tvd-num">'+t.n+' semanas registadas · lucro bruto '+fEUR.format(t.lucro)+' · custos '+fEUR.format(t.custos)+'</div>'
+    +'<div class="ticks">'+ticks+'</div><div class="ticksleg">cada risca = 1 semana · acesa quando bateu a meta semanal</div>'
+    +'<div class="chips" style="grid-template-columns:repeat('+chips.length+',1fr)">'+chips.join("")+'</div></div>';
+  var chartHtml='<div class="tvd-card"><div class="eyebrow">Lucro por semana <b>€</b></div><div class="chartwrap" id="tvdChartWrap"><div class="tvd-tip" id="tvdTip"></div></div></div>';
+  // metas: mensal por ritmo (sem. X/4) + tendência
+  var per=periodData(), cur=per.length?per[per.length-1]:null, liqCur=cur?cur.liq:0;
+  var decorridas=4;
+  if(cur&&periodOf(cw)===cur.p) decorridas=Math.min(4,Math.max(1,cw-(cur.p*4-3)+1));
+  var emCurso=decorridas<4;
+  var rTotal=cfg.metaMes?liqCur/cfg.metaMes:0;
+  var ritmo=cfg.metaMes?liqCur/(cfg.metaMes*decorridas/4):0;
+  var sMes=emCurso
+    ?(ritmo>=1?{txt:"✅ No ritmo",cls:"good"}:ritmo>=.9?{txt:"🟡 Quase",cls:"warn"}:{txt:"🔴 Atrasado",cls:"bad"})
+    :statusOf(rTotal);
+  var items=[
+    {k:"Meta semanal · média "+fEUR.format(t.mediaSem)+" / "+fEUR0.format(cfg.metaSem), r:cfg.metaSem?t.mediaSem/cfg.metaSem:0},
+    {k:"Meta mensal · "+fEUR.format(liqCur)+" / "+fEUR0.format(cfg.metaMes)+(emCurso?" · sem. "+decorridas+"/4":""), r:rTotal, pct:emCurso?ritmo:rTotal, s:sMes}
+  ];
+  if(hOn) items.push( // metas de horas só fazem sentido se as horas forem registadas
+    {k:"Meta de horas · média "+fN1.format(t.mediaHoras)+" h / "+cfg.metaHoras+" h", r:cfg.metaHoras?t.mediaHoras/cfg.metaHoras:0},
+    {k:"Meta €/hora · média "+fN1.format(t.mediaGH)+" € / "+fN1.format(cfg.metaHora)+" €", r:cfg.metaHora?t.mediaGH/cfg.metaHora:0}
+  );
+  var metasHtml='<div class="tvd-card"><div class="eyebrow">Progresso das metas</div>'+items.map(function(it){
+    var s=it.s||statusOf(it.r), w=Math.min(100,it.r*100), pct=(it.pct!=null)?it.pct:it.r;
+    return '<div class="meta-row"><div class="meta-top"><span>'+it.k+'</span><span class="st tvd-'+s.cls+' tvd-num">'+fPct.format(pct)+' '+s.txt+'</span></div>'
+      +'<div class="mbar"><i class="f-'+s.cls+'" style="width:'+w+'%"></i></div></div>';
+  }).join("")+'</div>';
+  var k4="Últimas 4 semanas";
+  if(t.prev4!==null&&Math.abs(t.prev4)>0.005){
+    var dta=(t.media4-t.prev4)/Math.abs(t.prev4);
+    k4="Últimas 4 sem. <span class='"+(dta>=0?"tvd-good":"tvd-bad")+"'>"+(dta>=0?"↑":"↓")+" "+fPct.format(Math.abs(dta))+"</span>";
+  }
+  var perf=[['<div class="chip"><div class="v tvd-num tvd-good">'+fEUR.format(t.melhor)+'</div><div class="k">'+(t.melhorN?"Melhor · Sem. "+t.melhorN:"Melhor semana")+'</div></div>',true],
+    ['<div class="chip"><div class="v tvd-num tvd-bad">'+fEUR.format(t.pior)+'</div><div class="k">'+(t.piorN?"Pior · Sem. "+t.piorN:"Pior semana")+'</div></div>',true],
+    ['<div class="chip"><div class="v tvd-num">'+fEUR.format(t.mediaSem)+'</div><div class="k">Média semanal</div></div>',true],
+    ['<div class="chip"><div class="v tvd-num">'+fEUR.format(t.media4)+'</div><div class="k">'+k4+'</div></div>',true],
+    ['<div class="chip"><div class="v tvd-num">'+(t.viag?fEUR.format(t.lucro/t.viag):"—")+'</div><div class="k">€/viagem</div></div>',vOn],
+    ['<div class="chip"><div class="v tvd-num">'+(t.receita?fPct.format(t.lucro/t.receita):"—")+'</div><div class="k">% lucro</div></div>',true]]
+    .filter(function(x){return x[1];}).map(function(x){return x[0];});
+  var perfHtml='<div class="tvd-card"><div class="eyebrow">Performance</div><div class="chips" style="grid-template-columns:repeat(2,1fr)">'+perf.join("")+'</div></div>';
+  sec.innerHTML=heroHtml+chartHtml+metasHtml+perfHtml;
+  tvdRenderChart();
+}
+function tvdRenderChart(){
+  var t0=TV(), cfg=t0.cfg, wrap=document.getElementById("tvdChartWrap");
+  if(!wrap) return;
+  var rows=weekNums().filter(function(n){return t0.weeks[n].fat>0;})
+    .map(function(n){ var c=calc(t0.weeks[n],cfg); c.n=n; c.horas=t0.weeks[n].horas; return c; });
+  if(!rows.length) return;
+  var padL=42,padR=10,padT=10,padB=22,H=190,gap=8;
+  var avail=wrap.clientWidth||0;
+  var bw=18;
+  if(avail>padL+rows.length*(bw+gap)+padR)
+    bw=Math.min(34,Math.floor((avail-padL-padR)/rows.length)-gap);
+  var W=padL+rows.length*(bw+gap)+padR;
+  var GW=Math.max(W,avail);
+  var top=Math.ceil(Math.max.apply(null,[cfg.metaSem].concat(rows.map(function(r){return r.lucro;})))/100)*100;
+  var minL=Math.min.apply(null,[0].concat(rows.map(function(r){return r.lucro;})));
+  var bottom=minL<0?Math.floor(minL/100)*100:0;
+  function y(v){ return padT+(H-padT-padB)*((top-v)/(top-bottom)); }
+  var ns="http://www.w3.org/2000/svg";
+  var svg=document.createElementNS(ns,"svg");
+  svg.setAttribute("width",GW); svg.setAttribute("height",H);
+  var g="";
+  var gridVals=[bottom,0,top/2,top].filter(function(v,i,a){return a.indexOf(v)===i;});
+  gridVals.forEach(function(v){
+    g+='<line x1="'+(padL-4)+'" y1="'+y(v)+'" x2="'+GW+'" y2="'+y(v)+'" stroke="'+(v===0?"#3a4260":"#262b40")+'" stroke-width="1"/>';
+    g+='<text x="'+(padL-8)+'" y="'+(y(v)+3.5)+'" fill="#7c82a0" font-size="10" text-anchor="end" font-family="ui-monospace,Menlo,monospace">'+v+'</text>';
+  });
+  var ym=y(cfg.metaSem);
+  g+='<line x1="'+(padL-4)+'" y1="'+ym+'" x2="'+GW+'" y2="'+ym+'" stroke="#8D99A8" stroke-width="1" stroke-dasharray="4 4"/>';
+  var y0=y(0);
+  rows.forEach(function(r,i){
+    var x=padL+i*(bw+gap);
+    var neg=r.lucro<0, fill=neg?"#ff5470":"#C68226";
+    var yv=y(r.lucro);
+    if(Math.abs(yv-y0)<3) yv=y0+(neg?3:-3);
+    if(neg) g+='<path d="M'+x+','+y0+' L'+(x+bw)+','+y0+' L'+(x+bw)+','+Math.max(yv-4,y0)+' Q'+(x+bw)+','+yv+' '+(x+bw-4)+','+yv+' L'+(x+4)+','+yv+' Q'+x+','+yv+' '+x+','+Math.max(yv-4,y0)+' Z" fill="'+fill+'" data-i="'+i+'" style="cursor:pointer"/>';
+    else g+='<path d="M'+x+','+y0+' L'+x+','+Math.min(yv+4,y0)+' Q'+x+','+yv+' '+(x+4)+','+yv+' L'+(x+bw-4)+','+yv+' Q'+(x+bw)+','+yv+' '+(x+bw)+','+Math.min(yv+4,y0)+' L'+(x+bw)+','+y0+' Z" fill="'+fill+'" data-i="'+i+'" style="cursor:pointer"/>';
+    if(i%2===0||rows.length<=12)
+      g+='<text x="'+(x+bw/2)+'" y="'+(H-7)+'" fill="#7c82a0" font-size="9.5" text-anchor="middle" font-family="ui-monospace,Menlo,monospace">'+r.n+'</text>';
+  });
+  g+='<rect x="'+(GW-78)+'" y="'+(ym-16)+'" width="74" height="14" rx="3" fill="rgba(20,23,32,.92)"/>';
+  g+='<text x="'+(GW-8)+'" y="'+(ym-5)+'" fill="#8D99A8" font-size="9.5" text-anchor="end">meta '+cfg.metaSem+' €</text>';
+  svg.innerHTML=g;
+  wrap.appendChild(svg);
+  var tip=document.getElementById("tvdTip");
+  function showTip(e){
+    var el=e.target.closest("[data-i]");
+    if(!el){ tip.style.display="none"; return; }
+    var r=rows[+el.dataset.i];
+    tip.innerHTML="Sem. "+r.n+' <span class="m">· '+wkLabel(r.n)+'</span><br><b>'+fEUR.format(r.lucro)+'</b> <span class="m">lucro'+(campoOn("horas")?" · "+fN1.format(r.horas||0)+" h":"")+'</span>';
+    tip.style.display="block";
+    var wr=wrap.getBoundingClientRect();
+    var lx=e.clientX-wr.left+wrap.scrollLeft+12, ly=e.clientY-wr.top-14;
+    if(lx+150>wrap.scrollWidth) lx-=160;
+    tip.style.left=lx+"px"; tip.style.top=Math.max(0,ly)+"px";
+  }
+  svg.addEventListener("pointermove",showTip);
+  svg.addEventListener("pointerdown",showTip);
+  svg.addEventListener("pointerleave",function(){ tip.style.display="none"; });
+  wrap.scrollLeft=wrap.scrollWidth;
+}
 
 /* exports p/ onclick e integração */
 window.tvdRender=tvdRender;
@@ -8984,6 +9268,8 @@ window.tvdImportFile=tvdImportFile;
 window.tvdExportJSON=tvdExportJSON;
 window.tvdAddWeek=tvdAddWeek;
 window.tvdEditFromView=tvdEditFromView;
+window.tvdSaveWeek=tvdSaveWeek;
+window.tvdDelWeek=tvdDelWeek;
 
 })();
 </script>
