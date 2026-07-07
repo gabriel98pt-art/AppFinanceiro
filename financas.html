@@ -567,6 +567,122 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 }
 /* Separador vertical entre anos na grelha de Parcelas */
 .yr-sep{border-left:2px solid rgba(124,130,160,.38)!important}
+/* ================================================================
+   TVDE — separador fundido a partir do Controle Motorista.
+   Tudo scopado em #p-tvde / .tvd-dlg; âmbar #C68226 é a cor do separador.
+   ================================================================ */
+#p-tvde,.tvd-dlg{--tvd-amber:#C68226;--tvd-amber-hi:#E09B33}
+#p-tvde .tvd-num,.tvd-dlg .tvd-num{font-variant-numeric:tabular-nums}
+#p-tvde .tvd-good,.tvd-dlg .tvd-good{color:var(--grn)}
+#p-tvde .tvd-warn,.tvd-dlg .tvd-warn{color:var(--ylw)}
+#p-tvde .tvd-bad,.tvd-dlg .tvd-bad{color:var(--red)}
+/* sub-navegação interna */
+#p-tvde .tvd-subnav{display:flex;gap:.3rem;margin-bottom:.9rem;flex-wrap:wrap}
+#p-tvde .tvd-subnav button{background:var(--s1);border:1px solid var(--brd);border-radius:8px;color:var(--mut);cursor:pointer;padding:.38rem .8rem;font-size:.73rem;font-weight:600;transition:background var(--tr),color var(--tr)}
+#p-tvde .tvd-subnav button.on{background:var(--tvd-amber);border-color:var(--tvd-amber);color:#14161c}
+#p-tvde .tvd-sec{display:none}
+#p-tvde .tvd-sec.on{display:block}
+/* cartões */
+#p-tvde .tvd-card{background:var(--s1);border:1px solid var(--brd);border-radius:var(--r);padding:.9rem 1rem 1rem;margin-bottom:.75rem;box-shadow:var(--sh-sm)}
+#p-tvde .eyebrow{font-size:.68rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin-bottom:.55rem}
+#p-tvde .eyebrow b{color:var(--tvd-amber);font-weight:700}
+#p-tvde .note{font-size:.72rem;color:var(--mut);line-height:1.5;margin-top:.6rem}
+#p-tvde .tvd-empty{padding:.9rem 0;color:var(--mut);font-size:.8rem}
+/* lista de semanas */
+#p-tvde .wk{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:none;border:0;color:inherit;font:inherit;padding:.6rem 2px;border-bottom:1px solid var(--brd);cursor:pointer;text-align:left}
+#p-tvde .wk:last-child{border-bottom:none}
+#p-tvde .wk:hover{background:var(--s2)}
+#p-tvde .wk .l .t{display:block;font-weight:600;font-size:.85rem}
+#p-tvde .wk .l .s{display:block;font-size:.68rem;color:var(--mut);font-family:ui-monospace,Menlo,monospace}
+#p-tvde .wk .r{text-align:right}
+#p-tvde .wk .r .v{display:block;font-weight:700;font-size:.9rem}
+#p-tvde .wk .r .s{display:block;font-size:.66rem;color:var(--mut)}
+#p-tvde .tvd-cmp{font-weight:700}
+/* botões */
+#p-tvde .tvd-btn,.tvd-dlg .tvd-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--tvd-amber);color:#14161c;border:none;border-radius:9px;font-size:.8rem;font-weight:700;padding:.55rem 1rem;cursor:pointer;width:100%}
+#p-tvde .tvd-btn.ghost,.tvd-dlg .tvd-btn.ghost{background:transparent;border:1px solid var(--brd);color:var(--txt);font-weight:600}
+#p-tvde .tvd-btn.danger,.tvd-dlg .tvd-btn.danger{background:transparent;border:1px solid var(--red);color:var(--red);font-weight:600}
+#p-tvde .tvd-btn.mini{width:auto;padding:.3rem .7rem;font-size:.7rem;font-weight:600;border-radius:8px;background:transparent;border:1px solid var(--brd);color:var(--mut)}
+#p-tvde .tvd-btn+.tvd-btn,.tvd-dlg .tvd-btn+.tvd-btn{margin-top:.45rem}
+#p-tvde .cardhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:.45rem}
+#p-tvde .cardhead .eyebrow{margin-bottom:0}
+/* hero + chips (consulta/resumo) */
+#p-tvde .vhero,.tvd-dlg .vhero{text-align:center;margin:2px 0 12px}
+#p-tvde .vhero .cap,.tvd-dlg .vhero .cap{font-size:.62rem;font-weight:700;color:var(--mut);letter-spacing:.18em;text-transform:uppercase}
+#p-tvde .vhero .big,.tvd-dlg .vhero .big{font-size:2.1rem;font-weight:800;letter-spacing:-.02em;line-height:1.1;margin-top:2px}
+#p-tvde .chips,.tvd-dlg .chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+#p-tvde .vchips,.tvd-dlg .vchips{margin-bottom:12px}
+#p-tvde .chip,.tvd-dlg .chip{background:var(--s2);border:1px solid var(--brd);border-radius:10px;padding:.5rem .3rem .55rem;text-align:center;min-width:0}
+#p-tvde .chip .v,.tvd-dlg .chip .v{font-size:.88rem;font-weight:700}
+#p-tvde .chip .k,.tvd-dlg .chip .k{font-size:.6rem;color:var(--mut);letter-spacing:.05em;text-transform:uppercase;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#p-tvde button.chip{font:inherit;color:inherit;cursor:pointer}
+#p-tvde button.chip:active{border-color:var(--tvd-amber)}
+/* blocos de valores/contas */
+#p-tvde .calc,.tvd-dlg .calc{background:var(--s2);border:1px solid var(--brd);border-radius:10px;padding:.55rem .7rem;margin:4px 0 12px}
+#p-tvde .calc .row,.tvd-dlg .calc .row{display:flex;justify-content:space-between;font-size:.78rem;padding:2px 0;gap:10px}
+#p-tvde .calc .row .k,.tvd-dlg .calc .row .k{color:var(--mut)}
+#p-tvde .calc .row.hl .v,.tvd-dlg .calc .row.hl .v{color:var(--grn);font-weight:700}
+#p-tvde .calc .row .v .pcell,.tvd-dlg .calc .row .v .pcell{color:var(--mut);font-size:.64rem;font-weight:400}
+#p-tvde .calc .row .v.tvd-bad,#p-tvde .calc .row .v.tvd-good,.tvd-dlg .calc .row .v.tvd-bad,.tvd-dlg .calc .row .v.tvd-good{font-weight:600}
+/* diálogos */
+dialog.tvd-dlg{background:var(--s1);color:var(--txt);border:1px solid var(--brd);border-radius:16px;padding:1.1rem 1rem;width:min(440px,calc(100vw - 24px));max-height:88vh;overflow-y:auto;margin:auto}
+dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
+.tvd-dlg h2{font-size:1rem;margin-bottom:2px}
+.tvd-dlg .per{font-size:.72rem;color:var(--mut);font-family:ui-monospace,Menlo,monospace;margin-bottom:.8rem}
+.tvd-dlg label.f{display:block;margin-bottom:.55rem}
+.tvd-dlg label.f .k{display:block;font-size:.66rem;color:var(--mut);letter-spacing:.04em;margin-bottom:3px}
+.tvd-dlg label.f input{width:100%;background:var(--s2);border:1px solid var(--brd);color:var(--txt);border-radius:9px;padding:.5rem .6rem;font-size:1rem;font-variant-numeric:tabular-nums}
+.tvd-dlg label.f input:focus{outline:2px solid var(--tvd-amber);outline-offset:1px}
+.tvd-dlg .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+/* tabelas (meses/períodos) */
+#p-tvde .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+#p-tvde table.tvd-tbl{border-collapse:collapse;width:100%;font-size:.72rem;white-space:nowrap}
+#p-tvde .tvd-tbl th,#p-tvde .tvd-tbl td{padding:.4rem .6rem .4rem 0;text-align:right;border-bottom:1px solid var(--brd)}
+#p-tvde .tvd-tbl th{color:var(--mut);font-weight:600;font-size:.62rem;letter-spacing:.05em;text-transform:uppercase}
+#p-tvde .tvd-tbl th:first-child,#p-tvde .tvd-tbl td:first-child{text-align:left;padding-left:2px}
+#p-tvde .tvd-tbl tr:last-child td{border-bottom:none}
+#p-tvde .tvd-tbl td.tot{font-weight:700;color:var(--tvd-amber)}
+#p-tvde .tvd-tbl tr.total td{border-top:1px solid var(--mut);font-weight:700}
+#p-tvde .tvd-tbl td input.mini{width:76px;background:var(--s2);border:1px solid var(--brd);color:var(--txt);border-radius:6px;padding:3px 6px;font-size:.72rem;text-align:right;font-variant-numeric:tabular-nums}
+/* resumo: taxímetro, gráfico, metas */
+#p-tvde .ticks{display:flex;gap:5px;align-items:flex-end;height:14px;margin:8px 0 4px}
+#p-tvde .ticks i{flex:1;background:var(--brd);border-radius:1px;height:6px}
+#p-tvde .ticks i.on{background:var(--tvd-amber);height:14px}
+#p-tvde .ticksleg{font-size:.64rem;color:var(--mut);margin-bottom:.6rem}
+#p-tvde .hero-big{font-size:2.2rem;font-weight:800;letter-spacing:-.02em;color:var(--tvd-amber);line-height:1.05;margin:2px 0}
+#p-tvde .hero-big small{font-size:1.1rem;font-weight:700;opacity:.7;margin-left:2px}
+#p-tvde .hero-cap{font-size:.7rem;color:var(--mut);margin-bottom:.5rem}
+#p-tvde .chartwrap{position:relative;overflow-x:auto;-webkit-overflow-scrolling:touch}
+#p-tvde .chartwrap svg{display:block}
+#p-tvde .tvd-tip{position:absolute;pointer-events:none;display:none;z-index:5;background:var(--s3);border:1px solid var(--brd);border-radius:8px;padding:5px 8px;font-size:.7rem;white-space:nowrap;box-shadow:var(--sh-sm)}
+#p-tvde .tvd-tip b{color:var(--tvd-amber)}
+#p-tvde .tvd-tip .m{color:var(--mut)}
+#p-tvde .meta-row{margin-bottom:.6rem}
+#p-tvde .meta-top{display:flex;justify-content:space-between;font-size:.72rem;margin-bottom:4px;gap:8px}
+#p-tvde .meta-top .st{color:var(--mut)}
+#p-tvde .mbar{height:9px;background:var(--s2);border-radius:6px;overflow:hidden;border:1px solid var(--brd)}
+#p-tvde .mbar i{display:block;height:100%;border-radius:6px;transition:width .5s ease}
+#p-tvde .f-good{background:var(--grn)}#p-tvde .f-warn{background:var(--ylw)}#p-tvde .f-bad{background:var(--red)}
+/* ajustes: listas configuráveis + preview */
+#p-tvde .campo{display:flex;align-items:center;gap:10px;padding:4px 2px;border-bottom:1px solid var(--brd);font-size:.76rem}
+#p-tvde .campo .nm{flex:1}
+#p-tvde .campo.off .nm{color:var(--mut);opacity:.55}
+#p-tvde .campo .s{font-size:.64rem;color:var(--mut)}
+#p-tvde .campo input[type=checkbox]{width:16px;height:16px;accent-color:var(--tvd-amber)}
+#p-tvde .campo .mv{background:var(--s2);border:1px solid var(--brd);color:var(--txt);border-radius:8px;width:30px;height:24px;font-size:.7rem;cursor:pointer}
+#p-tvde .campo .mv:disabled{opacity:.25;cursor:default}
+#p-tvde .tvd-lists .campo:last-child{border-bottom:none}
+#p-tvde .subh{font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);opacity:.8;margin:.8rem 0 2px}
+#p-tvde .subh:first-of-type{margin-top:2px}
+#p-tvde .prev{border:1px dashed var(--mut);border-radius:12px;padding:.7rem .7rem 2px;margin-top:.7rem;max-width:440px}
+#p-tvde .prev .prevlab{font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);text-align:center;margin-bottom:.6rem}
+#p-tvde .jsplit{display:grid;grid-template-columns:1fr;gap:0 16px}
+@media(min-width:700px){#p-tvde .jsplit{grid-template-columns:minmax(0,1fr) minmax(300px,340px)}#p-tvde .jsplit .prev{position:sticky;top:150px;align-self:start;margin-top:2px}}
+#p-tvde .tvd-grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+#p-tvde .tvd-grid2 label{display:block;margin-bottom:.55rem}
+#p-tvde .tvd-grid2 label .k{display:block;font-size:.64rem;color:var(--mut);letter-spacing:.04em;margin-bottom:3px}
+#p-tvde .tvd-grid2 input{width:100%;background:var(--s2);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:.45rem .6rem;font-size:.85rem;font-variant-numeric:tabular-nums}
+
 /* Modo organizar secções */
 .sec-editing{position:relative;outline:2px dashed var(--blu);outline-offset:3px;border-radius:8px}
 .sec-handle{position:absolute;top:-13px;right:10px;display:flex;gap:.3rem;z-index:60}
@@ -611,6 +727,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
   <button class="tb" onclick="sw('receitas',this)">💰 Receitas</button>
   <button class="tb" onclick="sw('despesas',this)">💸 Despesas</button>
   <button class="tb" onclick="sw('veiculo',this)">🚘 Veículo</button>
+  <button class="tb" onclick="sw('tvde',this)">🚕 TVDE</button>
   <button class="tb" onclick="sw('parcelas',this)">💳 Parcelas</button>
   <button class="tb" onclick="sw('cal',this)">📅 Calendário</button>
   <button class="tb" onclick="sw('cartoes',this)">🏦 Cartões</button>
@@ -1019,6 +1136,53 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 <!-- IMPORTAR -->
 <div class="pnl" id="p-import"></div>
 
+<!-- ================================================================
+     TVDE — fusão do Controle Motorista (dados em S.tvde, sync Firebase)
+     ================================================================ -->
+<div class="pnl" id="p-tvde">
+  <div class="tvd-subnav">
+    <button data-tsec="resumo" class="on" onclick="tvdSw('resumo')">📊 Resumo</button>
+    <button data-tsec="semanas" onclick="tvdSw('semanas')">📋 Semanas</button>
+    <button data-tsec="meses" onclick="tvdSw('meses')">📆 Meses</button>
+    <button data-tsec="ajustes" onclick="tvdSw('ajustes')">⚙️ Ajustes</button>
+  </div>
+
+  <div class="tvd-sec on" id="tvd-sec-resumo"><div class="tvd-card" id="tvdResumoBox"><div class="tvd-empty">Sem semanas registadas — registe na secção Semanas ou importe o backup em Ajustes.</div></div></div>
+
+  <div class="tvd-sec" id="tvd-sec-semanas">
+    <div class="tvd-card">
+      <div class="cardhead">
+        <div class="eyebrow">Controlo semanal</div>
+        <button class="tvd-btn mini" id="tvdBtnAddWeek" onclick="tvdAddWeek()">＋ Nova semana</button>
+      </div>
+      <div id="tvdWkList"></div>
+    </div>
+  </div>
+
+  <div class="tvd-sec" id="tvd-sec-meses"><div class="tvd-card" id="tvdMesesBox"><div class="tvd-empty">Sem semanas registadas.</div></div></div>
+
+  <div class="tvd-sec" id="tvd-sec-ajustes">
+    <div id="tvdAjustesBox"></div>
+    <div class="tvd-card">
+      <div class="eyebrow">Os seus dados <b>TVDE</b></div>
+      <button class="tvd-btn" onclick="document.getElementById('tvdFileImport').click()">⬆ Importar backup do Controle Motorista (.json)</button>
+      <input type="file" id="tvdFileImport" accept=".json" hidden onchange="tvdImportFile(this)">
+      <button class="tvd-btn ghost" onclick="tvdExportJSON()">⬇ Exportar backup TVDE (.json)</button>
+      <div id="tvdExportBox"></div>
+      <div class="note">A importação lê o ficheiro que o Controle Motorista exporta em Ajustes → “Guardar cópia de segurança”. Antes de gravar, mostra um resumo e pede confirmação — e substitui os dados TVDE daqui (os registos das finanças não são tocados). O backup exportado aqui também pode ser reposto na app antiga.</div>
+    </div>
+  </div>
+</div>
+
+<!-- TVDE: consulta de semana (só leitura) -->
+<dialog class="tvd-dlg" id="tvdDlgView">
+  <h2 id="tvdVTitle">Semana</h2>
+  <div class="per tvd-num" id="tvdVPer"></div>
+  <div id="tvdVBlocos"></div>
+  <button class="tvd-btn" id="tvdBtnEditWeek" onclick="tvdEditFromView()">✏️ Editar esta semana</button>
+  <button class="tvd-btn ghost" onclick="document.getElementById('tvdDlgView').close()">Fechar</button>
+</dialog>
+
 <!-- MAIN MODAL -->
 <div class="mover" id="mainModal" onclick="if(event.target===this)closeModal()">
   <div class="mbox">
@@ -1202,7 +1366,7 @@ function _fbMarkUnsaved(unsaved) {
 }
 
 // Chaves de topo do estado — usadas para decidir o que mudou desde o último envio
-var _FB_TOPKEYS = ['rec','df','dc','par','evt','fnds','trf','veh','cfg','_id','_savedAt'];
+var _FB_TOPKEYS = ['rec','df','dc','par','evt','fnds','trf','veh','tvde','cfg','_id','_savedAt'];
 // Último estado confirmado como gravado no Firebase, por chave de topo (JSON em string,
 // para comparação rápida). null = ainda sem base nesta sessão (ainda não houve nenhum
 // _fbSave completo) — nesse caso _fbSaveSmart tem de cair para o _fbSave normal.
@@ -1273,6 +1437,9 @@ function _fbNormalizeState(fb) {
   // Firebase remove objetos vazios ({}) ao gravar — repor py/paidMonths para não rebentar
   fb.par.forEach(function(p){ if (!p.py || typeof p.py !== 'object') p.py = {}; });
   fb.df.forEach(function(d){ if (d.paidMonths && typeof d.paidMonths !== 'object') d.paidMonths = {}; });
+  // TVDE: o Firebase pode devolver weeks/seg como ARRAYS (chaves numéricas) ou omitir {} vazios
+  if (typeof tvdNorm === 'function') fb.tvde = tvdNorm(fb.tvde);
+  else if (!fb.tvde || typeof fb.tvde !== 'object' || Array.isArray(fb.tvde)) fb.tvde = {};
   if (typeof fb._id !== 'number' || fb._id < 10) fb._id = 10;
   _mergeDefaultCfg(fb);
   return fb;
@@ -1284,7 +1451,8 @@ function _stateWeight(s) {
   return (s.rec||[]).length + (s.df||[]).length + (s.dc||[]).length +
          (s.par||[]).length + (s.evt||[]).length + (s.fnds||[]).length +
          (s.trf||[]).length + ((s.veh||{}).cg||[]).length +
-         ((s.veh||{}).lp||[]).length + ((s.veh||{}).df||[]).length + ((s.veh||{}).km||[]).length;
+         ((s.veh||{}).lp||[]).length + ((s.veh||{}).df||[]).length + ((s.veh||{}).km||[]).length +
+         Object.keys(((s.tvde||{}).weeks)||{}).length;
 }
 
 // Guarda snapshot no localStorage antes de qualquer operação destrutiva
@@ -1417,7 +1585,7 @@ var DEFAULTS = {
     bal: {'Revolut (D)':0,'AB (D)':0,'AB Gold (C)':0},
     locais: []
   },
-  rec:[], df:[], dc:[], veh:{cg:[],lp:[],df:[],km:[]}, par:[], evt:[], fnds:[], trf:[], _id:10
+  rec:[], df:[], dc:[], veh:{cg:[],lp:[],df:[],km:[]}, par:[], evt:[], fnds:[], trf:[], tvde:{}, _id:10
 };
 
 // ================================================================
@@ -1559,6 +1727,8 @@ function _validateImportedState(s) {
   chkArr(s.evt,  'evt',   ['name','date']);
   chkArr(s.fnds, 'fnds',  ['name','goal']);
   chkArr(s.trf,  'trf',   ['date','val']);
+  if (s.tvde !== undefined && (typeof s.tvde !== 'object' || s.tvde === null || Array.isArray(s.tvde)))
+    errors.push('tvde: deve ser um objeto');
   if (s.veh) {
     if (typeof s.veh !== 'object' || Array.isArray(s.veh)) {
       errors.push('veh: deve ser um objeto');
@@ -1589,6 +1759,7 @@ function loadState() {
       if (!Array.isArray(saved.veh.df)) saved.veh.df = [];
       if (!Array.isArray(saved.veh.km)) saved.veh.km = [];
       saved.par.forEach(function(p){ if (!p.py || typeof p.py !== 'object') p.py = {}; });
+      if (!saved.tvde || typeof saved.tvde !== 'object' || Array.isArray(saved.tvde)) saved.tvde = {};
       if (typeof saved._id !== 'number' || saved._id < 10) saved._id = 10;
       return saved;
     }
@@ -2431,7 +2602,8 @@ function renderTab(id) {
     cal: renderCal,
     cartoes: renderCartoes,
     metas: renderMetas,
-    import: renderImport
+    import: renderImport,
+    tvde: tvdRender
   };
   if (fns[id]) {
     try { fns[id](); } catch(e) { console.error(id, e); }
@@ -8455,6 +8627,366 @@ function _impBankFile(bank) {
   </div>
   <button class="qsave qte" id="qSaveBtn" onclick="qSave()">GUARDAR</button>
 </div>
+<script>
+"use strict";
+/* ================================================================
+   TVDE — módulo fundido a partir do Controle Motorista (07/2026).
+   Dados em S.tvde (sincronizados no Firebase via _FB_TOPKEYS).
+   Fórmulas da planilha — NÃO alterar sem validação do utilizador:
+   receita = fat − %frota − portagens − aluguel − recarga frota
+   lucro bruto = receita − recarga própria + extra (gorjetas NUNCA somam)
+   ================================================================ */
+(function(){
+
+/* ---------- configuração e normalização ---------- */
+var TVD_SEEDCFG = { pctFrota:6, aluguel:260, metaSem:320, metaMes:1300, metaHoras:45, metaHora:6.5 };
+// semana 1 começa a 02/03/2026 (segunda); dias arredondados p/ mudança de hora
+var TVD_START = new Date(2026,2,2);
+var CAMPOS_DEF = [
+  {k:"port",nm:"Portagens"},
+  {k:"alu",nm:"Aluguel"},
+  {k:"recF",nm:"Recarga frota"},
+  {k:"extra",nm:"Extra"},
+  {k:"gorj",nm:"Gorjetas",vl:"Gorjetas (anotação)"},
+  {k:"recP",nm:"Recarga própria"},
+  {k:"horas",nm:"Horas"},
+  {k:"viag",nm:"Viagens"}
+];
+var CONTAS_DEF = [
+  {k:"frota",nm:"% Frota"},
+  {k:"receita",nm:"Receita"},
+  {k:"custos",nm:"Custos totais"},
+  {k:"lucro",nm:"Lucro bruto",off:true} // desligado: já aparece em destaque no topo
+];
+var CHIPS_DEF = [
+  {k:"horas",nm:"Horas"},{k:"viag",nm:"Viagens"},{k:"ph",nm:"Por hora"},{k:"pv",nm:"Por viagem"},
+  {k:"fat",nm:"Faturamento"},{k:"receita",nm:"Receita"},{k:"custos",nm:"Custos"},{k:"gorj",nm:"Gorjetas"}
+];
+var CHIP_DEP = {horas:"horas",ph:"horas",viag:"viag",pv:"viag",gorj:"gorj"};
+var QUADROS_DEF = [
+  {k:"hero",nm:"Lucro em destaque"},
+  {k:"chips",nm:"Mini-cartões (métricas à escolha)"},
+  {k:"dados",nm:"Valores da semana"},
+  {k:"contas",nm:"Resultado (receita, custos, lucro)"}
+];
+function normOnList(list,defs){
+  var keys=defs.map(function(c){return c.k;}), out=[];
+  (Array.isArray(list)?list:[]).forEach(function(o){
+    if(o&&keys.indexOf(o.k)>=0&&!out.some(function(x){return x.k===o.k;})) out.push({k:o.k,on:o.on!==false});
+  });
+  defs.forEach(function(d){ if(!out.some(function(x){return x.k===d.k;})) out.push({k:d.k,on:!d.off}); });
+  return out;
+}
+function chipKeysDisponiveis(campos){
+  var off=function(k){ var c=(campos||[]).find(function(x){return x.k===k;}); return c&&!c.on; };
+  return CHIPS_DEF.map(function(c){return c.k;}).filter(function(k){ return !CHIP_DEP[k]||!off(CHIP_DEP[k]); });
+}
+function normChipSlots(list,campos){
+  var keys=chipKeysDisponiveis(campos), out=[];
+  (Array.isArray(list)?list:[]).forEach(function(o){
+    var k=(typeof o==="string")?o:(o&&o.on!==false?o.k:null);
+    if(k&&keys.indexOf(k)>=0&&out.indexOf(k)<0&&out.length<4) out.push(k);
+  });
+  for(var i=0;i<keys.length;i++){ if(out.length>=4) break; if(out.indexOf(keys[i])<0) out.push(keys[i]); }
+  return out;
+}
+function normQuadros(list){
+  var keys=QUADROS_DEF.map(function(q){return q.k;});
+  var out=(Array.isArray(list)?list:[]).filter(function(k,i,a){ return keys.indexOf(k)>=0&&a.indexOf(k)===i; });
+  keys.forEach(function(k){ if(out.indexOf(k)<0) out.push(k); });
+  return out;
+}
+// O Firebase transforma objetos de chaves numéricas em arrays e remove {} vazios — reverter
+function _fixMap(o){
+  if(Array.isArray(o)){ var m={}; o.forEach(function(v,i){ if(v!=null) m[i]=v; }); return m; }
+  return (o&&typeof o==="object")?o:{};
+}
+// Normaliza S.tvde no lugar; exposta globalmente para o _fbNormalizeState usar
+function tvdNorm(d){
+  d=(d&&typeof d==="object"&&!Array.isArray(d))?d:{};
+  d.cfg=Object.assign({},TVD_SEEDCFG,d.cfg||{});
+  d.cfg.campos=normOnList(d.cfg.campos,CAMPOS_DEF);
+  d.cfg.chips=normChipSlots(d.cfg.chips,d.cfg.campos);
+  d.cfg.contas=normOnList(d.cfg.contas,CONTAS_DEF);
+  d.cfg.quadros=normQuadros(d.cfg.quadros);
+  d.weeks=_fixMap(d.weeks);
+  d.seg=_fixMap(d.seg);
+  d.desp=Array.isArray(d.desp)?d.desp:[];
+  d.lanc=(d.lanc&&typeof d.lanc==="object"&&!Array.isArray(d.lanc))?d.lanc:{};
+  // % frota fica gravada dentro de cada semana (histórico protegido)
+  for(var k in d.weeks){ var w=d.weeks[k]; if(w&&w.pct==null) w.pct=d.cfg.pctFrota; }
+  return d;
+}
+window.tvdNorm = tvdNorm;
+// acessor: garante a forma e devolve o ramo vivo do estado
+function TV(){ S.tvde = tvdNorm(S.tvde); return S.tvde; }
+
+/* ---------- formatação e datas ---------- */
+var fEUR=new Intl.NumberFormat("pt-PT",{style:"currency",currency:"EUR"});
+var fEUR0=new Intl.NumberFormat("pt-PT",{style:"currency",currency:"EUR",maximumFractionDigits:0});
+var fN1=new Intl.NumberFormat("pt-PT",{maximumFractionDigits:1});
+var fInt=new Intl.NumberFormat("pt-PT");
+var fPct=new Intl.NumberFormat("pt-PT",{style:"percent",maximumFractionDigits:1});
+var MESES_TV=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+function wkStart(n){ var d=new Date(TVD_START); d.setDate(d.getDate()+(n-1)*7); return d; }
+function wkEnd(n){ var d=wkStart(n); d.setDate(d.getDate()+6); return d; }
+function ddm(d){ return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0"); }
+function wkLabel(n){ return ddm(wkStart(n))+" – "+ddm(wkEnd(n)); }
+function wkMonth(n){ var d=wkStart(n); d.setDate(d.getDate()+7); return MESES_TV[d.getMonth()]+" "+d.getFullYear(); } // mês de pagamento
+function periodOf(n){ return Math.ceil(n/4); }
+function periodLabel(p){ return ddm(wkStart(p*4-3))+" – "+ddm(wkEnd(p*4)); }
+function diasDesde(d){ return Math.round((d-TVD_START)/(24*3600*1000)); } // Math.round: mudança de hora
+function weekOfToday(){
+  var t=new Date();
+  return Math.floor(diasDesde(new Date(t.getFullYear(),t.getMonth(),t.getDate()))/7)+1;
+}
+function isoDate(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+
+/* ---------- cálculos (fórmulas da planilha) ---------- */
+function calc(w,cfg){
+  var pct=((w.pct!=null?w.pct:cfg.pctFrota)||0)/100; // usa a % gravada na própria semana
+  var frota=(w.fat||0)*pct;
+  var receita=(w.fat||0)-frota-(w.port||0)-(w.alu||0)-(w.recF||0);
+  var lucro=receita-(w.recP||0)+(w.extra||0); // gorjetas NUNCA somam
+  var custos=frota+(w.port||0)+(w.alu||0)+(w.recF||0)+(w.recP||0);
+  return {frota:frota,receita:receita,lucro:lucro,custos:custos,
+    ganhosH:w.horas>0?lucro/w.horas:null,
+    eurViag:w.viag>0?lucro/w.viag:null,
+    pctCusto:w.fat>0?custos/w.fat:null};
+}
+function weekNums(){ var t=TV(); return Object.keys(t.weeks).map(Number).sort(function(a,b){return a-b;}); }
+// regra única: campo desligado em Ajustes não aparece em lado nenhum
+// (o valor guardado nunca é apagado e continua a contar nas somas)
+function campoOn(k){ var c=TV().cfg.campos.find(function(x){return x.k===k;}); return !c||!!c.on; }
+function totals(){
+  var t0=TV(), cfg=t0.cfg, t={fat:0,receita:0,lucro:0,custos:0,horas:0,viag:0,recP:0,gorj:0,n:0};
+  var withH=[];
+  weekNums().forEach(function(n){
+    var w=t0.weeks[n]; if(!(w.fat>0)) return;
+    var c=calc(w,cfg);
+    t.fat+=w.fat; t.receita+=c.receita; t.lucro+=c.lucro; t.custos+=c.custos;
+    t.horas+=w.horas||0; t.viag+=w.viag||0; t.recP+=w.recP||0; t.gorj+=w.gorj||0; t.n++;
+    withH.push({n:n,lucro:c.lucro,horas:w.horas||0});
+  });
+  // só desconta Seg. Social de períodos que existem
+  var pset={};
+  weekNums().forEach(function(n){ if(t0.weeks[n].fat>0) pset[periodOf(n)]=1; });
+  var segTot=0;
+  Object.keys(t0.seg||{}).forEach(function(p){ if(pset[p]) segTot+=(+t0.seg[p]||0); });
+  t.lucroLiq=t.lucro-segTot;
+  t.mediaSem=t.n?withH.reduce(function(a,x){return a+x.lucro;},0)/t.n:0;
+  var comH=withH.filter(function(x){return x.horas>0;});
+  t.mediaHoras=comH.length?comH.reduce(function(a,x){return a+x.horas;},0)/comH.length:0;
+  var hSum=comH.reduce(function(a,x){return a+x.horas;},0);
+  t.mediaGH=hSum>0?comH.reduce(function(a,x){return a+x.lucro;},0)/hSum:0;
+  t.melhor=0; t.pior=0; t.melhorN=null; t.piorN=null;
+  withH.forEach(function(x){
+    if(t.melhorN===null||x.lucro>t.melhor){ t.melhor=x.lucro; t.melhorN=x.n; }
+    if(t.piorN===null||x.lucro<t.pior){ t.pior=x.lucro; t.piorN=x.n; }
+  });
+  var last4=withH.slice(-4), prev4=withH.slice(-8,-4);
+  t.media4=last4.length?last4.reduce(function(a,x){return a+x.lucro;},0)/last4.length:0;
+  t.prev4=prev4.length?prev4.reduce(function(a,x){return a+x.lucro;},0)/prev4.length:null;
+  return t;
+}
+function periodData(){
+  var t0=TV(), cfg=t0.cfg, map={};
+  weekNums().forEach(function(n){
+    var w=t0.weeks[n]; if(!(w.fat>0)) return;
+    var p=periodOf(n), c=calc(w,cfg);
+    if(!map[p]) map[p]={p:p,fat:0,receita:0,recarga:0,lucro:0,horas:0,viag:0};
+    var o=map[p];
+    o.fat+=w.fat; o.receita+=c.receita; o.recarga+=w.recP||0; o.lucro+=c.lucro;
+    o.horas+=w.horas||0; o.viag+=w.viag||0;
+  });
+  return Object.keys(map).map(Number).sort(function(a,b){return a-b;}).map(function(p){
+    var o=map[p]; o.seg=+(t0.seg[p]||0); o.liq=o.lucro-o.seg; return o;
+  });
+}
+function monthData(){
+  var t0=TV(), cfg=t0.cfg, map={}, order=[];
+  weekNums().forEach(function(n){
+    var w=t0.weeks[n]; if(!(w.fat>0)) return;
+    var m=wkMonth(n), c=calc(w,cfg);
+    if(!map[m]){ map[m]={m:m,lucro:0,first:n,last:n}; order.push(m); }
+    map[m].lucro+=c.lucro; map[m].last=n;
+  });
+  return order.map(function(m){ return map[m]; });
+}
+function statusOf(r){
+  if(r>=1) return {txt:"✅ Atingida",cls:"good"};
+  if(r>=.9) return {txt:"🟡 Quase lá",cls:"warn"};
+  return {txt:"🔴 Abaixo",cls:"bad"};
+}
+
+/* ---------- consulta da semana (só leitura) ---------- */
+// monta os quadros da consulta; com editavel=true os mini-cartões viram botões (só no preview de Ajustes)
+function consultaHTML(n,editavel){
+  var t0=TV(), w=t0.weeks[n], cfg=t0.cfg, c=calc(w,cfg);
+  var pct=(w.pct!=null?w.pct:cfg.pctFrota)||0;
+  var B={};
+  var cls=c.lucro<0?"bad":(c.lucro>=cfg.metaSem?"good":"warn");
+  B.hero='<div class="vhero"><div class="cap">Lucro bruto</div><div class="big tvd-num tvd-'+cls+'">'+fEUR.format(c.lucro)+'</div></div>';
+  var CHIP={
+    horas:[fN1.format(w.horas||0)+" h","Horas"],
+    viag:[fInt.format(w.viag||0),"Viagens"],
+    ph:[c.ganhosH!=null?fN1.format(c.ganhosH)+" €":"—","Por hora"],
+    pv:[c.eurViag!=null?fN1.format(c.eurViag)+" €":"—","Por viagem"],
+    fat:[fEUR0.format(w.fat||0),"Faturamento"],
+    receita:[fEUR0.format(c.receita),"Receita"],
+    custos:[fEUR0.format(c.custos),"Custos"],
+    gorj:[fEUR0.format(w.gorj||0),"Gorjetas"]
+  };
+  B.chips=cfg.chips.length?'<div class="chips vchips" style="grid-template-columns:repeat('+cfg.chips.length+',1fr)">'+cfg.chips.map(function(k,i){
+    var inner='<div class="v tvd-num">'+CHIP[k][0]+'</div><div class="k">'+CHIP[k][1]+'</div>';
+    return editavel
+      ?'<button class="chip" data-slot="'+i+'" title="Toque para trocar a métrica">'+inner+'</button>'
+      :'<div class="chip">'+inner+'</div>';
+  }).join("")+'</div>':"";
+  var rows=[["Faturamento",fEUR.format(w.fat||0),""]];
+  cfg.campos.forEach(function(cp){
+    if(!cp.on) return; // desligado = não aparece (o valor continua nas contas)
+    var v=w[cp.k]||0;
+    var def=CAMPOS_DEF.find(function(d){return d.k===cp.k;});
+    if(cp.k==="horas") rows.push([def.nm,fN1.format(v)+" h",""]);
+    else if(cp.k==="viag") rows.push([def.nm,fInt.format(v),""]);
+    else if(cp.k==="extra") rows.push([def.nm,"+"+fEUR.format(v),v?"tvd-good":""]);
+    else if(cp.k==="gorj") rows.push([def.vl,fEUR.format(v),""]);
+    else rows.push([def.nm,fEUR.format(v),v?"tvd-bad":""]); // vermelho já indica que subtrai (sem sinal −)
+  });
+  B.dados='<div class="calc">'+rows.map(function(r){
+    return '<div class="row"><span class="k">'+r[0]+'</span><span class="v tvd-num '+r[2]+'">'+r[1]+'</span></div>';
+  }).join("")+'</div>';
+  var contasOn=cfg.contas.filter(function(x){return x.on;});
+  B.contas=contasOn.length?'<div class="calc">'+contasOn.map(function(x){
+    if(x.k==="frota") return '<div class="row"><span class="k">'+fN1.format(pct)+'% frota</span><span class="v tvd-num tvd-bad">'+fEUR.format(c.frota)+'</span></div>';
+    if(x.k==="receita") return '<div class="row"><span class="k">Receita</span><span class="v tvd-num">'+fEUR.format(c.receita)+'</span></div>';
+    if(x.k==="custos") return '<div class="row"><span class="k">Custos totais</span><span class="v tvd-num tvd-bad">'+fEUR.format(c.custos)+' <span class="pcell">('+(c.pctCusto!=null?fPct.format(c.pctCusto):"—")+' do faturamento)</span></span></div>';
+    return '<div class="row hl"><span class="k">Lucro bruto</span><span class="v tvd-num">'+fEUR.format(c.lucro)+'</span></div>';
+  }).join("")+'</div>':"";
+  return cfg.quadros.map(function(k){ return B[k]; }).join("");
+}
+var viewN=null;
+function tvdOpenView(n){
+  viewN=n;
+  document.getElementById("tvdVTitle").textContent="Semana "+n;
+  document.getElementById("tvdVPer").textContent=wkLabel(n);
+  document.getElementById("tvdVBlocos").innerHTML=consultaHTML(n); // só leitura
+  document.getElementById("tvdDlgView").showModal();
+}
+
+/* ---------- lista de semanas ---------- */
+function renderSemanas(){
+  var t0=TV(), box=document.getElementById("tvdWkList");
+  var asc=weekNums();
+  if(!asc.length){ box.innerHTML='<div class="tvd-empty">Sem semanas. Toque em “＋ Nova semana” ou importe o backup do Controle Motorista em Ajustes.</div>'; return; }
+  var lucros={};
+  asc.forEach(function(n){ lucros[n]=calc(t0.weeks[n],t0.cfg).lucro; });
+  box.innerHTML=asc.slice().reverse().map(function(n){
+    var w=t0.weeks[n], c=calc(w,t0.cfg);
+    var cls=c.lucro<0?"bad":(c.lucro>=t0.cfg.metaSem?"good":"warn");
+    var idx=asc.indexOf(n), prev=idx>0?lucros[asc[idx-1]]:null;
+    var sub=[];
+    if(campoOn("horas")) sub.push(fN1.format(w.horas||0)+" h");
+    if(campoOn("viag")) sub.push(fInt.format(w.viag||0)+" viagens");
+    if(prev!==null&&Math.abs(prev)>0.005){
+      var d=(c.lucro-prev)/Math.abs(prev);
+      sub.push('<span class="tvd-cmp '+(d>=0?"tvd-good":"tvd-bad")+'">'+(d>=0?"↑":"↓")+fPct.format(Math.abs(d))+'</span>');
+    }
+    return '<button class="wk" data-n="'+n+'" onclick="tvdOpenView('+n+')">'
+      +'<span class="l"><span class="t">Semana '+n+'</span><span class="s tvd-num">'+wkLabel(n)+'</span></span>'
+      +'<span class="r"><span class="v tvd-num tvd-'+cls+'">'+fEUR.format(c.lucro)+'</span>'
+      +'<span class="s tvd-num">'+sub.join(" · ")+'</span></span></button>';
+  }).join("");
+}
+
+/* ---------- importação do backup do Controle Motorista ---------- */
+function tvdImportFile(inp){
+  var f=inp.files&&inp.files[0];
+  inp.value="";
+  if(!f) return;
+  var rd=new FileReader();
+  rd.onload=function(){
+    var d;
+    try{ d=JSON.parse(rd.result); }
+    catch(e){ showToast("⚠ Ficheiro inválido — não é um JSON do Controle Motorista", true); return; }
+    if(!d||typeof d!=="object"||Array.isArray(d)||!d.weeks||typeof d.weeks!=="object"){
+      showToast("⚠ Este ficheiro não parece um backup do Controle Motorista (falta a lista de semanas)", true); return;
+    }
+    var lancAtual=TV().lanc; // preserva marcas de "já lançado nas finanças"
+    var novo=tvdNorm(JSON.parse(JSON.stringify(d)));
+    var ns=Object.keys(novo.weeks).map(Number).sort(function(a,b){return a-b;});
+    // resumo para confirmação
+    var tot={fat:0,lucro:0}, pset={};
+    ns.forEach(function(n){
+      var w=novo.weeks[n]; if(!(w.fat>0)) return;
+      var c=calc(w,novo.cfg);
+      tot.fat+=w.fat; tot.lucro+=c.lucro; pset[periodOf(n)]=1;
+    });
+    var nAtual=Object.keys(TV().weeks).length;
+    var msg="Importar o backup do Controle Motorista?\n\n"
+      +"• Semanas no ficheiro: "+ns.length+(ns.length?" (sem. "+ns[0]+" a "+ns[ns.length-1]+")":"")+"\n"
+      +"• Períodos de 4 semanas: "+Object.keys(pset).length+"\n"
+      +"• Faturamento total: "+fEUR.format(tot.fat)+"\n"
+      +"• Lucro bruto total: "+fEUR.format(tot.lucro)+"\n\n"
+      +(nAtual?("⚠ Os "+nAtual+" registos TVDE atuais desta app serão SUBSTITUÍDOS.\n"):"")
+      +"(Os registos das finanças não são tocados.)";
+    if(!confirm(msg)) return;
+    snapshot();
+    novo.lanc=lancAtual;
+    S.tvde=novo;
+    saveState();
+    tvdRender();
+    showToast("✓ TVDE importado — "+ns.length+" semanas");
+  };
+  rd.onerror=function(){ showToast("⚠ Não consegui ler o ficheiro", true); };
+  rd.readAsText(f);
+}
+function tvdExportJSON(){
+  var t0=TV();
+  var out={cfg:t0.cfg,weeks:t0.weeks,seg:t0.seg,desp:t0.desp,meta:{lastExport:Date.now()}};
+  var blob=new Blob([JSON.stringify(out,null,1)],{type:"application/json"});
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="controle-motorista-"+isoDate(new Date())+".json";
+  a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); },4000);
+  showToast("✓ Backup TVDE exportado (compatível com a app antiga)");
+}
+
+/* ---------- sub-navegação e render ---------- */
+var tvdSec="resumo";
+function tvdSw(id){
+  tvdSec=id;
+  document.querySelectorAll("#p-tvde .tvd-sec").forEach(function(el){ el.classList.remove("on"); });
+  document.querySelectorAll("#p-tvde .tvd-subnav button").forEach(function(b){ b.classList.toggle("on",b.dataset.tsec===id); });
+  var sec=document.getElementById("tvd-sec-"+id);
+  if(sec) sec.classList.add("on");
+  tvdRender();
+}
+function tvdRender(){
+  TV();
+  if(tvdSec==="semanas") renderSemanas();
+  else if(tvdSec==="resumo"&&typeof tvdRenderResumo==="function") tvdRenderResumo();
+  else if(tvdSec==="meses"&&typeof tvdRenderMeses==="function") tvdRenderMeses();
+  else if(tvdSec==="ajustes"&&typeof tvdRenderAjustes==="function") tvdRenderAjustes();
+}
+
+/* ---------- stubs (preenchidos nas fases seguintes) ---------- */
+function tvdAddWeek(){ showToast("ℹ O editor de semanas chega na fase seguinte da fusão"); }
+function tvdEditFromView(){ showToast("ℹ O editor de semanas chega na fase seguinte da fusão"); }
+
+/* exports p/ onclick e integração */
+window.tvdRender=tvdRender;
+window.tvdSw=tvdSw;
+window.tvdOpenView=tvdOpenView;
+window.tvdImportFile=tvdImportFile;
+window.tvdExportJSON=tvdExportJSON;
+window.tvdAddWeek=tvdAddWeek;
+window.tvdEditFromView=tvdEditFromView;
+
+})();
+</script>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(function(){});
