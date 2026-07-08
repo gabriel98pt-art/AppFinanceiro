@@ -8724,6 +8724,15 @@ var CONTAS_DEF = [
   {k:"custos",nm:"Custos totais"},
   {k:"lucro",nm:"Lucro bruto",off:true} // desligado: já aparece em destaque no topo
 ];
+// pool combinado — permite mover uma linha entre "Valores da semana" e "Resultado" sem perder a definição
+var LINHAS_DEF = CAMPOS_DEF.concat(CONTAS_DEF);
+var CAMPO_KEYSET = {}; CAMPOS_DEF.forEach(function(d){ CAMPO_KEYSET[d.k]=1; });
+// os 8 campos brutos (os que têm input no editor), na ordem em que aparecem — mesmo que
+// algum tenha sido movido para o grupo Resultado (isso só muda onde aparece na consulta,
+// nunca deixa de ser editável no formulário da semana)
+function tvdCamposOrdenados(cfg){
+  return cfg.campos.concat(cfg.contas).filter(function(x){ return CAMPO_KEYSET[x.k]; });
+}
 var CHIPS_DEF = [
   {k:"horas",nm:"Horas"},{k:"ph",nm:"Por hora"},{k:"viag",nm:"Viagens"},{k:"pv",nm:"Por viagem"},
   {k:"fat",nm:"Faturamento"},{k:"receita",nm:"Receita"},{k:"custos",nm:"Custos"},{k:"gorj",nm:"Gorjetas"}
@@ -8734,13 +8743,25 @@ var QUADROS_DEF = [
   {k:"dados",nm:"Valores da semana"},
   {k:"contas",nm:"Resultado (receita, custos, lucro)"}
 ];
-function normOnList(list,defs){
-  var keys=defs.map(function(c){return c.k;}), out=[];
-  (Array.isArray(list)?list:[]).forEach(function(o){
-    if(o&&keys.indexOf(o.k)>=0&&!out.some(function(x){return x.k===o.k;})) out.push({k:o.k,on:o.on!==false});
+// Campos e Contas partilham um pool de 12 linhas — o utilizador pode mover uma linha de um
+// grupo para o outro (ex. Recarga própria para o Resultado). Garante que cada linha aparece
+// em exatamente um dos dois grupos, preenchendo com o grupo de origem quando falta.
+function normLinhas(cfg){
+  var allKeys=LINHAS_DEF.map(function(d){return d.k;}), seen={};
+  function clean(list){
+    var out=[];
+    (Array.isArray(list)?list:[]).forEach(function(o){
+      if(o&&allKeys.indexOf(o.k)>=0&&!seen[o.k]){ seen[o.k]=1; out.push({k:o.k,on:o.on!==false}); }
+    });
+    return out;
+  }
+  var campos=clean(cfg.campos), contas=clean(cfg.contas);
+  LINHAS_DEF.forEach(function(d){
+    if(seen[d.k]) return;
+    var entry={k:d.k,on:!d.off};
+    if(CAMPO_KEYSET[d.k]) campos.push(entry); else contas.push(entry);
   });
-  defs.forEach(function(d){ if(!out.some(function(x){return x.k===d.k;})) out.push({k:d.k,on:!d.off}); });
-  return out;
+  return {campos:campos,contas:contas};
 }
 // Os mini-cartões são INDEPENDENTES dos campos de valores: o utilizador escolhe
 // o que fica em cada parte (pedido explícito — podem até repetir ou mostrar o que
@@ -8772,12 +8793,13 @@ function _fixMap(o){
 function tvdNorm(d){
   d=(d&&typeof d==="object"&&!Array.isArray(d))?d:{};
   d.cfg=Object.assign({},TVD_SEEDCFG,d.cfg||{});
-  d.cfg.campos=normOnList(d.cfg.campos,CAMPOS_DEF);
+  var _linhas=normLinhas(d.cfg);
+  d.cfg.campos=_linhas.campos;
+  d.cfg.contas=_linhas.contas;
   d.cfg.chips=normChipSlots(d.cfg.chips);
   // migração única (07/2026): repõe os 4 mini-cartões pedidos pelo utilizador,
   // desfazendo o antigo acoplamento aos campos que os deixava só com métricas repetidas
   if(!d.cfg.chipsV2){ d.cfg.chips=["horas","ph","viag","pv"]; d.cfg.chipsV2=true; }
-  d.cfg.contas=normOnList(d.cfg.contas,CONTAS_DEF);
   d.cfg.quadros=normQuadros(d.cfg.quadros);
   d.weeks=_fixMap(d.weeks);
   d.seg=_fixMap(d.seg);
@@ -8800,6 +8822,8 @@ var fPct=new Intl.NumberFormat("pt-PT",{style:"percent",maximumFractionDigits:1}
 var MESES_TV=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 function wkStart(n){ var d=new Date(TVD_START); d.setDate(d.getDate()+(n-1)*7); return d; }
 function wkEnd(n){ var d=wkStart(n); d.setDate(d.getDate()+6); return d; }
+// dia em que o valor da semana é efetivamente recebido — um dia depois do fim da semana (segunda-feira)
+function wkPagamento(n){ var d=wkEnd(n); d.setDate(d.getDate()+1); return d; }
 function ddm(d){ return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0"); }
 function wkLabel(n){ return ddm(wkStart(n))+" – "+ddm(wkEnd(n)); }
 function wkMonth(n){ var d=wkStart(n); d.setDate(d.getDate()+7); return MESES_TV[d.getMonth()]+" "+d.getFullYear(); } // mês de pagamento
@@ -8827,7 +8851,8 @@ function calc(w,cfg){
 function weekNums(){ var t=TV(); return Object.keys(t.weeks).map(Number).sort(function(a,b){return a-b;}); }
 // regra única: campo desligado em Ajustes não aparece em lado nenhum
 // (o valor guardado nunca é apagado e continua a contar nas somas)
-function campoOn(k){ var c=TV().cfg.campos.find(function(x){return x.k===k;}); return !c||!!c.on; }
+// procura nos dois grupos — uma linha pode ter sido movida de Campos para Resultado (ou vice-versa)
+function campoOn(k){ var t=TV().cfg, c=t.campos.find(function(x){return x.k===k;})||t.contas.find(function(x){return x.k===k;}); return !c||!!c.on; }
 function totals(){
   var t0=TV(), cfg=t0.cfg, t={fat:0,receita:0,lucro:0,custos:0,horas:0,viag:0,recP:0,gorj:0,n:0};
   var withH=[];
@@ -8890,6 +8915,28 @@ function statusOf(r){
 }
 
 /* ---------- consulta da semana (só leitura) ---------- */
+// renderiza UMA linha (campo bruto ou conta calculada) independentemente do grupo em que está —
+// permite que o utilizador mova a linha entre "Valores da semana" e "Resultado" sem perder o formato
+function _tvdLinhaRow(k,w,c,pct){
+  if(CAMPO_KEYSET[k]){
+    var v=w[k]||0, def=LINHAS_DEF.find(function(d){return d.k===k;});
+    if(k==="horas") return {lbl:def.nm,val:fN1.format(v)+" h",cls:""};
+    if(k==="viag") return {lbl:def.nm,val:fInt.format(v),cls:""};
+    if(k==="extra") return {lbl:def.nm,val:"+"+fEUR.format(v),cls:v?"tvd-good":""};
+    if(k==="gorj") return {lbl:def.vl,val:fEUR.format(v),cls:""};
+    return {lbl:def.nm,val:fEUR.format(v),cls:v?"tvd-bad":""}; // vermelho já indica que subtrai (sem sinal −)
+  }
+  if(k==="frota") return {lbl:fN1.format(pct)+"% frota",val:fEUR.format(c.frota),cls:"tvd-bad"};
+  if(k==="receita") return {lbl:"Receita",val:fEUR.format(c.receita),cls:""};
+  if(k==="custos") return {lbl:"Custos totais",val:fEUR.format(c.custos)+' <span class="pcell">('+(c.pctCusto!=null?fPct.format(c.pctCusto):"—")+' do faturamento)</span>',cls:"tvd-bad"};
+  return {lbl:"Lucro bruto",val:fEUR.format(c.lucro),cls:"",rowCls:"hl"}; // lucro
+}
+function _tvdRowsHTML(items,w,c,pct){
+  return items.map(function(it){
+    var r=_tvdLinhaRow(it.k,w,c,pct);
+    return '<div class="row'+(r.rowCls?" "+r.rowCls:"")+'"><span class="k">'+r.lbl+'</span><span class="v tvd-num'+(r.cls?" "+r.cls:"")+'">'+r.val+'</span></div>';
+  }).join("");
+}
 // monta os quadros da consulta; com editavel=true os mini-cartões viram botões (só no preview de Ajustes)
 function consultaHTML(n,editavel){
   var t0=TV(), w=t0.weeks[n], cfg=t0.cfg, c=calc(w,cfg);
@@ -8913,27 +8960,14 @@ function consultaHTML(n,editavel){
       ?'<button class="chip" data-slot="'+i+'" title="Toque para trocar a métrica">'+inner+'</button>'
       :'<div class="chip">'+inner+'</div>';
   }).join("")+'</div>':"";
-  var rows=[["Faturamento",fEUR.format(w.fat||0),""]];
-  cfg.campos.forEach(function(cp){
-    if(!cp.on) return; // desligado = não aparece (o valor continua nas contas)
-    var v=w[cp.k]||0;
-    var def=CAMPOS_DEF.find(function(d){return d.k===cp.k;});
-    if(cp.k==="horas") rows.push([def.nm,fN1.format(v)+" h",""]);
-    else if(cp.k==="viag") rows.push([def.nm,fInt.format(v),""]);
-    else if(cp.k==="extra") rows.push([def.nm,"+"+fEUR.format(v),v?"tvd-good":""]);
-    else if(cp.k==="gorj") rows.push([def.vl,fEUR.format(v),""]);
-    else rows.push([def.nm,fEUR.format(v),v?"tvd-bad":""]); // vermelho já indica que subtrai (sem sinal −)
-  });
-  B.dados='<div class="calc">'+rows.map(function(r){
-    return '<div class="row"><span class="k">'+r[0]+'</span><span class="v tvd-num '+r[2]+'">'+r[1]+'</span></div>';
-  }).join("")+'</div>';
-  var contasOn=cfg.contas.filter(function(x){return x.on;});
-  B.contas=contasOn.length?'<div class="calc">'+contasOn.map(function(x){
-    if(x.k==="frota") return '<div class="row"><span class="k">'+fN1.format(pct)+'% frota</span><span class="v tvd-num tvd-bad">'+fEUR.format(c.frota)+'</span></div>';
-    if(x.k==="receita") return '<div class="row"><span class="k">Receita</span><span class="v tvd-num">'+fEUR.format(c.receita)+'</span></div>';
-    if(x.k==="custos") return '<div class="row"><span class="k">Custos totais</span><span class="v tvd-num tvd-bad">'+fEUR.format(c.custos)+' <span class="pcell">('+(c.pctCusto!=null?fPct.format(c.pctCusto):"—")+' do faturamento)</span></span></div>';
-    return '<div class="row hl"><span class="k">Lucro bruto</span><span class="v tvd-num">'+fEUR.format(c.lucro)+'</span></div>';
-  }).join("")+'</div>':"";
+  // dedup: uma métrica já escolhida como mini-cartão não se repete em baixo
+  var chipKeys={}; cfg.chips.forEach(function(k){ chipKeys[k]=1; });
+  var datItems=cfg.campos.filter(function(cp){ return cp.on&&!chipKeys[cp.k]; });
+  var datInner=(chipKeys.fat?"":'<div class="row"><span class="k">Faturamento</span><span class="v tvd-num">'+fEUR.format(w.fat||0)+'</span></div>')
+    +_tvdRowsHTML(datItems,w,c,pct);
+  B.dados=datInner?'<div class="calc">'+datInner+'</div>':"";
+  var contasOn=cfg.contas.filter(function(x){return x.on&&!chipKeys[x.k];});
+  B.contas=contasOn.length?'<div class="calc">'+_tvdRowsHTML(contasOn,w,c,pct)+'</div>':"";
   return cfg.quadros.map(function(k){ return B[k]; }).join("");
 }
 var viewN=null;
@@ -9010,12 +9044,12 @@ function tvdLancarSemana(){
   // fecha a vista da semana antes de abrir a confirmação — dois <dialog> nativos abertos ao mesmo
   // tempo têm bugs de clique conhecidos no Safari; o resto da app (ex. tvdEditFromView) já evita isto
   document.getElementById("tvdDlgView").close();
-  tvdAbrirLancar("w"+viewN,c.receita,w.recP||0,isoDate(wkEnd(viewN)),"TVDE · Semana "+viewN+" ("+wkLabel(viewN)+")","Semana "+viewN+" ("+wkLabel(viewN)+")",null);
+  tvdAbrirLancar("w"+viewN,c.receita,w.recP||0,isoDate(wkPagamento(viewN)),"TVDE · Semana "+viewN+" ("+wkLabel(viewN)+")","Semana "+viewN+" ("+wkLabel(viewN)+")",null);
 }
 function tvdLancarMes(m){
   var o=monthData().find(function(x){return x.m===m;});
   if(!o) return;
-  tvdAbrirLancar("m:"+m,o.receita,o.recP||0,isoDate(wkEnd(o.last)),"TVDE · "+m+" (sem. "+o.first+"–"+o.last+")",m+" (semanas "+o.first+"–"+o.last+")",function(){
+  tvdAbrirLancar("m:"+m,o.receita,o.recP||0,isoDate(wkPagamento(o.last)),"TVDE · "+m+" (sem. "+o.first+"–"+o.last+")",m+" (semanas "+o.first+"–"+o.last+")",function(){
     tvdRenderMeses();
   });
 }
@@ -9228,7 +9262,7 @@ function tvdOpenWeek(n){
   // ordem e visibilidade dos campos escolhidas em Ajustes; ao guardar,
   // o valor de um campo escondido é preservado (nunca zerado às escondidas)
   hiddenKeys={};
-  t0.cfg.campos.forEach(function(c,i){
+  tvdCamposOrdenados(t0.cfg).forEach(function(c,i){
     var inp=wEl(WKEYS.indexOf(c.k)), lb=inp.closest("label");
     lb.style.order=i+1;
     if(!c.on){ hiddenKeys[c.k]=1; inp.value=""; }
@@ -9518,45 +9552,59 @@ function tvdRenderAjustes(){
   });
   tvdRenderCampos(); tvdRenderContas(); tvdRenderQuadros(); tvdRenderPreview();
 }
-// lista genérica {k,on}: interruptor + setas
-function tvdRenderOnList(boxId,defs,getArr,onChange){
-  var arr=getArr(), box=document.getElementById(boxId);
+// lista genérica {k,on}: interruptor + setas + mover para o outro grupo (campos <-> contas).
+// TV() renormaliza o estado inteiro a cada chamada — por isso cada ação lê TV().cfg UMA SÓ VEZ
+// e trabalha nos dois arrays dessa mesma leitura (chamar TV() de novo a meio devolveria arrays
+// novos e desfaria a mutação em curso).
+function tvdRenderOnList(boxId,group,otherGroup,otherLabel,onChange){
+  var arr=TV().cfg[group], box=document.getElementById(boxId);
   if(!box) return;
   box.innerHTML=arr.map(function(c,i){
-    var def=defs.find(function(d){return d.k===c.k;});
+    var def=LINHAS_DEF.find(function(d){return d.k===c.k;});
     return '<div class="campo'+(c.on?'':' off')+'">'
       +'<input type="checkbox" '+(c.on?'checked':'')+' data-k="'+c.k+'" aria-label="Mostrar '+def.nm+'">'
       +'<span class="nm">'+def.nm+'</span>'
+      +'<button class="mv" data-k="'+c.k+'" data-mv="1" title="Mover para '+otherLabel+'" aria-label="Mover '+def.nm+' para '+otherLabel+'">⇄</button>'
       +'<button class="mv" data-k="'+c.k+'" data-d="-1" '+(i===0?'disabled':'')+' aria-label="Subir '+def.nm+'">↑</button>'
       +'<button class="mv" data-k="'+c.k+'" data-d="1" '+(i===arr.length-1?'disabled':'')+' aria-label="Descer '+def.nm+'">↓</button></div>';
   }).join("");
   box.querySelectorAll("input").forEach(function(inp){
     inp.addEventListener("change",function(){
       snapshot();
-      getArr().find(function(c){return c.k===inp.dataset.k;}).on=inp.checked;
+      TV().cfg[group].find(function(c){return c.k===inp.dataset.k;}).on=inp.checked;
       onChange();
     });
   });
-  box.querySelectorAll(".mv").forEach(function(b){
+  box.querySelectorAll("button[data-mv]").forEach(function(b){
     b.addEventListener("click",function(){
-      var a=getArr(), i=a.findIndex(function(c){return c.k===b.dataset.k;}), j=i+(+b.dataset.d);
-      if(j<0||j>=a.length) return;
       snapshot();
+      var cfg=TV().cfg, a=cfg[group], i=a.findIndex(function(c){return c.k===b.dataset.k;});
+      if(i<0) return;
+      var item=a.splice(i,1)[0];
+      cfg[otherGroup].push(item);
+      onChange();
+    });
+  });
+  box.querySelectorAll("button[data-d]").forEach(function(b){
+    b.addEventListener("click",function(){
+      snapshot();
+      var a=TV().cfg[group], i=a.findIndex(function(c){return c.k===b.dataset.k;}), j=i+(+b.dataset.d);
+      if(j<0||j>=a.length) return;
       var tmp=a[i]; a[i]=a[j]; a[j]=tmp;
       onChange();
     });
   });
 }
 function tvdRenderCampos(){
-  tvdRenderOnList("tvdCamposBox",CAMPOS_DEF,function(){return TV().cfg.campos;},function(){
-    // ligar/desligar um campo mexe no resto do TVDE (resumo, listas, tabelas, parâmetros);
+  tvdRenderOnList("tvdCamposBox","campos","contas","Resultado",function(){
+    // ligar/desligar ou mover uma linha mexe no resto do TVDE (resumo, listas, tabelas, parâmetros);
     // os mini-cartões NÃO são afetados — são escolhidos à parte
     saveState(); tvdRenderAjustes();
   });
 }
 function tvdRenderContas(){
-  tvdRenderOnList("tvdContasBox",CONTAS_DEF,function(){return TV().cfg.contas;},function(){
-    saveState(); tvdRenderContas(); tvdRenderPreview();
+  tvdRenderOnList("tvdContasBox","contas","campos","Valores da semana",function(){
+    saveState(); tvdRenderAjustes();
   });
 }
 function tvdRenderQuadros(){
