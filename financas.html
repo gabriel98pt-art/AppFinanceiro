@@ -682,6 +682,32 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
 #p-tvde .tvd-grid2 label{display:block;margin-bottom:.55rem}
 #p-tvde .tvd-grid2 label .k{display:block;font-size:.64rem;color:var(--mut);letter-spacing:.04em;margin-bottom:3px}
 #p-tvde .tvd-grid2 input{width:100%;background:var(--s2);border:1px solid var(--brd);color:var(--txt);border-radius:8px;padding:.45rem .6rem;font-size:.85rem;font-variant-numeric:tabular-nums}
+/* Ecrã largo (≥900px): grelhas de 2 colunas para aproveitar o espaço — telemóvel fica intacto */
+@media(min-width:900px){
+  /* Resumo: hero + metas lado a lado; gráfico e performance a toda a largura */
+  #p-tvde #tvd-sec-resumo.on{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+  #p-tvde #tvd-sec-resumo .tvd-card{margin-bottom:0}
+  #p-tvde #tvd-sec-resumo .tvd-card:nth-child(1){order:1}
+  #p-tvde #tvd-sec-resumo .tvd-card:nth-child(3){order:2}
+  #p-tvde #tvd-sec-resumo .tvd-card:nth-child(2){order:3;grid-column:1/-1}
+  #p-tvde #tvd-sec-resumo .tvd-card:nth-child(4){order:4;grid-column:1/-1}
+  #p-tvde #tvd-sec-resumo .tvd-card:nth-child(4) .chips{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))!important}
+  #p-tvde #tvd-sec-resumo .tvd-card:only-child{grid-column:1/-1}
+  /* Semanas: lista em 2 colunas */
+  #p-tvde #tvdWkList{column-count:2;column-gap:2.4rem}
+  #p-tvde .wk{break-inside:avoid}
+  /* Meses: as duas tabelas lado a lado (períodos tem mais colunas → mais espaço) */
+  #p-tvde #tvd-sec-meses.on{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:.75rem;align-items:start}
+  #p-tvde #tvd-sec-meses .tvd-card{margin-bottom:0}
+  #p-tvde #tvd-sec-meses .tvd-card:only-child{grid-column:1/-1}
+  /* Ajustes: Parâmetros + Dados lado a lado; Janela da semana a toda a largura */
+  #p-tvde #tvd-sec-ajustes.on{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;align-items:start}
+  #p-tvde #tvdAjustesBox{display:contents}
+  #p-tvde #tvdAjustesBox .tvd-card{margin-bottom:0}
+  #p-tvde #tvdAjustesBox .tvd-card:nth-child(1){order:1}
+  #p-tvde #tvd-sec-ajustes>.tvd-card{order:2;margin-bottom:0}
+  #p-tvde #tvdAjustesBox .tvd-card:nth-child(2){order:3;grid-column:1/-1}
+}
 
 /* Modo organizar secções */
 .sec-editing{position:relative;outline:2px dashed var(--blu);outline-offset:3px;border-radius:8px}
