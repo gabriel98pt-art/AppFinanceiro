@@ -8717,6 +8717,7 @@ var TVD_SEEDCFG = { pctFrota:6, aluguel:260, metaSem:320, metaMes:1300, metaHora
 // semana 1 começa a 02/03/2026 (segunda); dias arredondados p/ mudança de hora
 var TVD_START = new Date(2026,2,2);
 var CAMPOS_DEF = [
+  {k:"fat",nm:"Faturamento",locked:true}, // sempre ligado — é a base das contas; só não pode desligar-se
   {k:"port",nm:"Portagens"},
   {k:"alu",nm:"Aluguel"},
   {k:"recF",nm:"Recarga frota"},
@@ -8732,10 +8733,11 @@ var CONTAS_DEF = [
   {k:"custos",nm:"Custos totais"},
   {k:"lucro",nm:"Lucro bruto",off:true} // desligado: já aparece em destaque no topo
 ];
-// pool combinado — as 12 linhas podem viver em qualquer grupo que o utilizador criar
+// pool combinado — as 13 linhas (incl. Faturamento) podem viver em qualquer grupo que o
+// utilizador criar; Faturamento é a única "locked" (sempre ligada, sem interruptor)
 var LINHAS_DEF = CAMPOS_DEF.concat(CONTAS_DEF);
 var CAMPO_KEYSET = {}; CAMPOS_DEF.forEach(function(d){ CAMPO_KEYSET[d.k]=1; });
-// os 8 campos brutos (os que têm input no editor), na ordem em que aparecem — em qualquer
+// os 9 campos brutos (os que têm input no editor), na ordem em que aparecem — em qualquer
 // grupo em que estejam, nunca deixam de ser editáveis no formulário da semana
 function tvdCamposOrdenados(cfg){
   var all=[];
@@ -8746,12 +8748,10 @@ var CHIPS_DEF = [
   {k:"horas",nm:"Horas"},{k:"ph",nm:"Por hora"},{k:"viag",nm:"Viagens"},{k:"pv",nm:"Por viagem"},
   {k:"fat",nm:"Faturamento"},{k:"receita",nm:"Receita"},{k:"custos",nm:"Custos"},{k:"gorj",nm:"Gorjetas"}
 ];
-// blocos fixos da consulta — "fat" (Faturamento) é o único valor que não vive dentro de um
-// grupo (está sempre ligado, é a base das contas); os grupos do utilizador entram a seguir
+// blocos fixos da consulta — os grupos do utilizador entram a seguir
 var QUADROS_DEF = [
   {k:"hero",nm:"Lucro em destaque"},
-  {k:"chips",nm:"Mini-cartões (métricas à escolha)"},
-  {k:"fat",nm:"Faturamento"}
+  {k:"chips",nm:"Mini-cartões (métricas à escolha)"}
 ];
 function novoGrupoId(){ return "g_"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 // Os grupos são criados pelo utilizador (nome livre) — cada uma das 12 linhas vive em
@@ -8780,9 +8780,14 @@ function normGrupos(cfg){
   } else {
     grupos=[{id:"g_valores",nm:"Valores da semana",linhas:[]}];
   }
-  // linhas nunca vistas (instalação nova, ou grupo apagado por engano) entram no 1º grupo
-  var faltam=LINHAS_DEF.filter(function(d){ return !seen[d.k]; }).map(function(d){ return {k:d.k,on:!d.off}; });
-  if(faltam.length) grupos[0].linhas=grupos[0].linhas.concat(faltam);
+  // linhas nunca vistas (instalação nova, grupo apagado por engano, ou "fat" que antes vivia
+  // fora dos grupos) entram no 1º grupo — "fat" vai para o início (posição tradicional),
+  // as restantes para o fim
+  LINHAS_DEF.forEach(function(d){
+    if(seen[d.k]) return;
+    var entry={k:d.k,on:!d.off};
+    if(d.k==="fat") grupos[0].linhas.unshift(entry); else grupos[0].linhas.push(entry);
+  });
   return grupos;
 }
 // Os mini-cartões são INDEPENDENTES dos campos de valores: o utilizador escolhe
@@ -8964,6 +8969,7 @@ function statusOf(r){
 function _tvdLinhaRow(k,w,c,pct){
   if(CAMPO_KEYSET[k]){
     var v=w[k]||0, def=LINHAS_DEF.find(function(d){return d.k===k;});
+    if(k==="fat") return {lbl:def.nm,val:fEUR.format(v),cls:""}; // receita, nunca vermelho
     if(k==="horas") return {lbl:def.nm,val:fN1.format(v)+" h",cls:""};
     if(k==="viag") return {lbl:def.nm,val:fInt.format(v),cls:""};
     if(k==="extra") return {lbl:def.nm,val:"+"+fEUR.format(v),cls:v?"tvd-good":""};
@@ -9006,7 +9012,6 @@ function consultaHTML(n,editavel){
   }).join("")+'</div>':"";
   // dedup: uma métrica já escolhida como mini-cartão não se repete em baixo
   var chipKeys={}; cfg.chips.forEach(function(k){ chipKeys[k]=1; });
-  B.fat=chipKeys.fat?"":'<div class="calc"><div class="row"><span class="k">Faturamento</span><span class="v tvd-num">'+fEUR.format(w.fat||0)+'</span></div></div>';
   cfg.grupos.forEach(function(g){
     var items=g.linhas.filter(function(x){return x.on&&!chipKeys[x.k];});
     B[g.id]=items.length?'<div class="calc">'+_tvdRowsHTML(items,w,c,pct)+'</div>':"";
@@ -9582,7 +9587,7 @@ function tvdRenderAjustes(){
     +'<div class="tvd-card"><div class="eyebrow">Janela da semana <b>monte à sua maneira</b></div><div class="jsplit"><div class="tvd-lists">'
     +'<div class="subh">Quadros (ordem dos blocos da consulta) · arraste para reordenar</div><div id="tvdQuadrosBox"></div>'
     +'<div class="subh">Grupos de linhas · crie os que quiser, arraste entre eles</div><div id="tvdGruposBox"></div>'
-    +'<div class="note">Faturamento aparece sempre (está nos Quadros, não é preciso ligar). Arraste uma linha (⠿) para reordenar ou para outro grupo. Interruptor = aparece ou não — uma linha desligada some do TVDE inteiro (formulário, consulta, resumo e tabelas), mas nada é apagado: os valores antigos ficam guardados, continuam nas contas e voltam a aparecer se religar. <b>Mini-cartões:</b> toque num deles na pré-visualização ao lado para trocar o que mostra.</div>'
+    +'<div class="note">Arraste uma linha (⠿) para reordenar ou para outro grupo. Interruptor = aparece ou não — uma linha desligada some do TVDE inteiro (formulário, consulta, resumo e tabelas), mas nada é apagado: os valores antigos ficam guardados, continuam nas contas e voltam a aparecer se religar. Faturamento não tem interruptor (é a base das contas), mas pode arrastar-se para qualquer grupo. <b>Mini-cartões:</b> toque num deles na pré-visualização ao lado para trocar o que mostra.</div>'
     +'</div><div class="prev"><div class="prevlab" id="tvdPrevLab">Pré-visualização</div><div id="tvdPrevBox"></div></div></div></div>';
   Object.keys(TVD_CFGMAP).forEach(function(id){
     var el=document.getElementById(id);
@@ -9651,8 +9656,10 @@ function tvdRenderGrupos(){
         +' ondragstart="tvdRowDragStart(event,\''+g.id+'\','+i+')" ondragover="tvdRowDragOver(event)"'
         +' ondrop="tvdRowDrop(event,\''+g.id+'\','+i+')" ondragend="tvdRowDragEnd()">'
         +'<span class="drag-handle" aria-hidden="true">⠿</span>'
-        +'<input type="checkbox" '+(c.on?'checked':'')+' data-gid="'+g.id+'" data-k="'+c.k+'" aria-label="Mostrar '+def.nm+'">'
-        +'<span class="nm">'+def.nm+'</span></div>';
+        +(def.locked
+          ? '<span class="nm">'+def.nm+'</span><span class="s">sempre pedido</span>'
+          : '<input type="checkbox" '+(c.on?'checked':'')+' data-gid="'+g.id+'" data-k="'+c.k+'" aria-label="Mostrar '+def.nm+'"><span class="nm">'+def.nm+'</span>')
+        +'</div>';
     }).join("");
     return '<div class="tvd-grupo">'
       +'<div class="tvd-grupo-hdr">'
