@@ -1226,7 +1226,7 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
     <label class="f"><span class="k">Faturamento (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWFat"></label>
     <label class="f"><span class="k">Portagens (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWPort"></label>
     <label class="f"><span class="k">Aluguel (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWAlu"></label>
-    <label class="f"><span class="k">Recarga frota (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWRecF"><div class="hint" id="tvdRecFHint"></div></label>
+    <label class="f"><span class="k">Recarga frota (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWRecF"></label>
     <label class="f"><span class="k">Extra (€) · fora do faturamento, soma ao lucro</span><input type="number" step="0.01" inputmode="decimal" id="tvdWExtra"></label>
     <label class="f"><span class="k">Gorjetas (€) · só anotação, já vêm no faturamento</span><input type="number" step="0.01" inputmode="decimal" id="tvdWGorj"></label>
     <label class="f"><span class="k">Recarga própria (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWRecP"><div class="hint" id="tvdRecPHint"></div></label>
@@ -9193,10 +9193,10 @@ var editN=null, creating=false, editPct=6, hiddenKeys={};
 var WF=["Fat","Port","Alu","RecF","Extra","Gorj","RecP","Horas","Viag"];
 var WKEYS=["fat","port","alu","recF","extra","gorj","recP","horas","viag"];
 function wEl(i){ return document.getElementById("tvdW"+WF[i]); }
-// soma das Cargas do Veículo (aba Veículo) dentro da semana n — própria (isFrota=false) ou frota (isFrota=true)
-function _vehCargaWeekSum(n,isFrota){
+// soma das Cargas próprias (não-frota) da aba Veículo dentro da semana n
+function _vehCargaPropriaSemana(n){
   var from=isoDate(wkStart(n)), to=isoDate(wkEnd(n));
-  return sumVal((S.veh.cg||[]).filter(function(d){ return !!d.frota===!!isFrota && d.date>=from && d.date<=to; }));
+  return sumVal((S.veh.cg||[]).filter(function(d){ return !d.frota && d.date>=from && d.date<=to; }));
 }
 function _tvdSugestaoCarga(hintId,inputId,sug,autoFill){
   var hint=document.getElementById(hintId);
@@ -9228,10 +9228,10 @@ function tvdOpenWeek(n){
     if(!c.on){ hiddenKeys[c.k]=1; inp.value=""; }
     lb.style.display=c.on?"":"none";
   });
-  // sugestão a partir das Cargas do Veículo (própria/frota) na semana — numa semana nova preenche
-  // sozinho; numa semana já existente só sugere (nunca substitui o que já editaste à mão)
-  if(!hiddenKeys.recP) _tvdSugestaoCarga("tvdRecPHint","tvdWRecP",_vehCargaWeekSum(n,false),creating);
-  if(!hiddenKeys.recF) _tvdSugestaoCarga("tvdRecFHint","tvdWRecF",_vehCargaWeekSum(n,true),creating);
+  // sugestão a partir das Cargas do Veículo (só recarga própria — a frota vem do relatório do dono,
+  // lançada à mão junto com o faturamento). Numa semana nova preenche sozinho; numa já existente só
+  // sugere (nunca substitui o que já editaste à mão)
+  if(!hiddenKeys.recP) _tvdSugestaoCarga("tvdRecPHint","tvdWRecP",_vehCargaPropriaSemana(n),creating);
   document.getElementById("tvdBtnDelWeek").style.display=creating?"none":"";
   tvdLiveCalc();
   document.getElementById("tvdDlgWeek").showModal();
