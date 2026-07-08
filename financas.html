@@ -633,6 +633,10 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
 .tvd-dlg label.f .k{display:block;font-size:.66rem;color:var(--mut);letter-spacing:.04em;margin-bottom:3px}
 .tvd-dlg label.f input{width:100%;background:var(--s2);border:1px solid var(--brd);color:var(--txt);border-radius:9px;padding:.5rem .6rem;font-size:1rem;font-variant-numeric:tabular-nums}
 .tvd-dlg label.f input:focus{outline:2px solid var(--tvd-amber);outline-offset:1px}
+.tvd-dlg label.f select{width:100%;background:var(--s2);border:1px solid var(--brd);color:var(--txt);border-radius:9px;padding:.5rem .6rem;font-size:.9rem}
+.tvd-dlg label.f select:focus{outline:2px solid var(--tvd-amber);outline-offset:1px}
+.tvd-dlg .chkrow{display:flex;align-items:flex-start;gap:8px;margin:.6rem 0;font-size:.8rem;line-height:1.4}
+.tvd-dlg .chkrow input{width:17px;height:17px;flex-shrink:0;margin-top:1px;accent-color:var(--tvd-amber)}
 .tvd-dlg .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
 /* tabelas (meses/períodos) */
 #p-tvde .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -696,10 +700,7 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
   /* Semanas: lista em 2 colunas */
   #p-tvde #tvdWkList{column-count:2;column-gap:2.4rem}
   #p-tvde .wk{break-inside:avoid}
-  /* Meses: as duas tabelas lado a lado (períodos tem mais colunas → mais espaço) */
-  #p-tvde #tvd-sec-meses.on{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:.75rem;align-items:start}
-  #p-tvde #tvd-sec-meses .tvd-card{margin-bottom:0}
-  #p-tvde #tvd-sec-meses .tvd-card:only-child{grid-column:1/-1}
+  /* Meses: as tabelas têm muitas colunas — ficam de largura total (partilhar largura cortava a coluna Finanças) */
   /* Ajustes: Parâmetros + Dados lado a lado; Janela da semana a toda a largura */
   #p-tvde #tvd-sec-ajustes.on{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;align-items:start}
   #p-tvde #tvdAjustesBox{display:contents}
@@ -1233,6 +1234,16 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
   <button class="tvd-btn" onclick="tvdSaveWeek()">Guardar semana</button>
   <button class="tvd-btn danger" id="tvdBtnDelWeek" onclick="tvdDelWeek()">Apagar esta semana</button>
   <button class="tvd-btn ghost" onclick="document.getElementById('tvdDlgWeek').close()">Fechar</button>
+</dialog>
+
+<!-- TVDE: confirmar lançamento (receita + opcionalmente recarga própria) nas finanças -->
+<dialog class="tvd-dlg" id="tvdDlgLanc">
+  <h2>Lançar nas finanças</h2>
+  <div class="per tvd-num" id="tvdLancPer"></div>
+  <div class="calc" id="tvdLancResumo"></div>
+  <div id="tvdLancRecpBox"></div>
+  <button class="tvd-btn" id="tvdLancConfirmBtn" onclick="tvdConfirmarLancamento()">Confirmar lançamento</button>
+  <button class="tvd-btn ghost" onclick="document.getElementById('tvdDlgLanc').close()">Cancelar</button>
 </dialog>
 
 <!-- MAIN MODAL -->
@@ -8864,8 +8875,8 @@ function monthData(){
   weekNums().forEach(function(n){
     var w=t0.weeks[n]; if(!(w.fat>0)) return;
     var m=wkMonth(n), c=calc(w,cfg);
-    if(!map[m]){ map[m]={m:m,lucro:0,receita:0,first:n,last:n}; order.push(m); }
-    map[m].lucro+=c.lucro; map[m].receita+=c.receita; map[m].last=n;
+    if(!map[m]){ map[m]={m:m,lucro:0,receita:0,recP:0,first:n,last:n}; order.push(m); }
+    map[m].lucro+=c.lucro; map[m].receita+=c.receita; map[m].recP+=(w.recP||0); map[m].last=n;
   });
   return order.map(function(m){ return map[m]; });
 }
@@ -8934,34 +8945,75 @@ function tvdOpenView(n){
 }
 
 /* ---------- ligação com as finanças: lançar lucro como receita (SEMPRE manual) ---------- */
-function tvdLancar(chave,val,dataIso,nota,rotulo){
-  if(!(val>0)){ showToast("⚠ O lucro é "+fEUR.format(val)+" — só valores positivos podem entrar como receita", true); return false; }
+var _lancCtx=null;
+// Abre o diálogo de confirmação (receita, e opcionalmente recarga própria como despesa) — nunca lança sozinho.
+function tvdAbrirLancar(chave,val,recP,dataIso,nota,rotulo,onDone){
+  if(!(val>0)){ showToast("⚠ A receita é "+fEUR.format(val)+" — só valores positivos podem entrar como receita", true); return; }
   var ja=TV().lanc[chave];
-  if(ja&&!confirm(rotulo+" JÁ foi lançado nas finanças em "+new Date(ja.at).toLocaleDateString("pt-PT")+" ("+fEUR.format(ja.val)+").\n\nLançar OUTRA VEZ criaria uma receita duplicada. Continuar mesmo assim?")) return false;
+  if(ja&&!confirm("Já lançámos nas finanças: "+rotulo+" (em "+new Date(ja.at).toLocaleDateString("pt-PT")+", "+fEUR.format(ja.val)+").\n\nLançar outra vez criaria um lançamento duplicado. Continuar mesmo assim?")) return;
   var v=Math.round(val*100)/100;
-  if(!confirm("Lançar nas finanças como receita?\n\n• "+rotulo+"\n• Valor: "+fEUR.format(v)+"\n• Data: "+dataIso.split("-").reverse().join("/")+"\n• Origem: TVDE\n\n(Aparece na aba Receitas; pode editar ou apagar lá.)")) return false;
+  var rp=Math.round((recP||0)*100)/100;
+  _lancCtx={chave:chave,val:v,recP:rp,dataIso:dataIso,nota:nota,rotulo:rotulo,onDone:onDone};
+  document.getElementById("tvdLancPer").textContent=rotulo;
+  document.getElementById("tvdLancResumo").innerHTML=
+    '<div class="row"><span class="k">Receita (entra como receita)</span><span class="v tvd-num tvd-good">'+fEUR.format(v)+'</span></div>'
+    +'<div class="row"><span class="k">Data</span><span class="v tvd-num">'+dataIso.split("-").reverse().join("/")+'</span></div>'
+    +'<div class="row"><span class="k">Origem</span><span class="v">TVDE</span></div>';
+  var recpBox=document.getElementById("tvdLancRecpBox");
+  if(rp>0.005){
+    var cards=S.cfg.pay||[];
+    var selectHtml=cards.length
+      ?'<label class="f" id="tvdLancCardWrap"><span class="k">Cartão usado na recarga</span><select id="tvdLancCard">'+cards.map(function(c){return '<option value="'+_esc(c)+'">'+_esc(c)+'</option>';}).join("")+'</select></label>'
+      :'<div class="note" id="tvdLancCardWrap">Sem cartões configurados — a despesa fica sem cartão associado (define depois na aba Despesas).</div>';
+    recpBox.innerHTML=
+      '<label class="chkrow"><input type="checkbox" id="tvdLancRecpChk" checked><span>Lançar também a recarga própria (<b class="tvd-num">'+fEUR.format(rp)+'</b>) como despesa</span></label>'
+      +selectHtml;
+    var chk=document.getElementById("tvdLancRecpChk"), wrap=document.getElementById("tvdLancCardWrap");
+    chk.addEventListener("change",function(){ wrap.style.display=chk.checked?"":"none"; });
+  } else {
+    recpBox.innerHTML="";
+  }
+  document.getElementById("tvdDlgLanc").showModal();
+}
+function tvdConfirmarLancamento(){
+  var ctx=_lancCtx; if(!ctx) return;
+  var chk=document.getElementById("tvdLancRecpChk");
+  var lancarRecp=!!(chk&&chk.checked&&ctx.recP>0.005);
+  var cardSel=document.getElementById("tvdLancCard");
+  var card=cardSel?cardSel.value:"";
   snapshot();
-  var id=nid();
-  S.rec.push({id:id,date:dataIso,src:"TVDE",val:v,card:"",notes:nota});
-  TV().lanc[chave]={rid:id,val:v,at:Date.now()};
+  var idRec=nid();
+  S.rec.push({id:idRec,date:ctx.dataIso,src:"TVDE",val:ctx.val,card:"",notes:ctx.nota});
+  var idDc=null;
+  if(lancarRecp){
+    if(!S.cfg.ccat) S.cfg.ccat=[];
+    if(S.cfg.ccat.indexOf("Recarga TVDE")<0) S.cfg.ccat.push("Recarga TVDE");
+    idDc=nid();
+    S.dc.push({id:idDc,date:ctx.dataIso,name:"Recarga própria — "+ctx.rotulo,cat:"Recarga TVDE",val:ctx.recP,card:card,notes:ctx.nota});
+  }
+  TV().lanc[ctx.chave]={rid:idRec,did:idDc,val:ctx.val,recP:lancarRecp?ctx.recP:0,at:Date.now()};
   saveState();
-  showToast("✓ Receita TVDE lançada — "+fEUR.format(v));
-  return true;
+  document.getElementById("tvdDlgLanc").close();
+  showToast(lancarRecp?"✓ Receita e recarga própria lançadas nas finanças":"✓ Receita TVDE lançada — "+fEUR.format(ctx.val));
+  var onDone=ctx.onDone;
+  _lancCtx=null;
+  if(onDone) onDone();
 }
 function tvdLancarSemana(){
   if(viewN==null) return;
   var w=TV().weeks[viewN]; if(!w) return;
   var c=calc(w,TV().cfg);
-  if(tvdLancar("w"+viewN,c.receita,isoDate(wkEnd(viewN)),"TVDE · Semana "+viewN+" ("+wkLabel(viewN)+")","Receita da Semana "+viewN+" ("+wkLabel(viewN)+")")){
+  tvdAbrirLancar("w"+viewN,c.receita,w.recP||0,isoDate(wkEnd(viewN)),"TVDE · Semana "+viewN+" ("+wkLabel(viewN)+")","Semana "+viewN+" ("+wkLabel(viewN)+")",function(){
     var b=document.getElementById("tvdBtnLanc");
     if(b) b.textContent="✓ Receita já lançada nas finanças";
-  }
+  });
 }
 function tvdLancarMes(m){
   var o=monthData().find(function(x){return x.m===m;});
   if(!o) return;
-  if(tvdLancar("m:"+m,o.receita,isoDate(wkEnd(o.last)),"TVDE · "+m+" (sem. "+o.first+"–"+o.last+")","Receita de "+m+" (semanas "+o.first+"–"+o.last+")"))
+  tvdAbrirLancar("m:"+m,o.receita,o.recP||0,isoDate(wkEnd(o.last)),"TVDE · "+m+" (sem. "+o.first+"–"+o.last+")",m+" (semanas "+o.first+"–"+o.last+")",function(){
     tvdRenderMeses();
+  });
 }
 
 /* ---------- lista de semanas ---------- */
@@ -9230,18 +9282,17 @@ function tvdRenderMeses(){
   if(!ms.length){ sec.innerHTML='<div class="tvd-card"><div class="tvd-empty">Sem semanas registadas.</div></div>'; return; }
   var rOn=campoOn("recP"), hOn=campoOn("horas"), vOn=campoOn("viag");
   var h1='<div class="tvd-card"><div class="eyebrow">Resumo por mês <b>pagamento</b></div><div class="scroll"><table class="tvd-tbl">'
-    +"<tr><th>Mês</th><th>Semanas</th><th>Lucro</th><th>Receita</th><th>% Meta</th><th>Status</th><th>Finanças</th></tr>"
+    +"<tr><th>Mês</th><th>Semanas</th><th>Lucro</th><th>Receita</th><th>Meta</th><th>Finanças</th></tr>"
     +ms.map(function(o){
       var s=statusOf(cfg.metaMes?o.lucro/cfg.metaMes:0);
       var ja=t0.lanc["m:"+o.m];
       return "<tr><td>"+o.m+"</td><td class='tvd-num'>"+o.first+"–"+o.last+"</td>"
         +"<td class='tvd-num tot'>"+fEUR.format(o.lucro)+"</td>"
         +"<td class='tvd-num'>"+fEUR.format(o.receita)+"</td>"
-        +"<td class='tvd-num'>"+fPct.format(cfg.metaMes?o.lucro/cfg.metaMes:0)+"</td>"
-        +"<td class='tvd-"+s.cls+"'>"+s.txt+"</td>"
-        +"<td><button class='mv' data-m='"+o.m+"' title='"+(ja?"Já lançado como receita em "+new Date(ja.at).toLocaleDateString("pt-PT"):"Lançar a receita deste mês (o que efetivamente caiu na conta) nas finanças")+"' style='width:auto;padding:0 8px'>"+(ja?"✓":"💰 lançar")+"</button></td></tr>";
+        +"<td class='tvd-num'>"+fPct.format(cfg.metaMes?o.lucro/cfg.metaMes:0)+"<br><span class='tvd-"+s.cls+"' style='font-size:.64rem'>"+s.txt+"</span></td>"
+        +"<td><button class='tvd-btn mini' data-m='"+o.m+"' title='"+(ja?"Já lançado como receita em "+new Date(ja.at).toLocaleDateString("pt-PT"):"Lançar a receita deste mês (o que efetivamente caiu na conta) nas finanças")+"'>"+(ja?"✓":"💰")+"</button></td></tr>";
     }).join("")+"</table></div>"
-    +'<div class="note">Lucro = ganho depois de descontar a recarga própria (mostrado aqui só para acompanhar a meta). <b>Receita</b> = o valor que a plataforma efetivamente deposita na conta (sem descontar a recarga própria, que sai à parte). 💰 lançar = cria uma receita nas finanças com esse valor (só quando tocar — nunca automático). O ✓ indica que já foi lançado.</div></div>';
+    +'<div class="note">Lucro = ganho depois de descontar a recarga própria (mostrado aqui só para acompanhar a meta). <b>Receita</b> = o valor que a plataforma efetivamente deposita na conta (sem descontar a recarga própria, que sai à parte). 💰 lançar = cria uma receita nas finanças com esse valor e, se houver recarga própria no período, oferece lançá-la também como despesa (escolhe o cartão na hora) — sempre com confirmação, nunca automático. O ✓ indica que já foi lançado.</div></div>';
   var h2='<div class="tvd-card"><div class="eyebrow">Períodos de 4 semanas</div><div class="scroll"><table class="tvd-tbl">'
     +"<tr><th>Período</th><th>Faturamento</th><th>Receita</th>"+(rOn?"<th>Recarga</th>":"")+"<th>Lucro bruto</th><th>Seg. Social</th><th>Lucro líq.</th>"+(hOn?"<th>Horas</th>":"")+(vOn?"<th>Viagens</th>":"")+"</tr>"
     +per.map(function(o){
