@@ -1208,7 +1208,7 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
   <div class="per tvd-num" id="tvdVPer"></div>
   <div id="tvdVBlocos"></div>
   <button class="tvd-btn" id="tvdBtnEditWeek" onclick="tvdEditFromView()">✏️ Editar esta semana</button>
-  <button class="tvd-btn ghost" id="tvdBtnLanc" onclick="tvdLancarSemana()">💰 Lançar lucro nas finanças</button>
+  <button class="tvd-btn ghost" id="tvdBtnLanc" onclick="tvdLancarSemana()">💰 Lançar receita nas finanças</button>
   <button class="tvd-btn ghost" onclick="document.getElementById('tvdDlgView').close()">Fechar</button>
 </dialog>
 
@@ -8864,8 +8864,8 @@ function monthData(){
   weekNums().forEach(function(n){
     var w=t0.weeks[n]; if(!(w.fat>0)) return;
     var m=wkMonth(n), c=calc(w,cfg);
-    if(!map[m]){ map[m]={m:m,lucro:0,first:n,last:n}; order.push(m); }
-    map[m].lucro+=c.lucro; map[m].last=n;
+    if(!map[m]){ map[m]={m:m,lucro:0,receita:0,first:n,last:n}; order.push(m); }
+    map[m].lucro+=c.lucro; map[m].receita+=c.receita; map[m].last=n;
   });
   return order.map(function(m){ return map[m]; });
 }
@@ -8929,7 +8929,7 @@ function tvdOpenView(n){
   document.getElementById("tvdVPer").textContent=wkLabel(n);
   document.getElementById("tvdVBlocos").innerHTML=consultaHTML(n); // só leitura
   var b=document.getElementById("tvdBtnLanc");
-  if(b) b.textContent=TV().lanc["w"+n]?"✓ Lucro já lançado nas finanças":"💰 Lançar lucro nas finanças";
+  if(b) b.textContent=TV().lanc["w"+n]?"✓ Receita já lançada nas finanças":"💰 Lançar receita nas finanças";
   document.getElementById("tvdDlgView").showModal();
 }
 
@@ -8952,15 +8952,15 @@ function tvdLancarSemana(){
   if(viewN==null) return;
   var w=TV().weeks[viewN]; if(!w) return;
   var c=calc(w,TV().cfg);
-  if(tvdLancar("w"+viewN,c.lucro,isoDate(wkEnd(viewN)),"TVDE · Semana "+viewN+" ("+wkLabel(viewN)+")","Lucro da Semana "+viewN+" ("+wkLabel(viewN)+")")){
+  if(tvdLancar("w"+viewN,c.receita,isoDate(wkEnd(viewN)),"TVDE · Semana "+viewN+" ("+wkLabel(viewN)+")","Receita da Semana "+viewN+" ("+wkLabel(viewN)+")")){
     var b=document.getElementById("tvdBtnLanc");
-    if(b) b.textContent="✓ Lucro já lançado nas finanças";
+    if(b) b.textContent="✓ Receita já lançada nas finanças";
   }
 }
 function tvdLancarMes(m){
   var o=monthData().find(function(x){return x.m===m;});
   if(!o) return;
-  if(tvdLancar("m:"+m,o.lucro,isoDate(wkEnd(o.last)),"TVDE · "+m+" (sem. "+o.first+"–"+o.last+")","Lucro de "+m+" (semanas "+o.first+"–"+o.last+")"))
+  if(tvdLancar("m:"+m,o.receita,isoDate(wkEnd(o.last)),"TVDE · "+m+" (sem. "+o.first+"–"+o.last+")","Receita de "+m+" (semanas "+o.first+"–"+o.last+")"))
     tvdRenderMeses();
 }
 
@@ -9230,17 +9230,18 @@ function tvdRenderMeses(){
   if(!ms.length){ sec.innerHTML='<div class="tvd-card"><div class="tvd-empty">Sem semanas registadas.</div></div>'; return; }
   var rOn=campoOn("recP"), hOn=campoOn("horas"), vOn=campoOn("viag");
   var h1='<div class="tvd-card"><div class="eyebrow">Resumo por mês <b>pagamento</b></div><div class="scroll"><table class="tvd-tbl">'
-    +"<tr><th>Mês</th><th>Semanas</th><th>Lucro</th><th>% Meta</th><th>Status</th><th>Finanças</th></tr>"
+    +"<tr><th>Mês</th><th>Semanas</th><th>Lucro</th><th>Receita</th><th>% Meta</th><th>Status</th><th>Finanças</th></tr>"
     +ms.map(function(o){
       var s=statusOf(cfg.metaMes?o.lucro/cfg.metaMes:0);
       var ja=t0.lanc["m:"+o.m];
       return "<tr><td>"+o.m+"</td><td class='tvd-num'>"+o.first+"–"+o.last+"</td>"
         +"<td class='tvd-num tot'>"+fEUR.format(o.lucro)+"</td>"
+        +"<td class='tvd-num'>"+fEUR.format(o.receita)+"</td>"
         +"<td class='tvd-num'>"+fPct.format(cfg.metaMes?o.lucro/cfg.metaMes:0)+"</td>"
         +"<td class='tvd-"+s.cls+"'>"+s.txt+"</td>"
-        +"<td><button class='mv' data-m='"+o.m+"' title='"+(ja?"Já lançado como receita em "+new Date(ja.at).toLocaleDateString("pt-PT"):"Lançar o lucro deste mês como receita nas finanças")+"' style='width:auto;padding:0 8px'>"+(ja?"✓":"💰 lançar")+"</button></td></tr>";
+        +"<td><button class='mv' data-m='"+o.m+"' title='"+(ja?"Já lançado como receita em "+new Date(ja.at).toLocaleDateString("pt-PT"):"Lançar a receita deste mês (o que efetivamente caiu na conta) nas finanças")+"' style='width:auto;padding:0 8px'>"+(ja?"✓":"💰 lançar")+"</button></td></tr>";
     }).join("")+"</table></div>"
-    +'<div class="note">💰 lançar = cria uma receita nas finanças com o lucro do mês (só quando tocar — nunca automático). O ✓ indica que já foi lançado.</div></div>';
+    +'<div class="note">Lucro = ganho depois de descontar a recarga própria (mostrado aqui só para acompanhar a meta). <b>Receita</b> = o valor que a plataforma efetivamente deposita na conta (sem descontar a recarga própria, que sai à parte). 💰 lançar = cria uma receita nas finanças com esse valor (só quando tocar — nunca automático). O ✓ indica que já foi lançado.</div></div>';
   var h2='<div class="tvd-card"><div class="eyebrow">Períodos de 4 semanas</div><div class="scroll"><table class="tvd-tbl">'
     +"<tr><th>Período</th><th>Faturamento</th><th>Receita</th>"+(rOn?"<th>Recarga</th>":"")+"<th>Lucro bruto</th><th>Seg. Social</th><th>Lucro líq.</th>"+(hOn?"<th>Horas</th>":"")+(vOn?"<th>Viagens</th>":"")+"</tr>"
     +per.map(function(o){
