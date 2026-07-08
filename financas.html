@@ -603,6 +603,7 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 #p-tvde .tvd-btn.ghost,.tvd-dlg .tvd-btn.ghost{background:transparent;border:1px solid var(--brd);color:var(--txt);font-weight:600}
 #p-tvde .tvd-btn.danger,.tvd-dlg .tvd-btn.danger{background:transparent;border:1px solid var(--red);color:var(--red);font-weight:600}
 #p-tvde .tvd-btn.mini{width:auto;padding:.3rem .7rem;font-size:.7rem;font-weight:600;border-radius:8px;background:transparent;border:1px solid var(--brd);color:var(--mut)}
+#p-tvde .tvd-btn.mini.danger{border-color:var(--red);color:var(--red)}
 #p-tvde .tvd-btn+.tvd-btn,.tvd-dlg .tvd-btn+.tvd-btn{margin-top:.45rem}
 #p-tvde .cardhead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:.45rem}
 #p-tvde .cardhead .eyebrow{margin-bottom:0}
@@ -671,14 +672,21 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
 #p-tvde .mbar i{display:block;height:100%;border-radius:6px;transition:width .5s ease}
 #p-tvde .f-good{background:var(--grn)}#p-tvde .f-warn{background:var(--ylw)}#p-tvde .f-bad{background:var(--red)}
 /* ajustes: listas configuráveis + preview */
-#p-tvde .campo{display:flex;align-items:center;gap:10px;padding:4px 2px;border-bottom:1px solid var(--brd);font-size:.76rem}
+#p-tvde .campo{display:flex;align-items:center;gap:10px;padding:4px 2px;border-bottom:1px solid var(--brd);font-size:.76rem;cursor:grab}
 #p-tvde .campo .nm{flex:1}
 #p-tvde .campo.off .nm{color:var(--mut);opacity:.55}
 #p-tvde .campo .s{font-size:.64rem;color:var(--mut)}
 #p-tvde .campo input[type=checkbox]{width:16px;height:16px;accent-color:var(--tvd-amber)}
-#p-tvde .campo .mv{background:var(--s2);border:1px solid var(--brd);color:var(--txt);border-radius:8px;width:30px;height:24px;font-size:.7rem;cursor:pointer}
-#p-tvde .campo .mv:disabled{opacity:.25;cursor:default}
+#p-tvde .campo .drag-handle{color:var(--mut);flex-shrink:0;font-size:.85rem;user-select:none}
+#p-tvde .campo.dragging{opacity:.4}
+#p-tvde .campo.drag-over{outline:2px solid var(--tvd-amber);background:rgba(198,130,38,.08)}
 #p-tvde .tvd-lists .campo:last-child{border-bottom:none}
+#p-tvde .tvd-grupo{margin-bottom:.85rem}
+#p-tvde .tvd-grupo-hdr{display:flex;align-items:center;gap:8px;margin-bottom:2px}
+#p-tvde .tvd-grupo-nome{flex:1;background:transparent;border:none;border-bottom:1px dashed var(--brd);color:var(--txt);font-size:.78rem;font-weight:700;padding:3px 0;min-width:0}
+#p-tvde .tvd-grupo-nome:focus{outline:none;border-bottom-color:var(--tvd-amber)}
+#p-tvde .tvd-grupo-lista{min-height:12px}
+#p-tvde .tvd-grupo-lista .tvd-empty{color:var(--mut);cursor:default}
 #p-tvde .subh{font-size:.6rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);opacity:.8;margin:.8rem 0 2px}
 #p-tvde .subh:first-of-type{margin-top:2px}
 #p-tvde .prev{border:1px dashed var(--mut);border-radius:12px;padding:.7rem .7rem 2px;margin-top:.7rem;max-width:440px}
@@ -8724,44 +8732,58 @@ var CONTAS_DEF = [
   {k:"custos",nm:"Custos totais"},
   {k:"lucro",nm:"Lucro bruto",off:true} // desligado: já aparece em destaque no topo
 ];
-// pool combinado — permite mover uma linha entre "Valores da semana" e "Resultado" sem perder a definição
+// pool combinado — as 12 linhas podem viver em qualquer grupo que o utilizador criar
 var LINHAS_DEF = CAMPOS_DEF.concat(CONTAS_DEF);
 var CAMPO_KEYSET = {}; CAMPOS_DEF.forEach(function(d){ CAMPO_KEYSET[d.k]=1; });
-// os 8 campos brutos (os que têm input no editor), na ordem em que aparecem — mesmo que
-// algum tenha sido movido para o grupo Resultado (isso só muda onde aparece na consulta,
-// nunca deixa de ser editável no formulário da semana)
+// os 8 campos brutos (os que têm input no editor), na ordem em que aparecem — em qualquer
+// grupo em que estejam, nunca deixam de ser editáveis no formulário da semana
 function tvdCamposOrdenados(cfg){
-  return cfg.campos.concat(cfg.contas).filter(function(x){ return CAMPO_KEYSET[x.k]; });
+  var all=[];
+  cfg.grupos.forEach(function(g){ all=all.concat(g.linhas); });
+  return all.filter(function(x){ return CAMPO_KEYSET[x.k]; });
 }
 var CHIPS_DEF = [
   {k:"horas",nm:"Horas"},{k:"ph",nm:"Por hora"},{k:"viag",nm:"Viagens"},{k:"pv",nm:"Por viagem"},
   {k:"fat",nm:"Faturamento"},{k:"receita",nm:"Receita"},{k:"custos",nm:"Custos"},{k:"gorj",nm:"Gorjetas"}
 ];
+// blocos fixos da consulta — "fat" (Faturamento) é o único valor que não vive dentro de um
+// grupo (está sempre ligado, é a base das contas); os grupos do utilizador entram a seguir
 var QUADROS_DEF = [
   {k:"hero",nm:"Lucro em destaque"},
   {k:"chips",nm:"Mini-cartões (métricas à escolha)"},
-  {k:"dados",nm:"Valores da semana"},
-  {k:"contas",nm:"Resultado (receita, custos, lucro)"}
+  {k:"fat",nm:"Faturamento"}
 ];
-// Campos e Contas partilham um pool de 12 linhas — o utilizador pode mover uma linha de um
-// grupo para o outro (ex. Recarga própria para o Resultado). Garante que cada linha aparece
-// em exatamente um dos dois grupos, preenchendo com o grupo de origem quando falta.
-function normLinhas(cfg){
+function novoGrupoId(){ return "g_"+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+// Os grupos são criados pelo utilizador (nome livre) — cada uma das 12 linhas vive em
+// exatamente um grupo. Preenche o formato antigo (campos/contas fixos) na primeira vez que
+// encontra dados assim, e garante que nenhuma linha se perde nem aparece duplicada.
+function normGrupos(cfg){
   var allKeys=LINHAS_DEF.map(function(d){return d.k;}), seen={};
-  function clean(list){
+  function cleanLinhas(list){
     var out=[];
     (Array.isArray(list)?list:[]).forEach(function(o){
       if(o&&allKeys.indexOf(o.k)>=0&&!seen[o.k]){ seen[o.k]=1; out.push({k:o.k,on:o.on!==false}); }
     });
     return out;
   }
-  var campos=clean(cfg.campos), contas=clean(cfg.contas);
-  LINHAS_DEF.forEach(function(d){
-    if(seen[d.k]) return;
-    var entry={k:d.k,on:!d.off};
-    if(CAMPO_KEYSET[d.k]) campos.push(entry); else contas.push(entry);
-  });
-  return {campos:campos,contas:contas};
+  var grupos;
+  if(Array.isArray(cfg.grupos)&&cfg.grupos.length){
+    grupos=cfg.grupos.map(function(g,i){
+      return {id:(g&&g.id)||novoGrupoId(), nm:(g&&g.nm)||("Grupo "+(i+1)), linhas:cleanLinhas(g&&g.linhas)};
+    });
+  } else if(Array.isArray(cfg.campos)||Array.isArray(cfg.contas)){
+    // migração única (08/2026): formato antigo de 2 grupos fixos → grupos livres
+    grupos=[
+      {id:"g_valores",nm:"Valores da semana",linhas:cleanLinhas(cfg.campos)},
+      {id:"g_resultado",nm:"Resultado",linhas:cleanLinhas(cfg.contas)}
+    ];
+  } else {
+    grupos=[{id:"g_valores",nm:"Valores da semana",linhas:[]}];
+  }
+  // linhas nunca vistas (instalação nova, ou grupo apagado por engano) entram no 1º grupo
+  var faltam=LINHAS_DEF.filter(function(d){ return !seen[d.k]; }).map(function(d){ return {k:d.k,on:!d.off}; });
+  if(faltam.length) grupos[0].linhas=grupos[0].linhas.concat(faltam);
+  return grupos;
 }
 // Os mini-cartões são INDEPENDENTES dos campos de valores: o utilizador escolhe
 // o que fica em cada parte (pedido explícito — podem até repetir ou mostrar o que
@@ -8778,10 +8800,28 @@ function normChipSlots(list){
   for(var i=0;i<keys.length;i++){ if(out.length>=4) break; if(out.indexOf(keys[i])<0) out.push(keys[i]); }
   return out;
 }
-function normQuadros(list){
-  var keys=QUADROS_DEF.map(function(q){return q.k;});
-  var out=(Array.isArray(list)?list:[]).filter(function(k,i,a){ return keys.indexOf(k)>=0&&a.indexOf(k)===i; });
-  keys.forEach(function(k){ if(out.indexOf(k)<0) out.push(k); });
+// blocos fixos (hero/chips/fat) + um bloco por grupo do utilizador, nessa ordem;
+// migra as chaves antigas "dados"/"contas" para os ids dos 2 primeiros grupos
+function normQuadros(list,grupos){
+  var fixedKeys=QUADROS_DEF.map(function(q){return q.k;});
+  var groupIds=grupos.map(function(g){return g.id;});
+  var validKeys=fixedKeys.concat(groupIds);
+  var seen={};
+  var out=(Array.isArray(list)?list:[]).map(function(k){
+    if(k==="dados") return grupos[0]&&grupos[0].id;
+    if(k==="contas") return grupos[1]&&grupos[1].id;
+    return k;
+  }).filter(function(k){ return k&&validKeys.indexOf(k)>=0&&!seen[k]&&(seen[k]=1); });
+  // uma chave fixa nova (ex. "fat", que não existia em versões antigas) entra logo a seguir
+  // à chave fixa anterior já presente, em vez de ser atirada para o fim da lista
+  fixedKeys.forEach(function(k,fi){
+    if(seen[k]) return;
+    var insertAt=out.length;
+    for(var j=fi-1;j>=0;j--){ var p=out.indexOf(fixedKeys[j]); if(p>=0){ insertAt=p+1; break; } }
+    out.splice(insertAt,0,k);
+    seen[k]=1;
+  });
+  groupIds.forEach(function(k){ if(!seen[k]) out.push(k); });
   return out;
 }
 // O Firebase transforma objetos de chaves numéricas em arrays e remove {} vazios — reverter
@@ -8793,14 +8833,14 @@ function _fixMap(o){
 function tvdNorm(d){
   d=(d&&typeof d==="object"&&!Array.isArray(d))?d:{};
   d.cfg=Object.assign({},TVD_SEEDCFG,d.cfg||{});
-  var _linhas=normLinhas(d.cfg);
-  d.cfg.campos=_linhas.campos;
-  d.cfg.contas=_linhas.contas;
+  var _quadrosAntigos=d.cfg.quadros;
+  d.cfg.grupos=normGrupos(d.cfg);
+  delete d.cfg.campos; delete d.cfg.contas;
   d.cfg.chips=normChipSlots(d.cfg.chips);
   // migração única (07/2026): repõe os 4 mini-cartões pedidos pelo utilizador,
   // desfazendo o antigo acoplamento aos campos que os deixava só com métricas repetidas
   if(!d.cfg.chipsV2){ d.cfg.chips=["horas","ph","viag","pv"]; d.cfg.chipsV2=true; }
-  d.cfg.quadros=normQuadros(d.cfg.quadros);
+  d.cfg.quadros=normQuadros(_quadrosAntigos,d.cfg.grupos);
   d.weeks=_fixMap(d.weeks);
   d.seg=_fixMap(d.seg);
   d.desp=Array.isArray(d.desp)?d.desp:[];
@@ -8851,8 +8891,12 @@ function calc(w,cfg){
 function weekNums(){ var t=TV(); return Object.keys(t.weeks).map(Number).sort(function(a,b){return a-b;}); }
 // regra única: campo desligado em Ajustes não aparece em lado nenhum
 // (o valor guardado nunca é apagado e continua a contar nas somas)
-// procura nos dois grupos — uma linha pode ter sido movida de Campos para Resultado (ou vice-versa)
-function campoOn(k){ var t=TV().cfg, c=t.campos.find(function(x){return x.k===k;})||t.contas.find(function(x){return x.k===k;}); return !c||!!c.on; }
+// procura em todos os grupos — uma linha pode ter sido movida para qualquer um deles
+function campoOn(k){
+  var c=null;
+  TV().cfg.grupos.some(function(g){ c=g.linhas.find(function(x){return x.k===k;}); return !!c; });
+  return !c||!!c.on;
+}
 function totals(){
   var t0=TV(), cfg=t0.cfg, t={fat:0,receita:0,lucro:0,custos:0,horas:0,viag:0,recP:0,gorj:0,n:0};
   var withH=[];
@@ -8962,13 +9006,12 @@ function consultaHTML(n,editavel){
   }).join("")+'</div>':"";
   // dedup: uma métrica já escolhida como mini-cartão não se repete em baixo
   var chipKeys={}; cfg.chips.forEach(function(k){ chipKeys[k]=1; });
-  var datItems=cfg.campos.filter(function(cp){ return cp.on&&!chipKeys[cp.k]; });
-  var datInner=(chipKeys.fat?"":'<div class="row"><span class="k">Faturamento</span><span class="v tvd-num">'+fEUR.format(w.fat||0)+'</span></div>')
-    +_tvdRowsHTML(datItems,w,c,pct);
-  B.dados=datInner?'<div class="calc">'+datInner+'</div>':"";
-  var contasOn=cfg.contas.filter(function(x){return x.on&&!chipKeys[x.k];});
-  B.contas=contasOn.length?'<div class="calc">'+_tvdRowsHTML(contasOn,w,c,pct)+'</div>':"";
-  return cfg.quadros.map(function(k){ return B[k]; }).join("");
+  B.fat=chipKeys.fat?"":'<div class="calc"><div class="row"><span class="k">Faturamento</span><span class="v tvd-num">'+fEUR.format(w.fat||0)+'</span></div></div>';
+  cfg.grupos.forEach(function(g){
+    var items=g.linhas.filter(function(x){return x.on&&!chipKeys[x.k];});
+    B[g.id]=items.length?'<div class="calc">'+_tvdRowsHTML(items,w,c,pct)+'</div>':"";
+  });
+  return cfg.quadros.map(function(k){ return B[k]||""; }).join("");
 }
 var viewN=null;
 function tvdOpenView(n){
@@ -9537,10 +9580,9 @@ function tvdRenderAjustes(){
     +tvdParam("tvdCfgAluguel","Aluguel semanal (€)",cfg.aluguel,1,aOn)
     +'</div><div class="note">A % Frota fica gravada dentro de cada semana ao guardar — mudar aqui só vale para semanas novas, o histórico não é alterado.</div></div>'
     +'<div class="tvd-card"><div class="eyebrow">Janela da semana <b>monte à sua maneira</b></div><div class="jsplit"><div class="tvd-lists">'
-    +'<div class="subh">Quadros (ordem dos blocos da consulta)</div><div id="tvdQuadrosBox"></div>'
-    +'<div class="subh">Campos de valores</div><div class="campo"><span class="nm">Faturamento</span><span class="s">sempre pedido — é a base das contas</span></div><div id="tvdCamposBox"></div>'
-    +'<div class="subh">Resultado (contas da semana)</div><div id="tvdContasBox"></div>'
-    +'<div class="note">Interruptor = aparece ou não · setas ↑↓ = ordem. Um campo desligado some do TVDE inteiro (formulário, consulta, resumo e tabelas), mas nada é apagado: os valores antigos ficam guardados, continuam nas contas e voltam a aparecer se religar. As linhas do Resultado só mudam a consulta. <b>Mini-cartões:</b> toque num deles na pré-visualização ao lado para trocar o que mostra.</div>'
+    +'<div class="subh">Quadros (ordem dos blocos da consulta) · arraste para reordenar</div><div id="tvdQuadrosBox"></div>'
+    +'<div class="subh">Grupos de linhas · crie os que quiser, arraste entre eles</div><div id="tvdGruposBox"></div>'
+    +'<div class="note">Faturamento aparece sempre (está nos Quadros, não é preciso ligar). Arraste uma linha (⠿) para reordenar ou para outro grupo. Interruptor = aparece ou não — uma linha desligada some do TVDE inteiro (formulário, consulta, resumo e tabelas), mas nada é apagado: os valores antigos ficam guardados, continuam nas contas e voltam a aparecer se religar. <b>Mini-cartões:</b> toque num deles na pré-visualização ao lado para trocar o que mostra.</div>'
     +'</div><div class="prev"><div class="prevlab" id="tvdPrevLab">Pré-visualização</div><div id="tvdPrevBox"></div></div></div></div>';
   Object.keys(TVD_CFGMAP).forEach(function(id){
     var el=document.getElementById(id);
@@ -9550,81 +9592,151 @@ function tvdRenderAjustes(){
       saveState(); tvdRenderPreview();
     });
   });
-  tvdRenderCampos(); tvdRenderContas(); tvdRenderQuadros(); tvdRenderPreview();
+  tvdRenderGrupos(); tvdRenderQuadros(); tvdRenderPreview();
 }
-// lista genérica {k,on}: interruptor + setas + mover para o outro grupo (campos <-> contas).
+/* ---------- arrastar linhas: reordenar dentro de um grupo ou mover para outro ---------- */
 // TV() renormaliza o estado inteiro a cada chamada — por isso cada ação lê TV().cfg UMA SÓ VEZ
-// e trabalha nos dois arrays dessa mesma leitura (chamar TV() de novo a meio devolveria arrays
+// e trabalha nos arrays dessa mesma leitura (chamar TV() de novo a meio devolveria arrays
 // novos e desfaria a mutação em curso).
-function tvdRenderOnList(boxId,group,otherGroup,otherLabel,onChange){
-  var arr=TV().cfg[group], box=document.getElementById(boxId);
+var _tvdRowDrag={gid:null,idx:null};
+function tvdRowDragStart(e,gid,idx){
+  _tvdRowDrag={gid:gid,idx:idx};
+  e.dataTransfer.effectAllowed="move";
+  e.currentTarget.classList.add("dragging");
+}
+function tvdRowDragOver(e){
+  e.preventDefault(); e.stopPropagation();
+  e.dataTransfer.dropEffect="move";
+  document.querySelectorAll(".campo.drag-over").forEach(function(el){el.classList.remove("drag-over");});
+  e.currentTarget.classList.add("drag-over");
+}
+function tvdRowDrop(e,gid,idx){
+  e.preventDefault(); e.stopPropagation();
+  document.querySelectorAll(".campo.drag-over,.campo.dragging").forEach(function(el){el.classList.remove("drag-over","dragging");});
+  tvdMoverLinha(gid,idx);
+}
+function tvdRowDragEnd(){
+  document.querySelectorAll(".campo.dragging,.campo.drag-over").forEach(function(el){el.classList.remove("dragging","drag-over");});
+  _tvdRowDrag={gid:null,idx:null};
+}
+// soltar no espaço vazio de um grupo (depois da última linha, ou grupo sem linhas nenhumas)
+function tvdGrupoDragOver(e){ e.preventDefault(); e.dataTransfer.dropEffect="move"; }
+function tvdGrupoDrop(e,gid){
+  e.preventDefault();
+  var g=TV().cfg.grupos.find(function(x){return x.id===gid;});
+  tvdMoverLinha(gid, g?g.linhas.length:0);
+}
+function tvdMoverLinha(dstGid,insertIdx){
+  if(_tvdRowDrag.gid==null) return;
+  snapshot();
+  var cfg=TV().cfg;
+  var srcG=cfg.grupos.find(function(g){return g.id===_tvdRowDrag.gid;});
+  if(!srcG) return;
+  var item=srcG.linhas.splice(_tvdRowDrag.idx,1)[0];
+  var dstG=cfg.grupos.find(function(g){return g.id===dstGid;});
+  if(!dstG){ srcG.linhas.splice(_tvdRowDrag.idx,0,item); _tvdRowDrag={gid:null,idx:null}; return; }
+  var at=insertIdx;
+  if(srcG===dstG&&_tvdRowDrag.idx<at) at--;
+  dstG.linhas.splice(at,0,item);
+  _tvdRowDrag={gid:null,idx:null};
+  saveState(); tvdRenderAjustes();
+}
+function tvdRenderGrupos(){
+  var cfg=TV().cfg, box=document.getElementById("tvdGruposBox");
   if(!box) return;
-  box.innerHTML=arr.map(function(c,i){
-    var def=LINHAS_DEF.find(function(d){return d.k===c.k;});
-    return '<div class="campo'+(c.on?'':' off')+'">'
-      +'<input type="checkbox" '+(c.on?'checked':'')+' data-k="'+c.k+'" aria-label="Mostrar '+def.nm+'">'
-      +'<span class="nm">'+def.nm+'</span>'
-      +'<button class="mv" data-k="'+c.k+'" data-mv="1" title="Mover para '+otherLabel+'" aria-label="Mover '+def.nm+' para '+otherLabel+'">⇄</button>'
-      +'<button class="mv" data-k="'+c.k+'" data-d="-1" '+(i===0?'disabled':'')+' aria-label="Subir '+def.nm+'">↑</button>'
-      +'<button class="mv" data-k="'+c.k+'" data-d="1" '+(i===arr.length-1?'disabled':'')+' aria-label="Descer '+def.nm+'">↓</button></div>';
-  }).join("");
-  box.querySelectorAll("input").forEach(function(inp){
+  box.innerHTML=cfg.grupos.map(function(g){
+    var linhasHtml=g.linhas.map(function(c,i){
+      var def=LINHAS_DEF.find(function(d){return d.k===c.k;});
+      return '<div class="campo'+(c.on?'':' off')+'" draggable="true"'
+        +' ondragstart="tvdRowDragStart(event,\''+g.id+'\','+i+')" ondragover="tvdRowDragOver(event)"'
+        +' ondrop="tvdRowDrop(event,\''+g.id+'\','+i+')" ondragend="tvdRowDragEnd()">'
+        +'<span class="drag-handle" aria-hidden="true">⠿</span>'
+        +'<input type="checkbox" '+(c.on?'checked':'')+' data-gid="'+g.id+'" data-k="'+c.k+'" aria-label="Mostrar '+def.nm+'">'
+        +'<span class="nm">'+def.nm+'</span></div>';
+    }).join("");
+    return '<div class="tvd-grupo">'
+      +'<div class="tvd-grupo-hdr">'
+        +'<input class="tvd-grupo-nome" value="'+_esc(g.nm)+'" maxlength="30" data-gid="'+g.id+'" aria-label="Nome do grupo">'
+        +'<button class="tvd-btn mini danger" data-del="'+g.id+'" title="Apagar grupo (só se estiver vazio)" aria-label="Apagar grupo '+_esc(g.nm)+'">🗑</button>'
+      +'</div>'
+      +'<div class="tvd-grupo-lista" ondragover="tvdGrupoDragOver(event)" ondrop="tvdGrupoDrop(event,\''+g.id+'\')">'
+      +(linhasHtml||'<div class="tvd-empty" style="padding:.3rem 0;font-size:.68rem">arraste linhas para aqui</div>')
+      +'</div></div>';
+  }).join("")+'<button class="tvd-btn ghost mini" onclick="tvdAddGrupo()">＋ Novo grupo</button>';
+  box.querySelectorAll("input[type=checkbox]").forEach(function(inp){
     inp.addEventListener("change",function(){
       snapshot();
-      TV().cfg[group].find(function(c){return c.k===inp.dataset.k;}).on=inp.checked;
-      onChange();
+      var g=TV().cfg.grupos.find(function(x){return x.id===inp.dataset.gid;});
+      g.linhas.find(function(c){return c.k===inp.dataset.k;}).on=inp.checked;
+      saveState(); tvdRenderAjustes();
     });
   });
-  box.querySelectorAll("button[data-mv]").forEach(function(b){
-    b.addEventListener("click",function(){
+  box.querySelectorAll(".tvd-grupo-nome").forEach(function(inp){
+    inp.addEventListener("change",function(){
       snapshot();
-      var cfg=TV().cfg, a=cfg[group], i=a.findIndex(function(c){return c.k===b.dataset.k;});
-      if(i<0) return;
-      var item=a.splice(i,1)[0];
-      cfg[otherGroup].push(item);
-      onChange();
+      TV().cfg.grupos.find(function(g){return g.id===inp.dataset.gid;}).nm=inp.value.trim()||"Grupo";
+      saveState(); tvdRenderAjustes();
     });
   });
-  box.querySelectorAll("button[data-d]").forEach(function(b){
+  box.querySelectorAll("button[data-del]").forEach(function(b){
     b.addEventListener("click",function(){
+      var cfg=TV().cfg, g=cfg.grupos.find(function(x){return x.id===b.dataset.del;});
+      if(!g) return;
+      if(cfg.grupos.length<=1){ showToast("⚠ Tem de haver pelo menos um grupo",true); return; }
+      if(g.linhas.length){ showToast("⚠ Esvazia o grupo primeiro — arraste as linhas para outro",true); return; }
+      if(!confirm('Apagar o grupo "'+g.nm+'"?')) return;
       snapshot();
-      var a=TV().cfg[group], i=a.findIndex(function(c){return c.k===b.dataset.k;}), j=i+(+b.dataset.d);
-      if(j<0||j>=a.length) return;
-      var tmp=a[i]; a[i]=a[j]; a[j]=tmp;
-      onChange();
+      cfg.grupos=cfg.grupos.filter(function(x){return x.id!==g.id;});
+      cfg.quadros=cfg.quadros.filter(function(k){return k!==g.id;});
+      saveState(); tvdRenderAjustes();
     });
   });
 }
-function tvdRenderCampos(){
-  tvdRenderOnList("tvdCamposBox","campos","contas","Resultado",function(){
-    // ligar/desligar ou mover uma linha mexe no resto do TVDE (resumo, listas, tabelas, parâmetros);
-    // os mini-cartões NÃO são afetados — são escolhidos à parte
-    saveState(); tvdRenderAjustes();
-  });
+function tvdAddGrupo(){
+  snapshot();
+  var cfg=TV().cfg, id=novoGrupoId();
+  cfg.grupos.push({id:id,nm:"Novo grupo",linhas:[]});
+  cfg.quadros.push(id);
+  saveState(); tvdRenderAjustes();
 }
-function tvdRenderContas(){
-  tvdRenderOnList("tvdContasBox","contas","campos","Valores da semana",function(){
-    saveState(); tvdRenderAjustes();
-  });
+/* ---------- quadros: ordem dos blocos da consulta, também por arrastar ---------- */
+var _tvdQuadroDrag=null;
+function tvdQuadroDragStart(e,idx){
+  _tvdQuadroDrag=idx;
+  e.dataTransfer.effectAllowed="move";
+  e.currentTarget.classList.add("dragging");
+}
+function tvdQuadroDragOver(e){
+  e.preventDefault();
+  e.dataTransfer.dropEffect="move";
+  document.querySelectorAll("#tvdQuadrosBox .campo.drag-over").forEach(function(el){el.classList.remove("drag-over");});
+  e.currentTarget.classList.add("drag-over");
+}
+function tvdQuadroDrop(e,idx){
+  e.preventDefault();
+  document.querySelectorAll("#tvdQuadrosBox .campo.drag-over,#tvdQuadrosBox .campo.dragging").forEach(function(el){el.classList.remove("drag-over","dragging");});
+  if(_tvdQuadroDrag==null||_tvdQuadroDrag===idx){ _tvdQuadroDrag=null; return; }
+  snapshot();
+  var a=TV().cfg.quadros;
+  a.splice(idx,0,a.splice(_tvdQuadroDrag,1)[0]);
+  _tvdQuadroDrag=null;
+  saveState(); tvdRenderQuadros(); tvdRenderPreview();
+}
+function tvdQuadroDragEnd(){
+  document.querySelectorAll("#tvdQuadrosBox .campo.dragging,#tvdQuadrosBox .campo.drag-over").forEach(function(el){el.classList.remove("dragging","drag-over");});
+  _tvdQuadroDrag=null;
 }
 function tvdRenderQuadros(){
-  var arr=TV().cfg.quadros, box=document.getElementById("tvdQuadrosBox");
+  var cfg=TV().cfg, arr=cfg.quadros, box=document.getElementById("tvdQuadrosBox");
   if(!box) return;
   box.innerHTML=arr.map(function(k,i){
     var def=QUADROS_DEF.find(function(q){return q.k===k;});
-    return '<div class="campo"><span class="nm">'+def.nm+'</span>'
-      +'<button class="mv" data-k="'+k+'" data-d="-1" '+(i===0?'disabled':'')+' aria-label="Subir '+def.nm+'">↑</button>'
-      +'<button class="mv" data-k="'+k+'" data-d="1" '+(i===arr.length-1?'disabled':'')+' aria-label="Descer '+def.nm+'">↓</button></div>';
+    var nm=def?def.nm:((cfg.grupos.find(function(g){return g.id===k;})||{}).nm||k);
+    return '<div class="campo" draggable="true"'
+      +' ondragstart="tvdQuadroDragStart(event,'+i+')" ondragover="tvdQuadroDragOver(event)"'
+      +' ondrop="tvdQuadroDrop(event,'+i+')" ondragend="tvdQuadroDragEnd()">'
+      +'<span class="drag-handle" aria-hidden="true">⠿</span><span class="nm">'+nm+'</span></div>';
   }).join("");
-  box.querySelectorAll(".mv").forEach(function(b){
-    b.addEventListener("click",function(){
-      var a=TV().cfg.quadros, i=a.indexOf(b.dataset.k), j=i+(+b.dataset.d);
-      if(j<0||j>=a.length) return;
-      snapshot();
-      var tmp=a[i]; a[i]=a[j]; a[j]=tmp;
-      saveState(); tvdRenderQuadros(); tvdRenderPreview();
-    });
-  });
 }
 // toque num mini-cartão do preview: passa para a próxima métrica livre (SÓ aqui — na janela real não é clicável)
 function tvdWireChips(root){
@@ -9670,6 +9782,17 @@ window.tvdDelWeek=tvdDelWeek;
 window.tvdLancarSemana=tvdLancarSemana;
 window.tvdLancarMes=tvdLancarMes;
 window.tvdConfirmarLancamento=tvdConfirmarLancamento;
+window.tvdAddGrupo=tvdAddGrupo;
+window.tvdRowDragStart=tvdRowDragStart;
+window.tvdRowDragOver=tvdRowDragOver;
+window.tvdRowDrop=tvdRowDrop;
+window.tvdRowDragEnd=tvdRowDragEnd;
+window.tvdGrupoDragOver=tvdGrupoDragOver;
+window.tvdGrupoDrop=tvdGrupoDrop;
+window.tvdQuadroDragStart=tvdQuadroDragStart;
+window.tvdQuadroDragOver=tvdQuadroDragOver;
+window.tvdQuadroDrop=tvdQuadroDrop;
+window.tvdQuadroDragEnd=tvdQuadroDragEnd;
 
 })();
 </script>
