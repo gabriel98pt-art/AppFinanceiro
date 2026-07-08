@@ -9206,7 +9206,13 @@ function _tvdSugestaoCarga(hintId,inputId,sug,autoFill){
     document.getElementById(inputId).value=sug.toFixed(2);
     hint.innerHTML="✓ preenchido a partir das Cargas desta semana — edita se precisares";
   } else {
-    hint.innerHTML="💡 Cargas desta semana: <b class=\"tvd-num\">"+fEUR.format(sug)+"</b> · <a href=\"#\" onclick=\"document.getElementById('"+inputId+"').value='"+sug.toFixed(2)+"';tvdLiveCalc();return false;\">usar</a>";
+    hint.innerHTML="💡 Cargas desta semana: <b class=\"tvd-num\">"+fEUR.format(sug)+"</b> · <a href=\"#\" id=\""+hintId+"Use\">usar</a>";
+    var a=document.getElementById(hintId+"Use");
+    if(a) a.addEventListener("click",function(e){
+      e.preventDefault();
+      document.getElementById(inputId).value=sug.toFixed(2);
+      tvdLiveCalc();
+    });
   }
 }
 function tvdOpenWeek(n){
@@ -9615,6 +9621,7 @@ window.tvdSaveWeek=tvdSaveWeek;
 window.tvdDelWeek=tvdDelWeek;
 window.tvdLancarSemana=tvdLancarSemana;
 window.tvdLancarMes=tvdLancarMes;
+window.tvdConfirmarLancamento=tvdConfirmarLancamento;
 
 })();
 </script>
