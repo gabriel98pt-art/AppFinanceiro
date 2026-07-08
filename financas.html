@@ -637,6 +637,9 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
 .tvd-dlg label.f select:focus{outline:2px solid var(--tvd-amber);outline-offset:1px}
 .tvd-dlg .chkrow{display:flex;align-items:flex-start;gap:8px;margin:.6rem 0;font-size:.8rem;line-height:1.4}
 .tvd-dlg .chkrow input{width:17px;height:17px;flex-shrink:0;margin-top:1px;accent-color:var(--tvd-amber)}
+.tvd-dlg .note{font-size:.72rem;color:var(--mut);line-height:1.5;margin-top:.6rem}
+.tvd-dlg .hint{font-size:.64rem;color:var(--tvd-amber);margin-top:3px;line-height:1.4;min-height:1px}
+.tvd-dlg .hint a{color:inherit}
 .tvd-dlg .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
 /* tabelas (meses/períodos) */
 #p-tvde .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -1223,10 +1226,10 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
     <label class="f"><span class="k">Faturamento (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWFat"></label>
     <label class="f"><span class="k">Portagens (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWPort"></label>
     <label class="f"><span class="k">Aluguel (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWAlu"></label>
-    <label class="f"><span class="k">Recarga frota (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWRecF"></label>
+    <label class="f"><span class="k">Recarga frota (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWRecF"><div class="hint" id="tvdRecFHint"></div></label>
     <label class="f"><span class="k">Extra (€) · fora do faturamento, soma ao lucro</span><input type="number" step="0.01" inputmode="decimal" id="tvdWExtra"></label>
     <label class="f"><span class="k">Gorjetas (€) · só anotação, já vêm no faturamento</span><input type="number" step="0.01" inputmode="decimal" id="tvdWGorj"></label>
-    <label class="f"><span class="k">Recarga própria (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWRecP"></label>
+    <label class="f"><span class="k">Recarga própria (€)</span><input type="number" step="0.01" inputmode="decimal" id="tvdWRecP"><div class="hint" id="tvdRecPHint"></div></label>
     <label class="f"><span class="k">Horas</span><input type="number" step="0.5" inputmode="decimal" id="tvdWHoras"></label>
     <label class="f"><span class="k">Viagens</span><input type="number" step="1" inputmode="numeric" id="tvdWViag"></label>
   </div>
@@ -8969,6 +8972,7 @@ function tvdAbrirLancar(chave,val,recP,dataIso,nota,rotulo,onDone){
       '<label class="chkrow"><input type="checkbox" id="tvdLancRecpChk" checked><span>Lançar também a recarga própria (<b class="tvd-num">'+fEUR.format(rp)+'</b>) como despesa</span></label>'
       +selectHtml;
     var chk=document.getElementById("tvdLancRecpChk"), wrap=document.getElementById("tvdLancCardWrap");
+    chk.checked=true;
     chk.addEventListener("change",function(){ wrap.style.display=chk.checked?"":"none"; });
   } else {
     recpBox.innerHTML="";
@@ -9003,10 +9007,10 @@ function tvdLancarSemana(){
   if(viewN==null) return;
   var w=TV().weeks[viewN]; if(!w) return;
   var c=calc(w,TV().cfg);
-  tvdAbrirLancar("w"+viewN,c.receita,w.recP||0,isoDate(wkEnd(viewN)),"TVDE · Semana "+viewN+" ("+wkLabel(viewN)+")","Semana "+viewN+" ("+wkLabel(viewN)+")",function(){
-    var b=document.getElementById("tvdBtnLanc");
-    if(b) b.textContent="✓ Receita já lançada nas finanças";
-  });
+  // fecha a vista da semana antes de abrir a confirmação — dois <dialog> nativos abertos ao mesmo
+  // tempo têm bugs de clique conhecidos no Safari; o resto da app (ex. tvdEditFromView) já evita isto
+  document.getElementById("tvdDlgView").close();
+  tvdAbrirLancar("w"+viewN,c.receita,w.recP||0,isoDate(wkEnd(viewN)),"TVDE · Semana "+viewN+" ("+wkLabel(viewN)+")","Semana "+viewN+" ("+wkLabel(viewN)+")",null);
 }
 function tvdLancarMes(m){
   var o=monthData().find(function(x){return x.m===m;});
@@ -9189,6 +9193,22 @@ var editN=null, creating=false, editPct=6, hiddenKeys={};
 var WF=["Fat","Port","Alu","RecF","Extra","Gorj","RecP","Horas","Viag"];
 var WKEYS=["fat","port","alu","recF","extra","gorj","recP","horas","viag"];
 function wEl(i){ return document.getElementById("tvdW"+WF[i]); }
+// soma das Cargas do Veículo (aba Veículo) dentro da semana n — própria (isFrota=false) ou frota (isFrota=true)
+function _vehCargaWeekSum(n,isFrota){
+  var from=isoDate(wkStart(n)), to=isoDate(wkEnd(n));
+  return sumVal((S.veh.cg||[]).filter(function(d){ return !!d.frota===!!isFrota && d.date>=from && d.date<=to; }));
+}
+function _tvdSugestaoCarga(hintId,inputId,sug,autoFill){
+  var hint=document.getElementById(hintId);
+  if(!hint) return;
+  if(!(sug>0.005)){ hint.innerHTML=""; return; }
+  if(autoFill){
+    document.getElementById(inputId).value=sug.toFixed(2);
+    hint.innerHTML="✓ preenchido a partir das Cargas desta semana — edita se precisares";
+  } else {
+    hint.innerHTML="💡 Cargas desta semana: <b class=\"tvd-num\">"+fEUR.format(sug)+"</b> · <a href=\"#\" onclick=\"document.getElementById('"+inputId+"').value='"+sug.toFixed(2)+"';tvdLiveCalc();return false;\">usar</a>";
+  }
+}
 function tvdOpenWeek(n){
   var t0=TV();
   editN=n; creating=!t0.weeks[n];
@@ -9208,6 +9228,10 @@ function tvdOpenWeek(n){
     if(!c.on){ hiddenKeys[c.k]=1; inp.value=""; }
     lb.style.display=c.on?"":"none";
   });
+  // sugestão a partir das Cargas do Veículo (própria/frota) na semana — numa semana nova preenche
+  // sozinho; numa semana já existente só sugere (nunca substitui o que já editaste à mão)
+  if(!hiddenKeys.recP) _tvdSugestaoCarga("tvdRecPHint","tvdWRecP",_vehCargaWeekSum(n,false),creating);
+  if(!hiddenKeys.recF) _tvdSugestaoCarga("tvdRecFHint","tvdWRecF",_vehCargaWeekSum(n,true),creating);
   document.getElementById("tvdBtnDelWeek").style.display=creating?"none":"";
   tvdLiveCalc();
   document.getElementById("tvdDlgWeek").showModal();
