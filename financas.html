@@ -8849,10 +8849,24 @@ function tvdNorm(d){
   d.cfg.quadros=normQuadros(_quadrosAntigos,d.cfg.grupos);
   d.weeks=_fixMap(d.weeks);
   d.seg=_fixMap(d.seg);
+  d.segM=_fixMap(d.segM);
   d.desp=Array.isArray(d.desp)?d.desp:[];
   d.lanc=(d.lanc&&typeof d.lanc==="object"&&!Array.isArray(d.lanc))?d.lanc:{};
   // % frota fica gravada dentro de cada semana (histórico protegido)
   for(var k in d.weeks){ var w=d.weeks[k]; if(w&&w.pct==null) w.pct=d.cfg.pctFrota; }
+  // migração única (07/2026): Seg. Social passa a ser lançada por mês de pagamento (quando
+  // efetivamente saiu da conta) em vez de por período de 4 semanas (quando foi faturada) —
+  // atribui o valor de cada período ao mês de pagamento da sua última semana
+  if(!d.cfg.migSegMes){
+    Object.keys(d.seg||{}).forEach(function(p){
+      var v=+d.seg[p]||0; if(!v) return;
+      var ws=Object.keys(d.weeks).map(Number).filter(function(n){return periodOf(n)===Number(p);});
+      if(!ws.length) return;
+      var m=wkMonth(Math.max.apply(null,ws));
+      d.segM[m]=(d.segM[m]||0)+v;
+    });
+    d.cfg.migSegMes=true;
+  }
   return d;
 }
 window.tvdNorm = tvdNorm;
@@ -8913,11 +8927,11 @@ function totals(){
     t.horas+=w.horas||0; t.viag+=w.viag||0; t.recP+=w.recP||0; t.gorj+=w.gorj||0; t.n++;
     withH.push({n:n,lucro:c.lucro,horas:w.horas||0});
   });
-  // só desconta Seg. Social de períodos que existem
-  var pset={};
-  weekNums().forEach(function(n){ if(t0.weeks[n].fat>0) pset[periodOf(n)]=1; });
+  // só desconta Seg. Social de meses de pagamento que existem (lançada por mês em que foi paga)
+  var mset={};
+  weekNums().forEach(function(n){ if(t0.weeks[n].fat>0) mset[wkMonth(n)]=1; });
   var segTot=0;
-  Object.keys(t0.seg||{}).forEach(function(p){ if(pset[p]) segTot+=(+t0.seg[p]||0); });
+  Object.keys(t0.segM||{}).forEach(function(m){ if(mset[m]) segTot+=(+t0.segM[m]||0); });
   t.lucroLiq=t.lucro-segTot;
   t.mediaSem=t.n?withH.reduce(function(a,x){return a+x.lucro;},0)/t.n:0;
   var comH=withH.filter(function(x){return x.horas>0;});
@@ -8944,9 +8958,7 @@ function periodData(){
     o.fat+=w.fat; o.receita+=c.receita; o.recarga+=w.recP||0; o.lucro+=c.lucro;
     o.horas+=w.horas||0; o.viag+=w.viag||0;
   });
-  return Object.keys(map).map(Number).sort(function(a,b){return a-b;}).map(function(p){
-    var o=map[p]; o.seg=+(t0.seg[p]||0); o.liq=o.lucro-o.seg; return o;
-  });
+  return Object.keys(map).map(Number).sort(function(a,b){return a-b;}).map(function(p){ return map[p]; });
 }
 function monthData(){
   var t0=TV(), cfg=t0.cfg, map={}, order=[];
@@ -8956,7 +8968,9 @@ function monthData(){
     if(!map[m]){ map[m]={m:m,lucro:0,receita:0,recP:0,first:n,last:n}; order.push(m); }
     map[m].lucro+=c.lucro; map[m].receita+=c.receita; map[m].recP+=(w.recP||0); map[m].last=n;
   });
-  return order.map(function(m){ return map[m]; });
+  return order.map(function(m){
+    var o=map[m]; o.seg=+(t0.segM[m]||0); o.liq=o.lucro-o.seg; return o;
+  });
 }
 function statusOf(r){
   if(r>=1) return {txt:"✅ Atingida",cls:"good"};
@@ -9222,17 +9236,17 @@ function csvResumo(){
   L.push("Média semanal (€);"+cn(t.mediaSem));
   L.push("");
   L.push("POR MÊS");
-  L.push("Mês;Lucro (€)");
-  ms.forEach(function(o){ L.push(o.m+";"+cn(o.lucro)); });
+  L.push("Mês;Lucro (€);Seg. Social (€);Lucro líquido (€)");
+  ms.forEach(function(o){ L.push(o.m+";"+cn(o.lucro)+";"+cn(o.seg)+";"+cn(o.liq)); });
   L.push("");
   L.push("POR PERÍODO DE 4 SEMANAS");
-  L.push("Período;Lucro líquido (€);Horas;Viagens");
-  per.forEach(function(o){ L.push(periodLabel(o.p)+";"+cn(o.liq)+";"+cn(o.horas)+";"+o.viag); });
+  L.push("Período;Lucro (€);Horas;Viagens");
+  per.forEach(function(o){ L.push(periodLabel(o.p)+";"+cn(o.lucro)+";"+cn(o.horas)+";"+o.viag); });
   return L.join("\r\n");
 }
 function tvdExportJSON(){
   var t0=TV();
-  var out={cfg:t0.cfg,weeks:t0.weeks,seg:t0.seg,desp:t0.desp,meta:{lastExport:Date.now()}};
+  var out={cfg:t0.cfg,weeks:t0.weeks,seg:t0.seg,segM:t0.segM,desp:t0.desp,meta:{lastExport:Date.now()}};
   tvdBaixar(JSON.stringify(out,null,1),"application/json","controle-motorista-"+isoDate(new Date())+".json");
   setTimeout(function(){ tvdBaixar("\uFEFF"+csvSemanas(),"text/csv;charset=utf-8","controle-motorista-planilha-"+isoDate(new Date())+".csv"); },300);
   showToast("✓ Backup TVDE exportado — .json (repõe aqui ou na app antiga) + .csv");
@@ -9401,27 +9415,27 @@ function tvdRenderMeses(){
   if(!ms.length){ sec.innerHTML='<div class="tvd-card"><div class="tvd-empty">Sem semanas registadas.</div></div>'; return; }
   var rOn=campoOn("recP"), hOn=campoOn("horas"), vOn=campoOn("viag");
   var h1='<div class="tvd-card"><div class="eyebrow">Resumo por mês <b>pagamento</b></div><div class="scroll"><table class="tvd-tbl">'
-    +"<tr><th>Mês</th><th>Semanas</th><th>Lucro</th><th>Receita</th><th>Meta</th><th>Finanças</th></tr>"
+    +"<tr><th>Mês</th><th>Semanas</th><th>Lucro</th><th>Seg. Social</th><th>Lucro líq.</th><th>Receita</th><th>Meta</th><th>Finanças</th></tr>"
     +ms.map(function(o){
-      var s=statusOf(cfg.metaMes?o.lucro/cfg.metaMes:0);
+      var s=statusOf(cfg.metaMes?o.liq/cfg.metaMes:0);
       var ja=t0.lanc["m:"+o.m];
       return "<tr><td>"+o.m+"</td><td class='tvd-num'>"+o.first+"–"+o.last+"</td>"
-        +"<td class='tvd-num tot'>"+fEUR.format(o.lucro)+"</td>"
+        +"<td class='tvd-num'>"+fEUR.format(o.lucro)+"</td>"
+        +"<td><input class='mini tvd-num' type='number' step='0.01' value='"+(o.seg||"")+"' data-m='"+_esc(o.m)+"' aria-label='Segurança Social paga em "+o.m+"' placeholder='0,00'></td>"
+        +"<td class='tvd-num tot'>"+fEUR.format(o.liq)+"</td>"
         +"<td class='tvd-num'>"+fEUR.format(o.receita)+"</td>"
-        +"<td class='tvd-num'>"+fPct.format(cfg.metaMes?o.lucro/cfg.metaMes:0)+"<br><span class='tvd-"+s.cls+"' style='font-size:.64rem'>"+s.txt+"</span></td>"
+        +"<td class='tvd-num'>"+fPct.format(cfg.metaMes?o.liq/cfg.metaMes:0)+"<br><span class='tvd-"+s.cls+"' style='font-size:.64rem'>"+s.txt+"</span></td>"
         +"<td><button class='tvd-btn mini' data-m='"+o.m+"' title='"+(ja?"Já lançado como receita em "+new Date(ja.at).toLocaleDateString("pt-PT"):"Lançar a receita deste mês (o que efetivamente caiu na conta) nas finanças")+"'>"+(ja?"✓":"💰")+"</button></td></tr>";
     }).join("")+"</table></div>"
-    +'<div class="note">Lucro = ganho depois de descontar a recarga própria (mostrado aqui só para acompanhar a meta). <b>Receita</b> = o valor que a plataforma efetivamente deposita na conta (sem descontar a recarga própria, que sai à parte). 💰 lançar = cria uma receita nas finanças com esse valor e, se houver recarga própria no período, oferece lançá-la também como despesa (escolhe o cartão na hora) — sempre com confirmação, nunca automático. O ✓ indica que já foi lançado.</div></div>';
+    +'<div class="note">Lucro = ganho depois de descontar a recarga própria. <b>Seg. Social</b> = o que pagaste nesse mês (referente ao trimestre anterior) — desconta aqui, no mês em que realmente saiu da conta, não no período em que foi faturado. <b>Receita</b> = o valor que a plataforma efetivamente deposita na conta (sem descontar a recarga própria, que sai à parte). 💰 lançar = cria uma receita nas finanças com esse valor e, se houver recarga própria no período, oferece lançá-la também como despesa (escolhe o cartão na hora) — sempre com confirmação, nunca automático. O ✓ indica que já foi lançado.</div></div>';
   var h2='<div class="tvd-card"><div class="eyebrow">Períodos de 4 semanas</div><div class="scroll"><table class="tvd-tbl">'
-    +"<tr><th>Período</th><th>Faturamento</th><th>Receita</th>"+(rOn?"<th>Recarga</th>":"")+"<th>Lucro bruto</th><th>Seg. Social</th><th>Lucro líq.</th>"+(hOn?"<th>Horas</th>":"")+(vOn?"<th>Viagens</th>":"")+"</tr>"
+    +"<tr><th>Período</th><th>Faturamento</th><th>Receita</th>"+(rOn?"<th>Recarga</th>":"")+"<th>Lucro</th>"+(hOn?"<th>Horas</th>":"")+(vOn?"<th>Viagens</th>":"")+"</tr>"
     +per.map(function(o){
       return "<tr><td class='tvd-num'>"+periodLabel(o.p)+"</td>"
         +"<td class='tvd-num'>"+fEUR.format(o.fat)+"</td>"
         +"<td class='tvd-num'>"+fEUR.format(o.receita)+"</td>"
         +(rOn?"<td class='tvd-num'>"+fEUR.format(o.recarga)+"</td>":"")
-        +"<td class='tvd-num'>"+fEUR.format(o.lucro)+"</td>"
-        +"<td><input class='mini tvd-num' type='number' step='0.01' value='"+(o.seg||"")+"' data-p='"+o.p+"' aria-label='Segurança Social do período "+o.p+"' placeholder='0,00'></td>"
-        +"<td class='tvd-num tot'>"+fEUR.format(o.liq)+"</td>"
+        +"<td class='tvd-num tot'>"+fEUR.format(o.lucro)+"</td>"
         +(hOn?"<td class='tvd-num'>"+fN1.format(o.horas)+"</td>":"")
         +(vOn?"<td class='tvd-num'>"+fInt.format(o.viag)+"</td>":"")+"</tr>";
     }).join("")
@@ -9429,22 +9443,19 @@ function tvdRenderMeses(){
     +"<td class='tvd-num'>"+fEUR.format(per.reduce(function(a,o){return a+o.fat;},0))+"</td>"
     +"<td class='tvd-num'>"+fEUR.format(per.reduce(function(a,o){return a+o.receita;},0))+"</td>"
     +(rOn?"<td class='tvd-num'>"+fEUR.format(per.reduce(function(a,o){return a+o.recarga;},0))+"</td>":"")
-    +"<td class='tvd-num'>"+fEUR.format(per.reduce(function(a,o){return a+o.lucro;},0))+"</td>"
-    +"<td class='tvd-num'>"+fEUR.format(per.reduce(function(a,o){return a+o.seg;},0))+"</td>"
-    +"<td class='tvd-num tot'>"+fEUR.format(per.reduce(function(a,o){return a+o.liq;},0))+"</td>"
+    +"<td class='tvd-num tot'>"+fEUR.format(per.reduce(function(a,o){return a+o.lucro;},0))+"</td>"
     +(hOn?"<td class='tvd-num'>"+fN1.format(per.reduce(function(a,o){return a+o.horas;},0))+"</td>":"")
     +(vOn?"<td class='tvd-num'>"+fInt.format(per.reduce(function(a,o){return a+o.viag;},0))+"</td>":"")
-    +"</tr></table></div>"
-    +'<div class="note">O campo “Seg. Social” pode ser preenchido em cada período — é descontado do lucro líquido.</div></div>';
+    +"</tr></table></div></div>";
   sec.innerHTML=h1+h2;
   sec.querySelectorAll("button[data-m]").forEach(function(b){
     b.addEventListener("click",function(){ tvdLancarMes(b.dataset.m); });
   });
-  sec.querySelectorAll("input.mini").forEach(function(inp){
+  sec.querySelectorAll("input.mini[data-m]").forEach(function(inp){
     inp.addEventListener("change",function(){
       snapshot();
       var v=parseFloat(inp.value);
-      if(v>0) TV().seg[inp.dataset.p]=v; else delete TV().seg[inp.dataset.p];
+      if(v>0) TV().segM[inp.dataset.m]=v; else delete TV().segM[inp.dataset.m];
       saveState(); tvdRenderMeses();
     });
   });
@@ -9474,19 +9485,20 @@ function tvdRenderResumo(){
     +'<div class="ticks">'+ticks+'</div><div class="ticksleg">cada risca = 1 semana · acesa quando bateu a meta semanal</div>'
     +'<div class="chips" style="grid-template-columns:repeat('+chips.length+',1fr)">'+chips.join("")+'</div></div>';
   var chartHtml='<div class="tvd-card"><div class="eyebrow">Lucro por semana <b>€</b></div><div class="chartwrap" id="tvdChartWrap"><div class="tvd-tip" id="tvdTip"></div></div></div>';
-  // metas: mensal por ritmo (sem. X/4) + tendência
-  var per=periodData(), cur=per.length?per[per.length-1]:null, liqCur=cur?cur.liq:0;
+  // metas: mensal por ritmo (sem. X/4) + tendência — em bruto, porque a Seg. Social agora é
+  // descontada por mês de pagamento (aba Meses), não por período de 4 semanas
+  var per=periodData(), cur=per.length?per[per.length-1]:null, lucroCur=cur?cur.lucro:0;
   var decorridas=4;
   if(cur&&periodOf(cw)===cur.p) decorridas=Math.min(4,Math.max(1,cw-(cur.p*4-3)+1));
   var emCurso=decorridas<4;
-  var rTotal=cfg.metaMes?liqCur/cfg.metaMes:0;
-  var ritmo=cfg.metaMes?liqCur/(cfg.metaMes*decorridas/4):0;
+  var rTotal=cfg.metaMes?lucroCur/cfg.metaMes:0;
+  var ritmo=cfg.metaMes?lucroCur/(cfg.metaMes*decorridas/4):0;
   var sMes=emCurso
     ?(ritmo>=1?{txt:"✅ No ritmo",cls:"good"}:ritmo>=.9?{txt:"🟡 Quase",cls:"warn"}:{txt:"🔴 Atrasado",cls:"bad"})
     :statusOf(rTotal);
   var items=[
     {k:"Meta semanal · média "+fEUR.format(t.mediaSem)+" / "+fEUR0.format(cfg.metaSem), r:cfg.metaSem?t.mediaSem/cfg.metaSem:0},
-    {k:"Meta mensal · "+fEUR.format(liqCur)+" / "+fEUR0.format(cfg.metaMes)+(emCurso?" · sem. "+decorridas+"/4":""), r:rTotal, pct:emCurso?ritmo:rTotal, s:sMes}
+    {k:"Meta mensal (bruto) · "+fEUR.format(lucroCur)+" / "+fEUR0.format(cfg.metaMes)+(emCurso?" · sem. "+decorridas+"/4":""), r:rTotal, pct:emCurso?ritmo:rTotal, s:sMes}
   ];
   if(hOn) items.push( // metas de horas só fazem sentido se as horas forem registadas
     {k:"Meta de horas · média "+fN1.format(t.mediaHoras)+" h / "+cfg.metaHoras+" h", r:cfg.metaHoras?t.mediaHoras/cfg.metaHoras:0},
