@@ -1363,7 +1363,7 @@ var _FB_IS_GUEST = false;
           _FB_USER = user.email;
           _FB_IS_GUEST = user.uid !== _FB_OWNER_UID;
           _FB_PATH = _FB_IS_GUEST ? ('users/' + user.uid + '/' + SK) : SK;
-          if (_FB_IS_GUEST) _fbHideTvde();
+          _fbApplyTvdeVisibility();
           _fbDb = firebase.database();
           _fbSync(false);
         } else {
@@ -1374,11 +1374,14 @@ var _FB_IS_GUEST = false;
   } catch(e) { console.warn('[FB init]', e); }
 })();
 
-// Esconde a aba TVDE (e bloqueia navegação direta) para contas que não são o dono
-function _fbHideTvde() {
+// Mostra/esconde a aba TVDE conforme S.cfg.showTvde (opção em Definições → Dados).
+// Contas novas (convidados) começam com isto desligado em _fbSignupSubmit — quem quiser
+// pode religar a qualquer momento nas Definições.
+function _fbApplyTvdeVisibility() {
+  var show = !S.cfg || S.cfg.showTvde !== false;
   var btn = document.querySelector('.tabs .tb[onclick*="\'tvde\'"]');
-  if (btn) btn.style.display = 'none';
-  if (CUR === 'tvde') sw('dashboard', document.querySelector('.tabs .tb'));
+  if (btn) btn.style.display = show ? '' : 'none';
+  if (!show && CUR === 'tvde') sw('dashboard', document.querySelector('.tabs .tb'));
 }
 
 // Código de convite — só quem o conhece consegue criar conta nova. Muda aqui se quiseres
@@ -1497,6 +1500,10 @@ function _fbSignupSubmit() {
   if (code !== _FB_INVITE_CODE) { showErr('Código de convite incorrecto.'); return; }
   firebase.auth().createUserWithEmailAndPassword(email, pw).then(function() {
     localStorage.setItem('_fbEmailChoice', email);
+    // Conta nova começa sem a aba TVDE — quem quiser religa depois em Definições → Dados
+    S.cfg.showTvde = false;
+    saveState();
+    _fbApplyTvdeVisibility();
     _fbDb = firebase.database();
     var el = document.getElementById('_fbLoginModal');
     if (el) el.classList.remove('on');
@@ -1755,7 +1762,8 @@ var DEFAULTS = {
     vcat: ['Limpeza','Manutenção','Combustível','Seguro Auto','Revisão','Portagens'],
     bud: {Mercado:300,Restaurante:200,'Contas de Casa':150,Saúde:100,Lazer:100},
     bal: {'Revolut (D)':0,'AB (D)':0,'AB Gold (C)':0},
-    locais: []
+    locais: [],
+    showTvde: true
   },
   rec:[], df:[], dc:[], veh:{cg:[],lp:[],df:[],km:[]}, par:[], evt:[], fnds:[], trf:[], tvde:{}, _id:10
 };
@@ -2750,7 +2758,7 @@ function _centerActiveTab() {
 }
 
 function sw(id, btn) {
-  if (id === 'tvde' && _FB_IS_GUEST) return;
+  if (id === 'tvde' && S.cfg && S.cfg.showTvde === false) return;
   CUR = id;
   var panels = document.querySelectorAll('.pnl');
   for (var i = 0; i < panels.length; i++) panels[i].classList.remove('on');
@@ -2766,6 +2774,7 @@ function sw(id, btn) {
 }
 
 function renderTab(id) {
+  _fbApplyTvdeVisibility();
   var fns = {
     dashboard: renderDashboard,
     receitas: renderReceitas,
@@ -5881,6 +5890,12 @@ function openSettings() {
   var lastExpStr = S.cfg.lastExport ? new Date(S.cfg.lastExport).toLocaleDateString('pt-PT') : 'Nunca';
   var daysSince = S.cfg.lastExport ? Math.floor((Date.now()-S.cfg.lastExport)/864e5) : null;
   h += `<div class="sg" id="sg-dados"><div class="sgt">💾 Dados</div>`;
+  h += `<div class="ss"><h4>🚕 Aba TVDE</h4>
+    <label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;margin-top:.3rem;cursor:pointer">
+      <input type="checkbox" id="si_showTvde"${c.showTvde !== false ? ' checked' : ''}>
+      Mostrar aba TVDE
+    </label>
+  </div>`;
   h += `<div class="ss"><h4>☁ Sync entre dispositivos</h4>
     <div style="font-size:.75rem;color:var(--mut);margin-bottom:.6rem;line-height:1.5">
       <strong style="color:var(--txt)">iPhone:</strong> toca em <strong>☁</strong> no cabeçalho → "Salvar em Ficheiros" → escolhe iCloud Drive.<br>
@@ -6046,7 +6061,10 @@ function saveSet() {
     });
   });
   applyColors();
+  var _showTvdeEl = document.getElementById('si_showTvde');
+  if (_showTvdeEl) S.cfg.showTvde = _showTvdeEl.checked;
   saveState();
+  _fbApplyTvdeVisibility();
   closeSet();
   renderTab(CUR);
 }
@@ -7801,6 +7819,7 @@ document.addEventListener('keydown', function(e) {
     _updateDiscreetBtn();
     _applySecOrder();
     _applyAllVis();
+    _fbApplyTvdeVisibility();
     HIST.push(JSON.stringify(S));
     HIDX = 0;
     updateUR();
