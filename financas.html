@@ -3906,6 +3906,23 @@ function movParc(idx, dir) {
 var PARC_MONTHS = [];
 var PARC_LABELS = [];
 var PARC_YRBRK = [];
+// Ordenação da tabela por clique no cabeçalho — null = ordem manual (arrastar).
+// Enquanto houver ordenação ativa, o arrastar fica desligado (as duas coisas não fazem
+// sentido ao mesmo tempo: uma é ordem calculada, a outra é ordem escolhida à mão).
+var PARC_SORT_COL = null;
+var PARC_SORT_DIR = 1;
+function parcSort(col) {
+  if (PARC_SORT_COL === col) {
+    PARC_SORT_DIR = PARC_SORT_DIR === 1 ? -1 : null;
+    if (PARC_SORT_DIR === null) { PARC_SORT_COL = null; PARC_SORT_DIR = 1; }
+  } else {
+    PARC_SORT_COL = col; PARC_SORT_DIR = 1;
+  }
+  renderParcelas();
+}
+function _parcSortArrow(col) {
+  return PARC_SORT_COL === col ? (PARC_SORT_DIR === 1 ? ' ▲' : ' ▼') : '';
+}
 function buildParcMonths() {
   var set = {};
   S.par.forEach(function(p) { parcMonths(p).forEach(function(m){ set[m]=1; }); });
@@ -3993,33 +4010,65 @@ function renderParcelas() {
   }
 
   function buildParcTable(list, isDone) {
+    // Pré-computa os valores das colunas fixas — servem tanto para ordenar como pra desenhar a linha
+    var rows = list.map(function(item) {
+      var p = item.p, ms = parcMonths(p);
+      var paid = 0;
+      for (var k = 0; k < ms.length; k++) { if (p.py[ms[k]]) paid++; }
+      var rest = sumMoney(ms.filter(function(m){return !p.py[m];}), function(m){ return parcVal(p, m); });
+      var pct = ms.length ? Math.round(paid / ms.length * 100) : 0;
+      return { p: p, pi: item.pi, ms: ms, paid: paid, rest: rest, pct: pct };
+    });
+
+    if (PARC_SORT_COL) {
+      var dir = PARC_SORT_DIR;
+      rows.sort(function(a, b) {
+        var av, bv;
+        switch (PARC_SORT_COL) {
+          case 'name': av = (a.p.name||'').toLowerCase(); bv = (b.p.name||'').toLowerCase(); break;
+          case 'cat':  av = (a.p.cat||'').toLowerCase();  bv = (b.p.cat||'').toLowerCase();  break;
+          case 'vp':   av = a.p.vp||0; bv = b.p.vp||0; break;
+          case 'paid': av = a.paid; bv = b.paid; break;
+          case 'rest': av = a.rest; bv = b.rest; break;
+          case 'pct':  av = a.pct;  bv = b.pct;  break;
+          default: av = 0; bv = 0;
+        }
+        if (av < bv) return -dir;
+        if (av > bv) return dir;
+        return 0;
+      });
+    }
+    // Ordenar e arrastar à mão não fazem sentido ao mesmo tempo — desliga o arrastar
+    // enquanto houver uma ordenação ativa (clique no mesmo cabeçalho 2x pra voltar ao normal)
+    var canDrag = !isDone && !PARC_SORT_COL;
+
     var t = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="min-width:1100px;width:100%"><thead><tr>';
-    t += '<th style="width:28px;text-align:center" title="Arrastar">⠿</th><th style="min-width:130px">Nome</th><th style="min-width:90px">Categoria</th><th>' + curSym() + '/mês</th>';
+    t += '<th style="width:28px;text-align:center" title="Arrastar">⠿</th>'
+       + '<th style="min-width:130px;cursor:pointer" onclick="parcSort(\'name\')" title="Ordenar">Nome' + _parcSortArrow('name') + '</th>'
+       + '<th style="min-width:90px;cursor:pointer" onclick="parcSort(\'cat\')" title="Ordenar">Categoria' + _parcSortArrow('cat') + '</th>'
+       + '<th style="cursor:pointer" onclick="parcSort(\'vp\')" title="Ordenar">' + curSym() + '/mês' + _parcSortArrow('vp') + '</th>';
     for (var mi = 0; mi < PARC_MONTHS.length; mi++) {
       var hlM = PARC_MONTHS[mi] === globalMonth ? 'background:rgba(77,143,255,.12)' : '';
       t += `<th class="${PARC_YRBRK[mi]?'yr-sep':''}" style="text-align:center;padding:.3rem .1rem;font-size:.6rem;${hlM}" title="${monthLabelFull(PARC_MONTHS[mi])}">${PARC_LABELS[mi]}</th>`;
     }
-    t += '<th class="parc-fz parc-fz-edge" style="text-align:center">Pago</th>'
-       + '<th class="parc-fz">Restante</th>'
-       + '<th class="parc-fz">Progresso</th>'
+    t += '<th class="parc-fz parc-fz-edge" style="text-align:center;cursor:pointer" onclick="parcSort(\'paid\')" title="Ordenar">Pago' + _parcSortArrow('paid') + '</th>'
+       + '<th class="parc-fz" style="cursor:pointer" onclick="parcSort(\'rest\')" title="Ordenar">Restante' + _parcSortArrow('rest') + '</th>'
+       + '<th class="parc-fz" style="cursor:pointer" onclick="parcSort(\'pct\')" title="Ordenar">Progresso' + _parcSortArrow('pct') + '</th>'
        + '<th class="parc-fz" style="text-align:center">Ações</th></tr></thead>';
     t += isDone ? '<tbody>' : '<tbody id="parcTbody">';
 
-    for (var li = 0; li < list.length; li++) {
-      var p = list[li].p, piIdx = list[li].pi;
-      var ms = parcMonths(p);
-      var paid = 0;
-      for (var k = 0; k < ms.length; k++) { if (p.py[ms[k]]) paid++; }
-      var rem = ms.length - paid;
-      var pct = Math.round(paid / ms.length * 100);
+    for (var li = 0; li < rows.length; li++) {
+      var p = rows[li].p, piIdx = rows[li].pi, ms = rows[li].ms, paid = rows[li].paid, rest = rows[li].rest, pct = rows[li].pct;
       var col = pct>=100?'var(--grn)':pct>=50?'var(--blu)':'var(--pur)';
       var rowStyle = isDone ? 'opacity:.6' : 'transition:opacity .15s';
-      var dragAttrs = !isDone
+      var dragAttrs = canDrag
         ? `draggable="true" ondragstart="parcDragStart(event,${piIdx})" ondragover="parcDragOver(event,${piIdx})" ondragleave="parcDragLeave(${piIdx})" ondrop="parcDrop(event,${piIdx})" ondragend="parcDragEnd()"`
         : '';
 
       t += `<tr ${dragAttrs} style="${rowStyle}">`;
-      t += `<td class="drag-handle" title="Arrastar">⠿</td>`;
+      t += canDrag
+        ? `<td class="drag-handle" title="Arrastar">⠿</td>`
+        : `<td class="drag-handle" style="opacity:.3;cursor:default" title="${isDone ? 'Arrastar' : 'Remove a ordenação para arrastar à mão'}">⠿</td>`;
       var adBadge = p.autoDebit ? ' <span style="font-size:.58rem;background:rgba(0,212,160,.12);color:var(--grn);border:1px solid rgba(0,212,160,.25);border-radius:4px;padding:.05rem .3rem;font-weight:600">auto</span>' : '';
       var sysBadge = p.sys ? ' <span style="font-size:.58rem;background:rgba(244,114,182,.12);color:#f472b6;border:1px solid rgba(244,114,182,.28);border-radius:4px;padding:.05rem .3rem;font-weight:600" title="' + (p.sys==='klarna' ? 'Klarna — cobrada a cada 30 dias' : 'Sequra') + '">' + (p.sys==='klarna' ? 'Klarna' : 'Sequra') + '</span>' : '';
       t += `<td class="bold">${_esc(p.name||'')}${adBadge}${sysBadge}</td><td>${p.cat ? ccatBadge(p.cat) : '<span class="tmut" style="font-size:.74rem">—</span>'}</td><td>${fmt(p.vp)}</td>`;
@@ -4052,7 +4101,7 @@ function renderParcelas() {
       }
 
       t += `<td class="parc-fz parc-fz-edge" style="text-align:center;font-size:.77rem"><span class="tgrn bold">${paid}</span><span class="tmut">/${ms.length}</span></td>`;
-      t += `<td class="parc-fz tred bold">${fmt(sumMoney(ms.filter(function(m){return !p.py[m];}), function(m){ return parcVal(p, m); }))}</td>`;
+      t += `<td class="parc-fz tred bold">${fmt(rest)}</td>`;
       t += `<td class="parc-fz" style="white-space:nowrap"><div class="pb" style="width:48px;display:inline-block;vertical-align:middle"><div class="pf" style="width:${pct}%;background:${col}"></div></div><span style="font-size:.6rem;color:var(--mut);margin-left:.2rem">${pct}%</span></td>`;
       var hasUnpaid = ms.filter(function(m){return !p.py[m];}).length > 0;
       t += `<td class="parc-fz"><div class="ac"><button class="ic e" onclick="openModal('parc',${p.id})" title="Editar">✏</button>${hasUnpaid&&!isDone?`<button class="ic" onclick="quitarParc(${p.id})" title="Quitar antecipadamente" style="font-size:.65rem;background:rgba(245,166,35,.1);color:var(--ylw);border:1px solid rgba(245,166,35,.25)">Quitar</button>`:''}${!isDone?`<button class="ic d" onclick="delRec('par',${p.id})" title="Eliminar">🗑</button>`:''}</div></td></tr>`;
