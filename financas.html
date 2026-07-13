@@ -5120,12 +5120,19 @@ function selOpts(list, sel) {
   return (list||[]).map(function(x){return `<option value="${x}"${x===sel?' selected':''}>${x}</option>`;}).join('');
 }
 
+// Como selOpts, mas sem conta pré-escolhida (registo novo) começa em branco — evita
+// que esquecer de escolher a conta lance sozinho na primeira da lista (ex: Revolut)
+function selOptsReq(list, sel, placeholder) {
+  var blank = sel ? '' : `<option value="" disabled selected>${placeholder||'Escolhe...'}</option>`;
+  return blank + selOpts(list, sel);
+}
+
 function buildForm(type, d) {
   var dd = (d && d.date) ? d.date : defaultDate();
   var so = selOpts(S.cfg.src, d&&d.src);
   var fo = selOpts(S.cfg.ccat, d&&d.cat);
   var co = selOpts(S.cfg.ccat, d&&d.cat);
-  var po = selOpts(S.cfg.pay, d&&d.card);
+  var po = selOptsReq(S.cfg.pay, d&&d.card, 'Escolhe uma conta...');
 
   switch(type) {
     case 'receita': return `<div class="fg">
@@ -5176,7 +5183,7 @@ function buildForm(type, d) {
     case 'vehfix': {
       var _vcat2 = (S.cfg.vcat && S.cfg.vcat.length) ? S.cfg.vcat : DEFAULTS.cfg.vcat.slice();
       var voV = selOpts(_vcat2, d&&d.cat);
-      var poV = selOpts(S.cfg.pay, d&&d.card);
+      var poV = selOptsReq(S.cfg.pay, d&&d.card, 'Escolhe um cartão...');
       var _vafD = (d && d.activeFrom) ? d.activeFrom : globalMonth;
       var _vafY = _vafD.slice(0,4), _vafM2 = _vafD.slice(5,7);
       var _vatD = (d && d.activeTo) ? d.activeTo : '';
@@ -5228,7 +5235,7 @@ function buildForm(type, d) {
       <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
     </div>`;
     case 'carga': {
-      var poC = selOpts(S.cfg.pay, d&&d.card);
+      var poC = selOptsReq(S.cfg.pay, d&&d.card, 'Escolhe um cartão...');
       var _isFrota = !!(d && d.frota);
       var _frS = d&&d.frSessao!=null ? d.frSessao : (S.cfg.frotaSessao||'');
       var _frM = d&&d.frPerMin!=null ? d.frPerMin : (S.cfg.frotaMin||'');
@@ -5259,7 +5266,7 @@ function buildForm(type, d) {
     case 'limp': {
       var _vcat = (S.cfg.vcat && S.cfg.vcat.length) ? S.cfg.vcat : DEFAULTS.cfg.vcat.slice();
       var vcatOpts = selOpts(_vcat, d&&d.tipo);
-      var poL = selOpts(S.cfg.pay, d&&d.card);
+      var poL = selOptsReq(S.cfg.pay, d&&d.card, 'Escolhe um cartão...');
       return `<div class="fg">
         <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
         <div class="ff"><label class="fl">Tipo de Despesa</label><select class="fi" id="f_tipo">${vcatOpts}</select></div>
@@ -5273,7 +5280,7 @@ function buildForm(type, d) {
       var fdVal = d ? d.fd : defaultDate();
       var numVal = d ? d.num : '';
       var coP = selOpts(S.cfg.ccat, d&&d.cat);
-      var poP = selOpts(S.cfg.pay, d&&d.card);
+      var poP = selOptsReq(S.cfg.pay, d&&d.card, 'Escolhe um cartão...');
       return `<div class="fg">
         <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
         <div class="ff"><label class="fl">Categoria</label><select class="fi" id="f_cat">${coP}</select></div>
@@ -5355,8 +5362,8 @@ function buildForm(type, d) {
       </div>`;
     }
     case 'trf': {
-      var po1 = selOpts(S.cfg.pay, d&&d.from);
-      var po2 = selOpts(S.cfg.pay, d&&d.to);
+      var po1 = selOptsReq(S.cfg.pay, d&&d.from, 'Escolhe a origem...');
+      var po2 = selOptsReq(S.cfg.pay, d&&d.to, 'Escolhe o destino...');
       return `<div class="fg">
         <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${d?d.date:todayStr()}"></div>
         <div class="ff"><label class="fl">Valor (${curSym()})</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
@@ -5375,7 +5382,7 @@ function buildForm(type, d) {
     }
     case 'recrule': {
       var soR = selOpts(S.cfg.src, d&&d.src);
-      var poR = selOpts(S.cfg.pay, d&&d.card);
+      var poR = selOptsReq(S.cfg.pay, d&&d.card, 'Escolhe uma conta...');
       var _fqR = (d&&d.freq)||'monthly';
       return `<div class="fg">
         <div class="ff"><label class="fl">Fonte</label><select class="fi" id="f_src">${soR}</select></div>
@@ -5412,10 +5419,12 @@ function validateForm(type) {
     case 'receita':
       if (!fv('f_date')) return 'Data obrigatória.';
       if (!(ff('f_val') > 0)) return 'Valor deve ser maior que zero.';
+      if (!fv('f_card')) return 'Escolhe a conta de destino.';
       return null;
     case 'dfixa':
       if (!fv('f_name')) return 'Nome obrigatório.';
       if (!(ff('f_val') > 0)) return 'Valor deve ser maior que zero.';
+      if (!fv('f_card')) return 'Escolhe o cartão.';
       { var _vafM=fv('f_afM'),_vafY=fv('f_afY'),_vatM=fv('f_atM'),_vatY=fv('f_atY');
         var _mOk=function(m,y){var mi=parseInt(m),yi=parseInt(y);return mi>=1&&mi<=12&&yi>=2000&&yi<=2100;};
         if((_vafM||_vafY)&&!_mOk(_vafM,_vafY)) return '"Ativo a partir de": mês/ano inválido.';
@@ -5428,20 +5437,25 @@ function validateForm(type) {
       if (!fv('f_name')) return 'Nome obrigatório.';
       if (!fv('f_date')) return 'Data obrigatória.';
       if (!(ff('f_val') > 0)) return 'Valor deve ser maior que zero.';
+      if (!fv('f_card')) return 'Escolhe o cartão.';
       return null;
     case 'carga':
       if (!fv('f_date')) return 'Data obrigatória.';
       if (!(ff('f_val') > 0)) return 'Valor deve ser maior que zero.';
+      { var _isFrotaV = !!(document.getElementById('f_frota') && document.getElementById('f_frota').checked);
+        if (!_isFrotaV && !fv('f_card')) return 'Escolhe o cartão.'; }
       return null;
     case 'limp':
       if (!fv('f_date')) return 'Data obrigatória.';
       if (!(ff('f_val') > 0)) return 'Valor deve ser maior que zero.';
+      if (!fv('f_card')) return 'Escolhe o cartão.';
       return null;
     case 'parc':
       if (!fv('f_name')) return 'Nome obrigatório.';
       if (!(ff('f_val') > 0)) return 'Valor da parcela deve ser maior que zero.';
       if (!(parseInt(fv('f_num')) >= 1)) return 'Nº de parcelas deve ser pelo menos 1.';
       if (!fv('f_fd')) return 'Data do 1.º pagamento obrigatória.';
+      if (!fv('f_card')) return 'Escolhe o cartão.';
       return null;
     case 'evt':
       if (!fv('f_name')) return 'Nome obrigatório.';
@@ -5467,7 +5481,9 @@ function validateForm(type) {
     case 'trf':
       if (!fv('f_date')) return 'Data obrigatória.';
       if (!(ff('f_val') > 0)) return 'Valor deve ser maior que zero.';
-      if (fv('f_from') && fv('f_from') === fv('f_to')) return 'Origem e destino não podem ser o mesmo cartão.';
+      if (!fv('f_from')) return 'Escolhe a conta de origem.';
+      if (!fv('f_to')) return 'Escolhe a conta de destino.';
+      if (fv('f_from') === fv('f_to')) return 'Origem e destino não podem ser o mesmo cartão.';
       return null;
     case 'vehfix':
       if (!fv('f_name')) return 'Nome obrigatório.';
@@ -8088,7 +8104,6 @@ function _qRender() {
   }
 
   var accs=S.cfg.pay||[];
-  if(!_qAcc && accs.length) _qAcc=accs[0];
   var ac=document.getElementById('qAccChips');
   if(ac) ac.innerHTML=accs.map(function(a){
     var sel=_qAcc===a;
@@ -8307,6 +8322,14 @@ function qSave(){
   if(!amt||!isFinite(amt)||amt<=0){
     var a=document.getElementById('qAmt');
     if(a){a.focus();a.classList.remove('shake');void a.offsetWidth;a.classList.add('shake');}
+    return;
+  }
+  // Conta obrigatória — evita lançar sozinho na primeira da lista se esqueceres de escolher.
+  // Frota fica fora: é descontado direto no vencimento, sem conta associada.
+  var _needsAcc=_qT==='e'||_qT==='i'||(_qT==='v'&&(_qVSub==='cg'||_qVSub==='lp'));
+  if(_needsAcc && !_qAcc){
+    var accEl=document.getElementById('qAccChips');
+    if(accEl){accEl.classList.remove('shake');void accEl.offsetWidth;accEl.classList.add('shake');}
     return;
   }
   // Carga/Frota: garante local de recarga selecionado — cria a partir dos campos inline se preciso
