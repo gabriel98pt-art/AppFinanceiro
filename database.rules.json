@@ -1,6 +1,14 @@
 {
   "rules": {
-    ".read": "auth.uid === '27Xm1TNeJfTaXRT7XMYHP0c18Bo2'",
-    ".write": "auth.uid === '27Xm1TNeJfTaXRT7XMYHP0c18Bo2'"
+    "fin_v4": {
+      ".read": "auth.uid === '27Xm1TNeJfTaXRT7XMYHP0c18Bo2'",
+      ".write": "auth.uid === '27Xm1TNeJfTaXRT7XMYHP0c18Bo2'"
+    },
+    "users": {
+      "$uid": {
+        ".read": "auth.uid === $uid",
+        ".write": "auth.uid === $uid"
+      }
+    }
   }
 }
