@@ -126,6 +126,14 @@ tbody tr[data-cc] td:first-child{border-left-color:var(--cc)}
 .tw-tall::-webkit-scrollbar-thumb{background:var(--brd);border-radius:4px}
 .ac{display:flex;gap:.2rem;align-items:center}
 
+/* Parcelas: colunas de resumo/ações fixas à direita — a tabela pode ter dezenas de
+   colunas de meses, sem isto o utilizador tinha de percorrer tudo pra chegar lá */
+.parc-fz{position:sticky;background:var(--s1);z-index:1}
+thead .parc-fz{background:var(--s2);z-index:3}
+.parc-fz-edge{box-shadow:-6px 0 8px -6px rgba(0,0,0,.35)}
+tbody tr:hover .parc-fz{box-shadow:inset 0 0 0 999px rgba(77,143,255,.06)}
+tbody tr:hover .parc-fz-edge{box-shadow:-6px 0 8px -6px rgba(0,0,0,.35),inset 0 0 0 999px rgba(77,143,255,.06)}
+
 /* EMPTY */
 .empty{text-align:center;padding:2.5rem 1rem;color:var(--mut);border:1.5px dashed rgba(124,130,160,.18);border-radius:var(--r);margin:.25rem 0}
 .ei{font-size:1.5rem;display:flex;align-items:center;justify-content:center;width:52px;height:52px;background:rgba(255,255,255,.05);border-radius:50%;margin:0 auto .75rem}
@@ -3991,7 +3999,10 @@ function renderParcelas() {
       var hlM = PARC_MONTHS[mi] === globalMonth ? 'background:rgba(77,143,255,.12)' : '';
       t += `<th class="${PARC_YRBRK[mi]?'yr-sep':''}" style="text-align:center;padding:.3rem .1rem;font-size:.6rem;${hlM}" title="${monthLabelFull(PARC_MONTHS[mi])}">${PARC_LABELS[mi]}</th>`;
     }
-    t += '<th style="text-align:center">Pago</th><th>Restante</th><th>Progresso</th><th style="text-align:center">Ações</th></tr></thead>';
+    t += '<th class="parc-fz parc-fz-edge" style="text-align:center">Pago</th>'
+       + '<th class="parc-fz">Restante</th>'
+       + '<th class="parc-fz">Progresso</th>'
+       + '<th class="parc-fz" style="text-align:center">Ações</th></tr></thead>';
     t += isDone ? '<tbody>' : '<tbody id="parcTbody">';
 
     for (var li = 0; li < list.length; li++) {
@@ -4040,11 +4051,11 @@ function renderParcelas() {
         }
       }
 
-      t += `<td style="text-align:center;font-size:.77rem"><span class="tgrn bold">${paid}</span><span class="tmut">/${ms.length}</span></td>`;
-      t += `<td class="tred bold">${fmt(sumMoney(ms.filter(function(m){return !p.py[m];}), function(m){ return parcVal(p, m); }))}</td>`;
-      t += `<td style="white-space:nowrap"><div class="pb" style="width:48px;display:inline-block;vertical-align:middle"><div class="pf" style="width:${pct}%;background:${col}"></div></div><span style="font-size:.6rem;color:var(--mut);margin-left:.2rem">${pct}%</span></td>`;
+      t += `<td class="parc-fz parc-fz-edge" style="text-align:center;font-size:.77rem"><span class="tgrn bold">${paid}</span><span class="tmut">/${ms.length}</span></td>`;
+      t += `<td class="parc-fz tred bold">${fmt(sumMoney(ms.filter(function(m){return !p.py[m];}), function(m){ return parcVal(p, m); }))}</td>`;
+      t += `<td class="parc-fz" style="white-space:nowrap"><div class="pb" style="width:48px;display:inline-block;vertical-align:middle"><div class="pf" style="width:${pct}%;background:${col}"></div></div><span style="font-size:.6rem;color:var(--mut);margin-left:.2rem">${pct}%</span></td>`;
       var hasUnpaid = ms.filter(function(m){return !p.py[m];}).length > 0;
-      t += `<td><div class="ac"><button class="ic e" onclick="openModal('parc',${p.id})" title="Editar">✏</button>${hasUnpaid&&!isDone?`<button class="ic" onclick="quitarParc(${p.id})" title="Quitar antecipadamente" style="font-size:.65rem;background:rgba(245,166,35,.1);color:var(--ylw);border:1px solid rgba(245,166,35,.25)">Quitar</button>`:''}${!isDone?`<button class="ic d" onclick="delRec('par',${p.id})" title="Eliminar">🗑</button>`:''}</div></td></tr>`;
+      t += `<td class="parc-fz"><div class="ac"><button class="ic e" onclick="openModal('parc',${p.id})" title="Editar">✏</button>${hasUnpaid&&!isDone?`<button class="ic" onclick="quitarParc(${p.id})" title="Quitar antecipadamente" style="font-size:.65rem;background:rgba(245,166,35,.1);color:var(--ylw);border:1px solid rgba(245,166,35,.25)">Quitar</button>`:''}${!isDone?`<button class="ic d" onclick="delRec('par',${p.id})" title="Eliminar">🗑</button>`:''}</div></td></tr>`;
     }
     t += '</tbody></table></div>';
     return t;
@@ -4072,6 +4083,28 @@ function renderParcelas() {
 
   document.getElementById('parcGrid').innerHTML = h;
   _applyAllVis();
+  _parcFreezeCols();
+}
+
+// As colunas Pago/Restante/Progresso/Ações ficam fixas à direita (tabela tem uma coluna
+// por mês, pode passar de 20). O deslocamento de cada uma tem de bater com a largura RÊAL
+// da coluna à sua direita — não dá pra fixar em CSS porque a largura varia com o conteúdo
+// (valores maiores, botão "Quitar" só em algumas linhas, etc).
+function _parcFreezeCols() {
+  document.querySelectorAll('#parcGrid table').forEach(function(table) {
+    var headCells = table.querySelectorAll('thead th.parc-fz');
+    if (!headCells.length) return;
+    var rights = [];
+    var acc = 0;
+    for (var i = headCells.length - 1; i >= 0; i--) {
+      rights[i] = acc;
+      acc += headCells[i].getBoundingClientRect().width;
+    }
+    table.querySelectorAll('tr').forEach(function(row) {
+      var cells = row.querySelectorAll('.parc-fz');
+      cells.forEach(function(cell, i) { cell.style.right = rights[i] + 'px'; });
+    });
+  });
 }
 
 function toggleParcDone() {
@@ -4081,6 +4114,9 @@ function toggleParcDone() {
   var isHidden = sec.style.display === 'none';
   sec.style.display = isHidden ? 'block' : 'none';
   if (ico) ico.textContent = isHidden ? '▼' : '▶';
+  // A tabela de concluídas estava escondida (display:none) durante o render — as
+  // colunas fixas só conseguem medir a largura real agora que ficou visível
+  if (isHidden) _parcFreezeCols();
 }
 
 function payParc(id, month, date) {
