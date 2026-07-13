@@ -1001,7 +1001,7 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
       </select>
     </div>
     <div class="tw"><table>
-      <thead><tr><th>Data</th><th>Local</th><th>kWh</th><th>Valor</th><th title="Custo por kWh (Valor ÷ kWh)">€/kWh</th><th>Cartão</th><th>Notas</th><th></th></tr></thead>
+      <thead><tr><th>Data</th><th>Local</th><th>kWh</th><th>Valor</th><th title="Custo por kWh (Valor ÷ kWh)" id="cgKwhHdr">€/kWh</th><th>Cartão</th><th>Notas</th><th></th></tr></thead>
       <tbody id="cgBody" class="anim"></tbody><tfoot id="cgFoot"></tfoot>
     </table></div>
     </div>
@@ -1364,6 +1364,7 @@ var _FB_IS_GUEST = false;
           _FB_IS_GUEST = user.uid !== _FB_OWNER_UID;
           _FB_PATH = _FB_IS_GUEST ? ('users/' + user.uid + '/' + SK) : SK;
           _fbApplyTvdeVisibility();
+          _applyCurrencyLabels();
           _fbDb = firebase.database();
           _fbSync(false);
         } else {
@@ -1382,6 +1383,26 @@ function _fbApplyTvdeVisibility() {
   var btn = document.querySelector('.tabs .tb[onclick*="\'tvde\'"]');
   if (btn) btn.style.display = show ? '' : 'none';
   if (!show && CUR === 'tvde') sw('dashboard', document.querySelector('.tabs .tb'));
+}
+
+// Rótulos de símbolo de moeda que estão fixos no HTML (fora de qualquer template JS) —
+// tudo o resto lê S.cfg.currency via curSym() diretamente no momento do render.
+function _applyCurrencyLabels() {
+  var sym = curSym();
+  var map = {
+    cgKwhHdr: sym + '/kWh',
+    qAmtSym: sym,
+    qNewLocalSessaoLbl: 'SESSÃO ' + sym,
+    qNewLocalPerMinLbl: sym + '/MIN',
+    qNewLocalPrecoLbl: sym + '/KWH',
+    qVehSessaoLbl: 'SESSÃO ' + sym,
+    qVehPerMinLbl: sym + '/MIN',
+    qVehPrecoLbl: sym + '/KWH'
+  };
+  Object.keys(map).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = map[id];
+  });
 }
 
 // Código de convite — só quem o conhece consegue criar conta nova. Muda aqui se quiseres
@@ -1504,6 +1525,7 @@ function _fbSignupSubmit() {
     S.cfg.showTvde = false;
     saveState();
     _fbApplyTvdeVisibility();
+    _applyCurrencyLabels();
     _fbDb = firebase.database();
     var el = document.getElementById('_fbLoginModal');
     if (el) el.classList.remove('on');
@@ -1763,7 +1785,8 @@ var DEFAULTS = {
     bud: {Mercado:300,Restaurante:200,'Contas de Casa':150,Saúde:100,Lazer:100},
     bal: {'Revolut (D)':0,'AB (D)':0,'AB Gold (C)':0},
     locais: [],
-    showTvde: true
+    showTvde: true,
+    currency: 'EUR'
   },
   rec:[], df:[], dc:[], veh:{cg:[],lp:[],df:[],km:[]}, par:[], evt:[], fnds:[], trf:[], tvde:{}, _id:10
 };
@@ -1800,7 +1823,7 @@ function sumMoney(arr, fn) {
 // Parse monetário robusto: suporta pt-PT (1.234,56) e en-US (1,234.56)
 function parseMoney(s) {
   if (s == null || s === '') return NaN;
-  s = String(s).replace(/[€$£\s ]/g,'').trim();
+  s = String(s).replace(/[€$£R\s ]/g,'').trim();
   if (!s || s === '-' || s === '+') return NaN;
   // Notação contabilística negativa: (1234.56) → -1234.56
   if (/^\([\d.,]+\)$/.test(s)) s = '-' + s.slice(1, -1);
@@ -2394,11 +2417,17 @@ function getLast(n, from) {
   return ms;
 }
 
+// Moeda por conta — cada pessoa escolhe a sua em Definições → Dados. A formatação do
+// número (separador de milhar/decimal) fica igual em qualquer moeda, pt-PT e pt-BR
+// usam a mesma convenção (1.234,56) — só o símbolo muda.
+var CURRENCY_SYMBOLS = { EUR: '€', BRL: 'R$', USD: '$', GBP: '£' };
+function curSym() { return CURRENCY_SYMBOLS[(S.cfg && S.cfg.currency) || 'EUR'] || '€'; }
+
 function fmt(v) {
   if (v == null || isNaN(v) || !isFinite(v)) return '—';
   var n = safeNum(v, 0);
   var abs = Math.abs(n).toLocaleString('pt-PT', {minimumFractionDigits:2, maximumFractionDigits:2});
-  return (n < 0 ? '-' : '') + '€' + abs;
+  return (n < 0 ? '-' : '') + curSym() + abs;
 }
 
 function fmtDate(iso) {
@@ -2775,6 +2804,7 @@ function sw(id, btn) {
 
 function renderTab(id) {
   _fbApplyTvdeVisibility();
+  _applyCurrencyLabels();
   var fns = {
     dashboard: renderDashboard,
     receitas: renderReceitas,
@@ -2832,7 +2862,7 @@ function makeChart(id, type, labels, datasets, opts) {
       cfg.options.interaction = { mode: 'index', intersect: false };
       cfg.options.scales = {
         x: { grid: { display: false }, ticks: { color: tc, font: { size: 10 } } },
-        y: { grid: { color: gc }, ticks: { color: tc, font: { size: 10 }, callback: function(v) { return '€' + v; } } }
+        y: { grid: { color: gc }, ticks: { color: tc, font: { size: 10 }, callback: function(v) { return curSym() + v; } } }
       };
     }
     if (opts && opts.noLegend) cfg.options.plugins.legend.display = false;
@@ -2944,7 +2974,7 @@ function _annGridHtml(months) {
     var col = isFuture ? 'var(--mut)' : s > 0 ? 'var(--grn)' : s < 0 ? 'var(--red)' : 'var(--mut)';
     html += `<div class="ann-cell" style="background:${bg};opacity:${isFuture?.45:1}">
       <div style="color:var(--mut);font-size:.58rem;margin-bottom:.1rem">${MN[mi-1]}</div>
-      <div class="av" style="color:${col}">${isFuture?'·':(s===0?'—':(s>0?'+':'')+Math.round(s)+'€')}</div>
+      <div class="av" style="color:${col}">${isFuture?'·':(s===0?'—':(s>0?'+':'')+Math.round(s)+curSym())}</div>
     </div>`;
   });
   html += '</div>';
@@ -3713,7 +3743,7 @@ function renderVeiculo() {
   function _cgKwhCost(d) {
     var k = safeNum(d.kwh, 0), v = safeNum(d.val, 0);
     if (!(k > 0) || !(v > 0)) return '<span class="tmut">—</span>';
-    return '€' + (v / k).toLocaleString('pt-PT', {minimumFractionDigits:2, maximumFractionDigits:3});
+    return curSym() + (v / k).toLocaleString('pt-PT', {minimumFractionDigits:2, maximumFractionDigits:3});
   }
   var cgEl = document.getElementById('cgBody');
   if (cgEl) cgEl.innerHTML = cg.length ? cg.map(function(d) {
@@ -3723,7 +3753,7 @@ function renderVeiculo() {
   // Média €/kWh do período (total gasto ÷ total kWh das cargas com kWh registado)
   var _cgKwhTot = 0, _cgValComKwh = 0;
   cg.forEach(function(d){ var k = safeNum(d.kwh,0); if (k > 0) { _cgKwhTot += k; _cgValComKwh += safeNum(d.val,0); } });
-  var _cgAvg = _cgKwhTot > 0 ? '€' + (_cgValComKwh/_cgKwhTot).toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:3}) + ' méd.' : '';
+  var _cgAvg = _cgKwhTot > 0 ? curSym() + (_cgValComKwh/_cgKwhTot).toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:3}) + ' méd.' : '';
   if (cgFt) cgFt.innerHTML = `<tr><td colspan="3">Total ${_cgPeriodLbl}</td><td class="tylw">${fmt(_cgTotWeek)}</td><td style="font-size:.72rem;color:var(--mut)">${_cgAvg}</td><td colspan="3"></td></tr>`;
 
   var lpTipoFiltEl = document.getElementById('lpTipoFilt');
@@ -3956,7 +3986,7 @@ function renderParcelas() {
 
   function buildParcTable(list, isDone) {
     var t = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="min-width:1100px;width:100%"><thead><tr>';
-    t += '<th style="width:28px;text-align:center" title="Arrastar">⠿</th><th style="min-width:130px">Nome</th><th style="min-width:90px">Categoria</th><th>€/mês</th>';
+    t += '<th style="width:28px;text-align:center" title="Arrastar">⠿</th><th style="min-width:130px">Nome</th><th style="min-width:90px">Categoria</th><th>' + curSym() + '/mês</th>';
     for (var mi = 0; mi < PARC_MONTHS.length; mi++) {
       var hlM = PARC_MONTHS[mi] === globalMonth ? 'background:rgba(77,143,255,.12)' : '';
       t += `<th class="${PARC_YRBRK[mi]?'yr-sep':''}" style="text-align:center;padding:.3rem .1rem;font-size:.6rem;${hlM}" title="${monthLabelFull(PARC_MONTHS[mi])}">${PARC_LABELS[mi]}</th>`;
@@ -5065,7 +5095,7 @@ function buildForm(type, d) {
     case 'receita': return `<div class="fg">
       <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
       <div class="ff"><label class="fl">Fonte</label><select class="fi" id="f_src">${so}</select></div>
-      <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
+      <div class="ff"><label class="fl">Valor (${curSym()})</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
       <div class="ff"><label class="fl">Conta de Destino</label><select class="fi" id="f_card">${po}</select></div>
       <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
     </div>`;
@@ -5084,7 +5114,7 @@ function buildForm(type, d) {
       return `<div class="fg">
         <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
         <div class="ff"><label class="fl">Categoria</label><select class="fi" id="f_cat">${fo}</select></div>
-        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
+        <div class="ff"><label class="fl">Valor (${curSym()})</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
         <div class="ff"><label class="fl">Dia Vencimento</label><select class="sel" id="f_day">${_dyOpts}</select></div>
         <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${po}</select></div>
         <div class="ff full"><label class="fl">Ativo a partir de</label>
@@ -5125,7 +5155,7 @@ function buildForm(type, d) {
       return `<div class="fg">
         <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
         <div class="ff"><label class="fl">Categoria</label><select class="fi" id="f_cat">${voV}</select></div>
-        <div class="ff"><label class="fl">Valor (€/mês)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
+        <div class="ff"><label class="fl">Valor (${curSym()}/mês)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
         <div class="ff"><label class="fl">Dia Vencimento</label><select class="sel" id="f_day">${_vdyOpts}</select></div>
         <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${poV}</select></div>
         <div class="ff full"><label class="fl">Ativo a partir de</label>
@@ -5157,7 +5187,7 @@ function buildForm(type, d) {
       <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" placeholder="ex: Supermercado, Farmácia..." value="${d?_esc(d.name||''):''}"></div>
       <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
       <div class="ff"><label class="fl">Categoria</label><select class="fi" id="f_cat">${co}</select></div>
-      <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
+      <div class="ff"><label class="fl">Valor (${curSym()})</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
       <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${po}</select></div>
       <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
     </div>`;
@@ -5179,12 +5209,12 @@ function buildForm(type, d) {
         <div class="ff full" id="f_frotaFields" style="display:${_isFrota?'':'none'}">
           <div class="fg" style="grid-template-columns:repeat(2,1fr)">
             <div class="ff"><label class="fl">Minutos <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_mins" type="number" step="1" min="0" value="${d&&d.mins?d.mins:''}" oninput="calcFrotaVal()"></div>
-            <div class="ff"><label class="fl">Taxa sessão (€) <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frSessao" type="text" inputmode="decimal" placeholder="0,00" value="${moneyDisp(_frS,2)}" oninput="moneyMask(event,2);calcFrotaVal()"></div>
-            <div class="ff"><label class="fl">€/minuto <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frPerMin" type="text" inputmode="decimal" placeholder="0,000" value="${moneyDisp(_frM,3)}" oninput="moneyMask(event,3);calcFrotaVal()"></div>
-            <div class="ff"><label class="fl">€/kWh <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frPerKwh" type="text" inputmode="decimal" placeholder="0,000" value="${moneyDisp(_frK,3)}" oninput="moneyMask(event,3);calcFrotaVal()"></div>
+            <div class="ff"><label class="fl">Taxa sessão (${curSym()}) <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frSessao" type="text" inputmode="decimal" placeholder="0,00" value="${moneyDisp(_frS,2)}" oninput="moneyMask(event,2);calcFrotaVal()"></div>
+            <div class="ff"><label class="fl">${curSym()}/minuto <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frPerMin" type="text" inputmode="decimal" placeholder="0,000" value="${moneyDisp(_frM,3)}" oninput="moneyMask(event,3);calcFrotaVal()"></div>
+            <div class="ff"><label class="fl">${curSym()}/kWh <span class="tmut" style="font-weight:400">(opcional)</span></label><input class="fi fiu" id="f_frPerKwh" type="text" inputmode="decimal" placeholder="0,000" value="${moneyDisp(_frK,3)}" oninput="moneyMask(event,3);calcFrotaVal()"></div>
           </div>
         </div>
-        <div class="ff"><label class="fl">Valor (€) ${_isFrota?'<span class="tmut" style="font-weight:400">(auto, mas edita se já souberes o total)</span>':''}</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" ${d?'data-manual="1"':''} oninput="moneyMask(event,2);this.dataset.manual='1'"></div>
+        <div class="ff"><label class="fl">Valor (${curSym()}) ${_isFrota?'<span class="tmut" style="font-weight:400">(auto, mas edita se já souberes o total)</span>':''}</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" ${d?'data-manual="1"':''} oninput="moneyMask(event,2);this.dataset.manual='1'"></div>
         <div class="ff" id="f_cardRow" style="display:${_isFrota?'none':''}"><label class="fl">Cartão</label><select class="fi" id="f_card">${poC}</select></div>
         <div class="ff" id="f_frotaCardNote" style="display:${_isFrota?'':'none'};align-self:end"><span class="tmut" style="font-size:.72rem">💼 Descontado direto no vencimento — sem conta associada.</span></div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
@@ -5197,7 +5227,7 @@ function buildForm(type, d) {
       return `<div class="fg">
         <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
         <div class="ff"><label class="fl">Tipo de Despesa</label><select class="fi" id="f_tipo">${vcatOpts}</select></div>
-        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
+        <div class="ff"><label class="fl">Valor (${curSym()})</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
         <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${poL}</select></div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
       </div>`;
@@ -5234,13 +5264,13 @@ function buildForm(type, d) {
 
         <!-- MODE 1: direct parcela value -->
         <div class="ff" id="pMode1">
-          <label class="fl">Valor Parcela (€)</label>
+          <label class="fl">Valor Parcela (${curSym()})</label>
           <input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${moneyDisp(vpVal,2)}" oninput="moneyMask(event,2);onParcValChange()">
         </div>
 
         <!-- MODE 2: total → calculates parcela -->
         <div class="ff" id="pMode2" style="display:none">
-          <label class="fl">Valor Total (€)</label>
+          <label class="fl">Valor Total (${curSym()})</label>
           <input class="fi fiu" id="f_total" type="text" inputmode="decimal" placeholder="0,00" oninput="moneyMask(event,2);calcFromTotal()">
         </div>
 
@@ -5273,19 +5303,19 @@ function buildForm(type, d) {
     case 'evt': return `<div class="fg">
       <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
       <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
-      <div class="ff"><label class="fl">Valor (€, opcional)</label><input class="fi" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
+      <div class="ff"><label class="fl">Valor (${curSym()}, opcional)</label><input class="fi" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
     </div>`;
     case 'fund': return `<div class="fg">
       <div class="ff full"><label class="fl">Nome do Fundo</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
-      <div class="ff"><label class="fl">Objetivo (€)</label><input class="fi fiu" id="f_goal" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.goal,2):''}" oninput="moneyMask(event,2)"></div>
-      <div class="ff"><label class="fl">Poupado (€)</label><input class="fi fiu" id="f_saved" type="text" inputmode="decimal" placeholder="0,00" value="${moneyDisp(d?d.saved||0:0,2)}" oninput="moneyMask(event,2)"></div>
+      <div class="ff"><label class="fl">Objetivo (${curSym()})</label><input class="fi fiu" id="f_goal" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.goal,2):''}" oninput="moneyMask(event,2)"></div>
+      <div class="ff"><label class="fl">Poupado (${curSym()})</label><input class="fi fiu" id="f_saved" type="text" inputmode="decimal" placeholder="0,00" value="${moneyDisp(d?d.saved||0:0,2)}" oninput="moneyMask(event,2)"></div>
       <div class="ff"><label class="fl">Data Objetivo</label><input class="fi" id="f_dl" type="date" value="${d?d.deadline||'':''}"></div>
     </div>`;
     case 'contrib': {
       var _falta = d ? Math.max(0,(d.goal||0)-(d.saved||0)) : 0;
       return `<div class="fg">
         <div class="inf" style="margin-bottom:.75rem">Poupado: <strong>${fmt(d?d.saved||0:0)}</strong> de <strong>${fmt(d?d.goal||0:0)}</strong>${_falta>0?' · em falta: <strong>'+fmt(_falta)+'</strong>':' · <span style="color:var(--grn)">meta atingida</span>'}</div>
-        <div class="ff full"><label class="fl">Valor a contribuir (€)</label><input class="fi fiu" id="f_contrib" type="text" inputmode="decimal" placeholder="0,00" autofocus oninput="moneyMask(event,2)"></div>
+        <div class="ff full"><label class="fl">Valor a contribuir (${curSym()})</label><input class="fi fiu" id="f_contrib" type="text" inputmode="decimal" placeholder="0,00" autofocus oninput="moneyMask(event,2)"></div>
       </div>`;
     }
     case 'trf': {
@@ -5293,7 +5323,7 @@ function buildForm(type, d) {
       var po2 = selOpts(S.cfg.pay, d&&d.to);
       return `<div class="fg">
         <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${d?d.date:todayStr()}"></div>
-        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
+        <div class="ff"><label class="fl">Valor (${curSym()})</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
         <div class="ff"><label class="fl">De (origem)</label><select class="fi" id="f_from">${po1}</select></div>
         <div class="ff"><label class="fl">Para (destino)</label><select class="fi" id="f_to">${po2}</select></div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
@@ -5305,7 +5335,7 @@ function buildForm(type, d) {
       var _rinfo = _isFirst
         ? `<div class="inf" style="margin-bottom:.75rem">Ponto de partida para <strong>${_esc(d.card)}</strong>. As transações futuras ajustam a partir daqui.</div>`
         : `<div class="inf" style="margin-bottom:.75rem">App calcula: <strong>${fmt(_appBal)}</strong></div>`;
-      return `<div class="fg">${_rinfo}<div class="ff full"><label class="fl">Saldo real no banco (€)</label><input class="fi fiu" id="f_real_bal" type="text" inputmode="decimal" placeholder="${_appBal !== null ? _appBal.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2}) : '0,00'}" autofocus oninput="moneyMask(event,2)"></div></div>`;
+      return `<div class="fg">${_rinfo}<div class="ff full"><label class="fl">Saldo real no banco (${curSym()})</label><input class="fi fiu" id="f_real_bal" type="text" inputmode="decimal" placeholder="${_appBal !== null ? _appBal.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2}) : '0,00'}" autofocus oninput="moneyMask(event,2)"></div></div>`;
     }
     case 'recrule': {
       var soR = selOpts(S.cfg.src, d&&d.src);
@@ -5313,7 +5343,7 @@ function buildForm(type, d) {
       var _fqR = (d&&d.freq)||'monthly';
       return `<div class="fg">
         <div class="ff"><label class="fl">Fonte</label><select class="fi" id="f_src">${soR}</select></div>
-        <div class="ff"><label class="fl">Valor (€)</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
+        <div class="ff"><label class="fl">Valor (${curSym()})</label><input class="fi fiu" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
         <div class="ff"><label class="fl">Frequência</label><select class="fi" id="f_freq"><option value="monthly"${_fqR==='monthly'?' selected':''}>Mensal</option><option value="weekly"${_fqR==='weekly'?' selected':''}>Semanal</option></select></div>
         <div class="ff"><label class="fl">Conta de Destino</label><select class="fi" id="f_card">${poR}</select></div>
         <div class="ff"><label class="fl">Primeira receita</label><input class="fi fiu" id="f_start" type="date" value="${d&&d.start?d.start:defaultDate()}"></div>
@@ -5326,7 +5356,7 @@ function buildForm(type, d) {
       var _hasCur = d && d.cur != null;
       return `<div class="fg">
         <div class="inf" style="margin-bottom:.75rem">Cálculo automático: <strong>${fmt(d.fatCalc)}</strong>${_hasCur ? ' · manual activo: <strong>'+fmt(d.cur)+'</strong>' : ''}</div>
-        <div class="ff full"><label class="fl">Valor manual da fatura (€)</label><input class="fi fiu" id="f_fat_val" type="text" inputmode="decimal" placeholder="${d.fatCalc.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2})}" value="${_hasCur ? moneyDisp(d.cur,2) : ''}" autofocus oninput="moneyMask(event,2)"></div>
+        <div class="ff full"><label class="fl">Valor manual da fatura (${curSym()})</label><input class="fi fiu" id="f_fat_val" type="text" inputmode="decimal" placeholder="${d.fatCalc.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2})}" value="${_hasCur ? moneyDisp(d.cur,2) : ''}" autofocus oninput="moneyMask(event,2)"></div>
         <div class="tmut" style="font-size:.72rem;margin-top:.35rem">Deixe vazio para voltar ao cálculo automático.</div>
       </div>`;
     }
@@ -5795,8 +5825,8 @@ function openSettings() {
 
   // ── 4. Metas & Orçamento ──
   h += `<div class="sg" id="sg-metas"><div class="sgt">💰 Metas &amp; Orçamento</div><div class="sgrid">`;
-  h += `<div class="ss"><h4>Meta de Poupança Mensal (€)</h4><input class="fi fiu" id="si_sgoal" type="text" inputmode="decimal" value="${moneyDisp(c.sgoal||500,2)}" oninput="moneyMask(event,2)" style="max-width:140px;margin-top:.15rem"></div>`;
-  h += `<div class="ss"><h4>Orçamento por Categoria (€/mês)</h4>`;
+  h += `<div class="ss"><h4>Meta de Poupança Mensal (${curSym()})</h4><input class="fi fiu" id="si_sgoal" type="text" inputmode="decimal" value="${moneyDisp(c.sgoal||500,2)}" oninput="moneyMask(event,2)" style="max-width:140px;margin-top:.15rem"></div>`;
+  h += `<div class="ss"><h4>Orçamento por Categoria (${curSym()}/mês)</h4>`;
   (c.ccat||[]).forEach(function(x){
     h += `<div class="srow"><span class="srow-label">${x}</span><input class="fi fiu" id="sbud_${x.replace(/\s+/g,'_')}" type="text" inputmode="decimal" value="${moneyDisp((c.bud||{})[x]||0,2)}" oninput="moneyMask(event,2)" style="max-width:90px;text-align:right"></div>`;
   });
@@ -5812,9 +5842,9 @@ function openSettings() {
   } else {
     h += _locs.map(function(l){
       var parts=[];
-      if (l.preco) parts.push(moneyDisp(l.preco,3)+' €/kWh');
-      if (l.perMin) parts.push(moneyDisp(l.perMin,3)+' €/min');
-      if (l.sessao) parts.push(moneyDisp(l.sessao,2)+' €/sessão');
+      if (l.preco) parts.push(moneyDisp(l.preco,3)+' '+curSym()+'/kWh');
+      if (l.perMin) parts.push(moneyDisp(l.perMin,3)+' '+curSym()+'/min');
+      if (l.sessao) parts.push(moneyDisp(l.sessao,2)+' '+curSym()+'/sessão');
       var sub = parts.length ? parts.join(' · ') : 'sem tarifa definida';
       return `<div class="srow"><span class="srow-label">${_esc(l.nome)}${l.rede?' <span class="tmut" style="font-weight:400">— '+_esc(l.rede)+'</span>':''}<br><span class="tmut" style="font-size:.68rem">${sub}</span></span>`
         + `<span class="srow-val"><button class="ic d" onclick="removeLocal(${l.id})" title="Apagar local">🗑</button></span></div>`;
@@ -5890,6 +5920,15 @@ function openSettings() {
   var lastExpStr = S.cfg.lastExport ? new Date(S.cfg.lastExport).toLocaleDateString('pt-PT') : 'Nunca';
   var daysSince = S.cfg.lastExport ? Math.floor((Date.now()-S.cfg.lastExport)/864e5) : null;
   h += `<div class="sg" id="sg-dados"><div class="sgt">💾 Dados</div>`;
+  h += `<div class="ss"><h4>💱 Moeda</h4>
+    <select class="sel" id="si_currency" style="margin-top:.3rem">
+      <option value="EUR"${(c.currency||'EUR')==='EUR'?' selected':''}>€ Euro</option>
+      <option value="BRL"${c.currency==='BRL'?' selected':''}>R$ Real</option>
+      <option value="USD"${c.currency==='USD'?' selected':''}>$ Dólar</option>
+      <option value="GBP"${c.currency==='GBP'?' selected':''}>£ Libra</option>
+    </select>
+    <div class="tmut" style="font-size:.7rem;margin-top:.3rem">Troca só o símbolo — os valores e cálculos não mudam.</div>
+  </div>`;
   h += `<div class="ss"><h4>🚕 Aba TVDE</h4>
     <label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;margin-top:.3rem;cursor:pointer">
       <input type="checkbox" id="si_showTvde"${c.showTvde !== false ? ' checked' : ''}>
@@ -6063,8 +6102,11 @@ function saveSet() {
   applyColors();
   var _showTvdeEl = document.getElementById('si_showTvde');
   if (_showTvdeEl) S.cfg.showTvde = _showTvdeEl.checked;
+  var _curEl = document.getElementById('si_currency');
+  if (_curEl) S.cfg.currency = _curEl.value;
   saveState();
   _fbApplyTvdeVisibility();
+  _applyCurrencyLabels();
   closeSet();
   renderTab(CUR);
 }
@@ -7820,6 +7862,7 @@ document.addEventListener('keydown', function(e) {
     _applySecOrder();
     _applyAllVis();
     _fbApplyTvdeVisibility();
+    _applyCurrencyLabels();
     HIST.push(JSON.stringify(S));
     HIDX = 0;
     updateUR();
@@ -8734,7 +8777,7 @@ function _impBankFile(bank) {
   <div class="qamt-wrap qte" id="qAmtWrap">
     <div class="qaml">Valor</div>
     <div class="qamr">
-      <span class="qams">€</span>
+      <span class="qams" id="qAmtSym">€</span>
       <input class="qamin" id="qAmt" type="text" inputmode="decimal"
              placeholder="0,00" autocomplete="off" autocorrect="off" spellcheck="false" oninput="moneyMask(event,2);this.dataset.manual='1';qAmtInput()">
     </div>
@@ -8768,9 +8811,9 @@ function _impBankFile(bank) {
         <div class="qdet"><span>🏷</span><input type="text" id="qNewLocalNome" placeholder="Nome do local..." autocomplete="off" maxlength="60"></div>
         <div class="qdet"><span>🔌</span><input type="text" id="qNewLocalRede" placeholder="Rede (opcional)..." autocomplete="off" maxlength="60"></div>
         <div style="display:flex;gap:.4rem">
-          <div class="qdet" style="flex:1"><span class="qlbl-sm">SESSÃO €</span><input type="text" id="qNewLocalSessao" inputmode="decimal" placeholder="0,00" autocomplete="off" oninput="moneyMask(event,2)"></div>
-          <div class="qdet" style="flex:1"><span class="qlbl-sm">€/MIN</span><input type="text" id="qNewLocalPerMin" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3)"></div>
-          <div class="qdet" style="flex:1"><span class="qlbl-sm">€/KWH</span><input type="text" id="qNewLocalPreco" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3)"></div>
+          <div class="qdet" style="flex:1"><span class="qlbl-sm" id="qNewLocalSessaoLbl">SESSÃO €</span><input type="text" id="qNewLocalSessao" inputmode="decimal" placeholder="0,00" autocomplete="off" oninput="moneyMask(event,2)"></div>
+          <div class="qdet" style="flex:1"><span class="qlbl-sm" id="qNewLocalPerMinLbl">€/MIN</span><input type="text" id="qNewLocalPerMin" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3)"></div>
+          <div class="qdet" style="flex:1"><span class="qlbl-sm" id="qNewLocalPrecoLbl">€/KWH</span><input type="text" id="qNewLocalPreco" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3)"></div>
         </div>
         <div class="tmut" style="font-size:.68rem">💡 Preenche só o que esse local cobra — o resto pode ficar a 0</div>
         <div style="display:flex;gap:.4rem">
@@ -8792,15 +8835,15 @@ function _impBankFile(bank) {
     <div id="qVehRatesCgWrap" style="display:none;gap:.45rem;flex-direction:column">
       <div style="display:flex;gap:.45rem">
         <div class="qdet" style="flex:1">
-          <span class="qlbl-sm">SESSÃO €</span>
+          <span class="qlbl-sm" id="qVehSessaoLbl">SESSÃO €</span>
           <input type="text" id="qVehSessao" inputmode="decimal" placeholder="0,00" autocomplete="off" oninput="moneyMask(event,2);qCalcCarga()">
         </div>
         <div class="qdet" style="flex:1">
-          <span class="qlbl-sm">€/MIN</span>
+          <span class="qlbl-sm" id="qVehPerMinLbl">€/MIN</span>
           <input type="text" id="qVehPerMin" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3);qCalcCarga()">
         </div>
         <div class="qdet" style="flex:1">
-          <span class="qlbl-sm">€/KWH</span>
+          <span class="qlbl-sm" id="qVehPrecoLbl">€/KWH</span>
           <input type="text" id="qVehPreco" inputmode="decimal" placeholder="0,000" autocomplete="off" oninput="moneyMask(event,3);qCalcCarga()">
         </div>
       </div>
