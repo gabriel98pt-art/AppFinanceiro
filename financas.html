@@ -3928,10 +3928,11 @@ function buildParcMonths() {
   S.par.forEach(function(p) { parcMonths(p).forEach(function(m){ set[m]=1; }); });
   var months = Object.keys(set).sort();
   var cur = currentYm();
-  // Meses passados já totalmente pagos desaparecem — a grelha avança sozinha;
-  // mês atual e futuros ficam sempre visíveis
+  // Um mês (passado ou futuro) só aparece se ainda houver algo por pagar nele — assim
+  // quitar uma parcela antecipadamente também limpa os meses futuros dela que ficaram
+  // todos pagos. O mês atual fica sempre visível, mesmo já pago, como referência.
   var visible = months.filter(function(m){
-    if (m >= cur) return true;
+    if (m === cur) return true;
     return S.par.some(function(p){ return parcMonths(p).indexOf(m) >= 0 && !(p.py||{})[m]; });
   });
   if (visible.length) months = visible;
@@ -4026,6 +4027,7 @@ function renderParcelas() {
         var av, bv;
         switch (PARC_SORT_COL) {
           case 'name': av = (a.p.name||'').toLowerCase(); bv = (b.p.name||'').toLowerCase(); break;
+          case 'fd':   av = a.p.fd||''; bv = b.p.fd||''; break;
           case 'cat':  av = (a.p.cat||'').toLowerCase();  bv = (b.p.cat||'').toLowerCase();  break;
           case 'vp':   av = a.p.vp||0; bv = b.p.vp||0; break;
           case 'paid': av = a.paid; bv = b.paid; break;
@@ -4045,6 +4047,7 @@ function renderParcelas() {
     var t = '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="min-width:1100px;width:100%"><thead><tr>';
     t += '<th style="width:28px;text-align:center" title="Arrastar">⠿</th>'
        + '<th style="min-width:130px;cursor:pointer" onclick="parcSort(\'name\')" title="Ordenar">Nome' + _parcSortArrow('name') + '</th>'
+       + '<th style="cursor:pointer" onclick="parcSort(\'fd\')" title="Ordenar">Início' + _parcSortArrow('fd') + '</th>'
        + '<th style="min-width:90px;cursor:pointer" onclick="parcSort(\'cat\')" title="Ordenar">Categoria' + _parcSortArrow('cat') + '</th>'
        + '<th style="cursor:pointer" onclick="parcSort(\'vp\')" title="Ordenar">' + curSym() + '/mês' + _parcSortArrow('vp') + '</th>';
     for (var mi = 0; mi < PARC_MONTHS.length; mi++) {
@@ -4071,7 +4074,7 @@ function renderParcelas() {
         : `<td class="drag-handle" style="opacity:.3;cursor:default" title="${isDone ? 'Arrastar' : 'Remove a ordenação para arrastar à mão'}">⠿</td>`;
       var adBadge = p.autoDebit ? ' <span style="font-size:.58rem;background:rgba(0,212,160,.12);color:var(--grn);border:1px solid rgba(0,212,160,.25);border-radius:4px;padding:.05rem .3rem;font-weight:600">auto</span>' : '';
       var sysBadge = p.sys ? ' <span style="font-size:.58rem;background:rgba(244,114,182,.12);color:#f472b6;border:1px solid rgba(244,114,182,.28);border-radius:4px;padding:.05rem .3rem;font-weight:600" title="' + (p.sys==='klarna' ? 'Klarna — cobrada a cada 30 dias' : 'Sequra') + '">' + (p.sys==='klarna' ? 'Klarna' : 'Sequra') + '</span>' : '';
-      t += `<td class="bold">${_esc(p.name||'')}${adBadge}${sysBadge}</td><td>${p.cat ? ccatBadge(p.cat) : '<span class="tmut" style="font-size:.74rem">—</span>'}</td><td>${fmt(p.vp)}</td>`;
+      t += `<td class="bold">${_esc(p.name||'')}${adBadge}${sysBadge}</td><td class="tmut" style="font-size:.78rem">${p.fd ? fmtDateShort(p.fd) : '—'}</td><td>${p.cat ? ccatBadge(p.cat) : '<span class="tmut" style="font-size:.74rem">—</span>'}</td><td>${fmt(p.vp)}</td>`;
 
       for (var ci = 0; ci < PARC_MONTHS.length; ci++) {
         var cm = PARC_MONTHS[ci];
