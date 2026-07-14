@@ -2575,7 +2575,7 @@ function totDespRealized(ym) {
   var today = todayStr(), curYm = today.slice(0,7);
   if (ym !== curYm) return totDesp(ym);
   var todayDay = parseInt(today.slice(8));
-  var fix = sumVal(S.df.filter(function(d){ return isActiveForYm(d,ym) && (isPaidInYm(d,ym) || d.day <= todayDay); }));
+  var fix = sumVal(S.df.filter(function(d){ return isActiveForYm(d,ym) && isPaidInYm(d,ym); }));
   var prc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(ym)>=0 && p.py[ym] ? s+parcVal(p,ym) : s; }, 0);
   return fix + totCorrManual(ym) + prc + totVeh(ym);
 }
@@ -3077,8 +3077,8 @@ function renderDashboard() {
   var isCurrentYm = (ym === _curYm);
   var fix, prc, fixPrev, prcPrev;
   if (isCurrentYm) {
-    // current month: only count df already paid or day has passed; parc only if paid
-    fix = sumVal(S.df.filter(function(d){ return isActiveForYm(d,ym) && (isPaidInYm(d,ym) || d.day <= _todayDay); }));
+    // current month: only count df already paid (autoRenew conta sempre via isPaidInYm); parc only if paid
+    fix = sumVal(S.df.filter(function(d){ return isActiveForYm(d,ym) && isPaidInYm(d,ym); }));
     prc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(ym)>=0 && p.py[ym] ? s+parcVal(p,ym) : s; }, 0);
     // projected totals (full month) for display
     fixPrev = totFixas(ym); prcPrev = totParcMonth(ym);
@@ -4830,10 +4830,10 @@ function renderMetas() {
   var _curYmM = currentYm(), _todDayM = parseInt(todayStr().slice(8));
   var _lastDayM = new Date(parseInt(_curYmM.slice(0,4)), parseInt(_curYmM.slice(5,7)), 0).getDate();
   var _isCurrentYmM = ym === _curYmM, _isClosedM = !_isCurrentYmM || _todDayM >= _lastDayM;
-  // mês atual: mesma lógica do Dashboard (só fixas pagas/vencidas + parcelas pagas)
+  // mês atual: mesma lógica do Dashboard (só fixas pagas, autoRenew conta sempre + parcelas pagas)
   var desp;
   if (_isCurrentYmM) {
-    var _fix = sumVal(S.df.filter(function(d){ return isActiveForYm(d,ym) && (isPaidInYm(d,ym) || d.day <= _todDayM); }));
+    var _fix = sumVal(S.df.filter(function(d){ return isActiveForYm(d,ym) && isPaidInYm(d,ym); }));
     var _prc = S.par.reduce(function(s,p){ return parcMonths(p).indexOf(ym)>=0 && p.py[ym] ? s+parcVal(p,ym) : s; }, 0);
     desp = _fix + _prc + totCorrManual(ym) + totVeh(ym);
   } else {
