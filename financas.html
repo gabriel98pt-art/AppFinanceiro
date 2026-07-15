@@ -7913,7 +7913,6 @@ document.addEventListener('keydown', function(e) {
       saveState();
     }
 
-
     // Backup único dos arrays afetados pelas migrações de dedup
     if (!S.cfg._migrationBackupDone) {
       try {
@@ -7945,7 +7944,6 @@ document.addEventListener('keydown', function(e) {
       S.cfg._mig_dedup3_revolut_2026 = true;
       saveState();
     }
-
 
     if (!S.cfg._mig_clean_dupes_2026) {
       // MODO SEGURO: identifica potenciais duplicados, não apaga nada
