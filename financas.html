@@ -4385,11 +4385,7 @@ function openReconcileModal(card) {
 
 function openFatManualModal(card, ym) {
   var cur = ((S.cfg.fatManual||{})[card]||{})[ym];
-  var fatCalc = sumVal(S.df.filter(function(d){return d.card===card&&isActiveForYm(d,ym);}))
-             + sumVal((S.veh.df||[]).filter(function(d){return d.card===card&&isActiveForYm(d,ym);}))
-             + sumVal(S.dc.filter(function(d){return inMonth(d.date,ym)&&d.card===card&&d._src!=='fat';}))
-             + _autoDebitParcVal(card, ym)
-             + _trfOutFatVal(card, ym);
+  var fatCalc = fatCalcAuto(card, ym);
   _rcCard = card; _rcYm = ym;
   mType = 'fatmanual'; mId = null;
   var title = document.getElementById('modalTitle');
@@ -4402,46 +4398,100 @@ function openFatManualModal(card, ym) {
   if (modal) modal.classList.add('on');
 }
 
-function payFatura(card, ym) {
-  var fatEntry = (S.cfg.fatPaid||{})[card] && (S.cfg.fatPaid||{})[card][ym];
-  var isPaid = fatEntry && fatEntry.paid;
-  if (isPaid) {
-    if (!confirm('Cartão de crédito já pago. Desmarcar pagamento?')) return;
-    snapshot();
-    if (fatEntry.dcId) S.dc = S.dc.filter(function(x){return x.id!==fatEntry.dcId;});
-    S.cfg.fatPaid[card][ym].paid = false;
-    saveState(); renderCartoes(); showToast('↩ Pagamento desmarcado'); return;
-  }
+// Fatura do cartão para o mês `ym` (mês em que aparece/é paga) soma as compras
+// do mês de calendário ANTERIOR inteiro — o cartão fecha no fim do mês e cobra
+// no seguinte (confirmado pelo utilizador: fatura de julho = gastos de junho).
+function fatCycleYm(ym) { return addMonths(ym, -1); }
+function fatCalcAuto(card, ym) {
+  var cy = fatCycleYm(ym);
+  return sumVal(S.df.filter(function(d){return d.card===card&&isActiveForYm(d,cy);}))
+       + sumVal((S.veh.df||[]).filter(function(d){return d.card===card&&isActiveForYm(d,cy);}))
+       + sumVal(S.dc.filter(function(d){return inMonth(d.date,cy)&&d.card===card&&d._src!=='fat';}))
+       + _autoDebitParcVal(card, cy)
+       + _trfOutFatVal(card, cy);
+}
+function fatDue(card, ym) {
+  var manual = (S.cfg.fatManual||{})[card] && (S.cfg.fatManual[card])[ym];
+  return manual != null ? manual : fatCalcAuto(card, ym);
+}
+
+// Pagamentos de fatura — suporta pagamento parcial (lista de pagamentos por
+// cartão/mês). Entradas antigas (formato único {paid,val,date,from,dcId}) são
+// lidas como se fossem uma lista de 1 pagamento, sem precisar migrar dados.
+function fatPayments(card, ym) {
+  var e = (S.cfg.fatPaid||{})[card] && S.cfg.fatPaid[card][ym];
+  if (!e) return [];
+  if (Array.isArray(e.payments)) return e.payments;
+  return e.paid ? [{val:e.val, date:e.date, from:e.from, dcId:e.dcId}] : [];
+}
+function fatPaidVal(card, ym) { return sumVal(fatPayments(card, ym)); }
+function fatRestante(card, ym) {
+  return Math.max(0, fromCents(toCents(fatDue(card,ym)) - toCents(fatPaidVal(card,ym))));
+}
+
+function openFatPayModal(card, ym) {
   var debitCards = (S.cfg.pay||[]).filter(function(c){return (S.cfg.cardType||{})[c]!=='credit';});
   if (!debitCards.length) { alert('Nenhum cartão de débito configurado.'); return; }
-  var from;
-  if (debitCards.length === 1) {
-    from = debitCards[0];
-  } else {
-    var idx = prompt('Pagar com qual cartão?\n' + debitCards.map(function(c,i){return (i+1)+'. '+c;}).join('\n')+'\n\nDigite o número:');
-    from = debitCards[parseInt(idx)-1];
-    if (!from) return;
-  }
-  var fatCalc = sumVal(S.df.filter(function(d){return d.card===card&&isActiveForYm(d,ym);}))
-             + sumVal((S.veh.df||[]).filter(function(d){return d.card===card&&isActiveForYm(d,ym);}))
-             + sumVal(S.dc.filter(function(d){return inMonth(d.date,ym)&&d.card===card&&d._src!=='fat';}))
-             + _autoDebitParcVal(card, ym)
-             + _trfOutFatVal(card, ym);
-  var fatManualVal = (S.cfg.fatManual||{})[card] && (S.cfg.fatManual||{})[card][ym];
-  var fat = fatManualVal != null ? fatManualVal : fatCalc;
-  snapshot();
+  _rcCard = card; _rcYm = ym;
+  mType = 'fatpay'; mId = null;
+  var title = document.getElementById('modalTitle');
+  if (title) title.textContent = 'Pagar fatura — ' + card + ' · ' + monthLabel(ym);
+  var body = document.getElementById('modalBody');
+  if (body) body.innerHTML = buildForm('fatpay', {card:card, ym:ym, total:fatDue(card,ym), pago:fatPaidVal(card,ym), restante:fatRestante(card,ym), debitCards:debitCards, payments:fatPayments(card,ym)});
+  var delArea = document.getElementById('modalDelArea');
+  if (delArea) delArea.innerHTML = '';
+  var modal = document.getElementById('mainModal');
+  if (modal) modal.classList.add('on');
+}
+
+// Chamada a partir do switch de saveModal — snapshot()/saveState()/render já
+// ficam a cargo do fluxo genérico do modal.
+function addFaturaPayment(card, ym, val, from) {
   if (!S.cfg.fatPaid) S.cfg.fatPaid = {};
   if (!S.cfg.fatPaid[card]) S.cfg.fatPaid[card] = {};
+  var payments = fatPayments(card, ym).slice();
   var dcId = nid();
-  S.dc.push({id:dcId, date:todayStr(), name:'Cartão de Crédito '+card, cat:'Cartão de Crédito', val:fat, card:from, notes:'Ref. '+monthLabel(ym), _src:'fat', _fatCard:card, _fatYm:ym});
-  S.cfg.fatPaid[card][ym] = {paid:true, val:fat, date:todayStr(), from:from, dcId:dcId};
-  S.par.forEach(function(p) {
-    if (p.card===card && p.autoDebit && parcMonths(p).indexOf(ym)>=0) p.py[ym]=true;
-  });
-  globalMonth = currentYm();
-  S.cfg.lastMonth = globalMonth;
-  saveState(); renderCartoes(); updateGlobalNav();
-  showToast('✓ Cartão de Crédito pago: '+fmt(fat)+' via '+from);
+  S.dc.push({id:dcId, date:todayStr(), name:'Cartão de Crédito '+card, cat:'Cartão de Crédito', val:val, card:from, notes:'Ref. '+monthLabel(ym), _src:'fat', _fatCard:card, _fatYm:ym});
+  payments.push({val:val, date:todayStr(), from:from, dcId:dcId});
+  var restante = fromCents(toCents(fatDue(card,ym)) - toCents(sumVal(payments)));
+  S.cfg.fatPaid[card][ym] = {paid: restante <= 0.004, payments: payments};
+  if (restante <= 0.004) {
+    // Fatura quitada: as parcelas em débito automático deste ciclo contam como pagas
+    var cy = fatCycleYm(ym);
+    S.par.forEach(function(p) {
+      if (p.card===card && p.autoDebit && parcMonths(p).indexOf(cy)>=0) p.py[cy]=true;
+    });
+  }
+}
+
+function delFaturaPayment(card, ym, dcId) {
+  if (!confirm('Remover este pagamento?')) return;
+  snapshot();
+  S.dc = S.dc.filter(function(x){ return x.id !== dcId; });
+  var payments = fatPayments(card, ym).filter(function(p){ return p.dcId !== dcId; });
+  if (!S.cfg.fatPaid) S.cfg.fatPaid = {};
+  if (!S.cfg.fatPaid[card]) S.cfg.fatPaid[card] = {};
+  if (payments.length) {
+    var restante = fromCents(toCents(fatDue(card,ym)) - toCents(sumVal(payments)));
+    S.cfg.fatPaid[card][ym] = {paid: restante <= 0.004, payments: payments};
+  } else {
+    delete S.cfg.fatPaid[card][ym];
+  }
+  saveState();
+  showToast('↩ Pagamento removido');
+  openFatPayModal(card, ym);
+}
+
+function reabrirFatura(card, ym) {
+  var n = fatPayments(card, ym).length;
+  if (!confirm('Reabrir fatura de ' + monthLabel(ym) + '? Isto remove ' + n + ' pagamento' + (n===1?'':'s') + ' registado' + (n===1?'':'s') + '.')) return;
+  snapshot();
+  var ids = fatPayments(card, ym).map(function(p){ return p.dcId; });
+  S.dc = S.dc.filter(function(x){ return ids.indexOf(x.id) < 0; });
+  if (S.cfg.fatPaid && S.cfg.fatPaid[card]) delete S.cfg.fatPaid[card][ym];
+  saveState();
+  renderCartoes();
+  showToast('↩ Fatura reaberta');
 }
 
 function renderCartoes() {
@@ -4529,30 +4579,23 @@ function renderCartoes() {
     }
 
     if (isCredit) {
-      var fatCalc = sumVal(dfM.filter(function(d){return d.card===card;}))
-                 + sumVal(dcM.filter(function(d){return d.card===card&&d._src!=='fat';}))
-                 + _autoDebitParcVal(card, ym)
-                 + _trfOutFatVal(card, ym);
-      var fatManual = (S.cfg.fatManual||{})[card] && (S.cfg.fatManual||{})[card][ym];
-      var fat = fatManual != null ? fatManual : fatCalc;
-      var fatEntry = (S.cfg.fatPaid||{})[card] && (S.cfg.fatPaid||{})[card][ym];
-      var isPaid   = fatEntry && fatEntry.paid;
-      var _kpiYm = ym, _kpiLabel = '', _kpiEditYm = ym;
+      var fat = fatDue(card, ym);
+      var pago = fatPaidVal(card, ym);
+      var restante = fatRestante(card, ym);
+      var isPaid = fat > 0 && restante <= 0.004;
+      var hasPartial = pago > 0 && !isPaid;
+      var _kpiYm = ym, _kpiLabel = '', displayVal = fat;
       if (isPaid) {
-        var _nextD = new Date(ym + '-01'); _nextD.setMonth(_nextD.getMonth() + 1);
-        _kpiYm = _nextD.getFullYear() + '-' + pad2(_nextD.getMonth() + 1);
-        var _nextDfM = S.df.filter(function(d){return isActiveForYm(d,_kpiYm)&&d.card===card;});
-        var _nextDcM = S.dc.filter(function(d){return inMonth(d.date,_kpiYm)&&d.card===card&&d._src!=='fat';});
-        var _nextFatCalc = sumVal(_nextDfM) + sumVal(_nextDcM) + _autoDebitParcVal(card, _kpiYm) + _trfOutFatVal(card, _kpiYm);
-        var _nextFatManual = (S.cfg.fatManual||{})[card] && (S.cfg.fatManual||{})[card][_kpiYm];
-        fat = _nextFatManual != null ? _nextFatManual : _nextFatCalc;
+        _kpiYm = addMonths(ym, 1);
+        displayVal = fatDue(card, _kpiYm);
         _kpiLabel = '<div class="ksub" style="color:var(--grn);font-size:.62rem">✓ ' + monthLabel(ym) + ' pago</div>';
-        _kpiEditYm = _kpiYm;
+      } else if (hasPartial) {
+        displayVal = restante;
       }
       var safeKpiYm = _kpiYm.replace(/'/g,"\\'");
-      var displayVal = fat;
-      var txCount = dcM.filter(function(d){return d.card===card&&d._src!=='fat';}).length
-                  + dfM.filter(function(d){return d.card===card;}).length;
+      var subLbl = isPaid ? (monthLabel(_kpiYm)+' — acumulando')
+                 : hasPartial ? ('pago '+fmt(pago)+' de '+fmt(fat))
+                 : 'pagamento pendente';
       return `<div class="kc" style="--_a:${col}">
         <div class="kc-hdr">
           <div class="klbl" style="margin:0">💳 ${card}</div>
@@ -4560,11 +4603,11 @@ function renderCartoes() {
         </div>
         <div class="kval">${fmt(displayVal)}</div>
         ${_kpiLabel}
-        <div class="ksub">${isPaid?monthLabel(_kpiYm)+' — acumulando':'pagamento pendente'}</div>
+        <div class="ksub">${subLbl}</div>
         <div style="margin-top:.45rem;width:100%">
           ${isPaid
-            ? `<button class="btn sec sm" style="width:100%;font-size:.65rem" onclick="payFatura('${safeCard}','${ym}')">Desmarcar ${monthLabel(ym)}</button>`
-            : `<button class="btn pri sm" style="width:100%;font-size:.68rem" onclick="payFatura('${safeCard}','${ym}')">Pagar cartão de crédito</button>`
+            ? `<button class="btn sec sm" style="width:100%;font-size:.65rem" onclick="reabrirFatura('${safeCard}','${ym}')">↺ Reabrir ${monthLabel(ym)}</button>`
+            : `<button class="btn pri sm" style="width:100%;font-size:.68rem" onclick="openFatPayModal('${safeCard}','${ym}')">${hasPartial?'Registar mais um pagamento':'Pagar cartão de crédito'}</button>`
           }
         </div>
       </div>`;
@@ -4595,14 +4638,7 @@ function renderCartoes() {
   var _ctData = methods.map(function(c){
     var _ctType = (S.cfg.cardType||{})[c];
     if (_ctType === 'transit') return 0;
-    if (_ctType === 'credit') {
-      var _ctFatCalc = sumVal(dfM.filter(function(d){return d.card===c;}))
-                     + sumVal(dcM.filter(function(d){return d.card===c&&d._src!=='fat';}))
-                     + _autoDebitParcVal(c, ym)
-                     + _trfOutFatVal(c, ym);
-      var _ctFatManual = (S.cfg.fatManual||{})[c] && (S.cfg.fatManual||{})[c][ym];
-      return _ctFatManual != null ? _ctFatManual : _ctFatCalc;
-    }
+    if (_ctType === 'credit') return fatDue(c, ym);
     return sumVal(dfM.filter(function(d){return d.card===c;})) + sumVal(dcM.filter(function(d){return d.card===c;}));
   });
   var _ctCanvas = document.getElementById('chCt');
@@ -5455,6 +5491,24 @@ function buildForm(type, d) {
         <div class="tmut" style="font-size:.72rem;margin-top:.35rem">Deixe vazio para voltar ao cálculo automático.</div>
       </div>`;
     }
+    case 'fatpay': {
+      var _payHist = (d.payments||[]).map(function(p){
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem 0;font-size:.74rem;border-bottom:1px solid var(--brd)">
+          <span class="tmut">${fmtDateShort(p.date)} · ${_esc(p.from||'')}</span>
+          <span style="display:flex;align-items:center;gap:.5rem"><strong>${fmt(p.val)}</strong>
+            <button type="button" class="ic d" style="width:20px;height:20px;font-size:.6rem" onclick="delFaturaPayment('${d.card.replace(/'/g,"\\'")}','${d.ym}',${p.dcId})" title="Remover pagamento">🗑</button>
+          </span>
+        </div>`;
+      }).join('');
+      var _cardOpts = d.debitCards.map(function(c){return `<option value="${_esc(c)}">${_esc(c)}</option>`;}).join('');
+      return `<div class="fg">
+        <div class="inf" style="margin-bottom:.75rem">Fatura total: <strong>${fmt(d.total)}</strong> · já pago: <strong>${fmt(d.pago)}</strong> · falta: <strong style="color:var(--red)">${fmt(d.restante)}</strong></div>
+        ${_payHist ? '<div class="ff full" style="margin-bottom:.25rem">'+_payHist+'</div>' : ''}
+        <div class="ff"><label class="fl">Valor a pagar agora (${curSym()})</label><input class="fi fiu" id="f_fatpay_val" type="text" inputmode="decimal" value="${moneyDisp(d.restante,2)}" autofocus oninput="moneyMask(event,2)"></div>
+        <div class="ff"><label class="fl">Pagar com</label><select class="fi" id="f_fatpay_from">${_cardOpts}</select></div>
+        <div class="tmut" style="font-size:.72rem;margin-top:.35rem">Pode ser um valor parcial — o que faltar continua pendente.</div>
+      </div>`;
+    }
     default: return '';
   }
 }
@@ -5528,6 +5582,11 @@ function validateForm(type) {
     case 'fatmanual': {
       var _fv = ((document.getElementById('f_fat_val')||{}).value||'').trim();
       if (_fv !== '' && moneyVal(_fv) < 0) return 'Valor inválido.';
+      return null;
+    }
+    case 'fatpay': {
+      if (!(ff('f_fatpay_val') > 0)) return 'Valor deve ser maior que zero.';
+      if (!fv('f_fatpay_from')) return 'Escolhe de onde sai o pagamento.';
       return null;
     }
     case 'trf':
@@ -5723,6 +5782,14 @@ function saveModal() {
       if (!S.cfg.fatManual[_fcard2]) S.cfg.fatManual[_fcard2] = {};
       if (_fval2 === '') { delete S.cfg.fatManual[_fcard2][_fym2]; _mToast = '✓ Reposto para cálculo automático'; }
       else { S.cfg.fatManual[_fcard2][_fym2] = moneyVal(_fval2); _mToast = '✓ Fatura manual: ' + fmt(moneyVal(_fval2)); }
+      break;
+    }
+    case 'fatpay': {
+      var _pcard = _rcCard, _pym = _rcYm;
+      var _pval = gm('f_fatpay_val');
+      var _pfrom = gv('f_fatpay_from');
+      addFaturaPayment(_pcard, _pym, _pval, _pfrom);
+      _mToast = '✓ Pagamento de ' + fmt(_pval) + ' registado';
       break;
     }
     case 'trf': {
