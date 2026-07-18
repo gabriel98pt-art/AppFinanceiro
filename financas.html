@@ -2934,13 +2934,16 @@ function destroyChart(id) {
 
 function isDark() { return document.documentElement.dataset.theme !== 'light'; }
 
+// lê um token CSS do tema atual (ex: '--ch-grn') — os gráficos seguem o tema
+function chTok(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
 function makeChart(id, type, labels, datasets, opts) {
   destroyChart(id);
   var el = document.getElementById(id);
   if (!el) return;
   try {
-    var tc = isDark() ? '#7c82a0' : '#5a608a';
-    var gc = isDark() ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.04)';
+    var tc = chTok('--mut') || (isDark() ? '#8E8E99' : '#71717A');
+    var gc = isDark() ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.05)';
     var cfg = {
       type: type,
       data: { labels: labels, datasets: datasets },
@@ -2949,7 +2952,11 @@ function makeChart(id, type, labels, datasets, opts) {
         maintainAspectRatio: true,
         plugins: {
           legend: { labels: { color: tc, font: { size: 11 }, boxWidth: 11, padding: 12 } },
-          tooltip: { callbacks: { label: function(c) { return ' ' + fmt(c.raw); } } }
+          tooltip: {
+            backgroundColor: 'rgba(35,35,41,.96)', titleColor: '#F2F2F5', bodyColor: '#F2F2F5',
+            cornerRadius: 10, padding: 10,
+            callbacks: { label: function(c) { return ' ' + fmt(c.raw); } }
+          }
         }
       }
     };
@@ -3262,7 +3269,7 @@ function renderDashboard() {
   var ks = Object.keys(ct).sort(function(a,b){ return ct[b]-ct[a]; });
   if (ks.length) {
     var dntColors = ks.map(function(k){ return (S.cfg.catColors||{})['ccat:'+k] || getDefaultCatColor('ccat', k); });
-    makeChart('chDnt', 'doughnut', ks, [{data: ks.map(function(k){return ct[k];}), backgroundColor: dntColors, borderWidth: 0, hoverOffset: 5}], {cutout: '65%'});
+    makeChart('chDnt', 'doughnut', ks, [{data: ks.map(function(k){return ct[k];}), backgroundColor: dntColors, borderWidth: 2, borderColor: chTok('--s1') || '#151519', hoverOffset: 5}], {cutout: '65%'});
     var dntTotal = ks.reduce(function(s,k){return s+ct[k];},0);
     var dCat = document.getElementById('dCatBreak');
     if (dCat) dCat.innerHTML = ks.map(function(k,i){
@@ -3457,7 +3464,7 @@ function renderReceitas() {
   if (_miniEl) {
     _miniEl.style.display = _hasRecData ? '' : 'none';
     if (_hasRecData) makeChart('chRecMini','bar',_last6.map(monthLabel),[
-      {label:'Receitas',data:_last6.map(totRec),backgroundColor:'rgba(0,212,160,.18)',borderColor:'#00d4a0',borderWidth:2,borderRadius:4,borderSkipped:false}
+      {label:'Receitas',data:_last6.map(totRec),backgroundColor:chTok('--ch-grn')||'#0FA88A',borderRadius:4}
     ],{noLegend:true});
   }
 
@@ -4608,9 +4615,9 @@ function renderCartoes() {
   var recM = S.rec.filter(function(r){ return inMonth(r.date, ym); });
 
   var CARD_CSS  = ['var(--blu)','var(--pur)','var(--ylw)','var(--red)'];
-  var CARD_RGBA = ['rgba(77,143,255,.35)','rgba(167,139,250,.35)','rgba(245,166,35,.35)','rgba(255,84,112,.35)'];
-  var CARD_HEX  = ['#4d8fff','#a78bfa','#f5a623','#ff5470'];
-  var CARD_RGBA_ROW = ['rgba(77,143,255,.045)','rgba(167,139,250,.045)','rgba(245,166,35,.045)','rgba(255,84,112,.045)'];
+  // ordem validada (dataviz, CVD): azul→verde→âmbar→vermelho, nunca azul↔roxo adjacentes
+  var CARD_HEX  = [chTok('--ch-blu')||'#3D7FE8', chTok('--ch-grn')||'#0FA88A', chTok('--ch-ylw')||'#B8871A', chTok('--ch-red')||'#E14A6C'];
+  var CARD_RGBA_ROW = ['rgba(var(--blu-rgb),.045)','rgba(var(--grn-rgb),.045)','rgba(var(--ylw-rgb),.045)','rgba(var(--red-rgb),.045)'];
 
   // Empty state when no cards configured
   var ctEl = document.getElementById('ctCards');
@@ -4746,9 +4753,8 @@ function renderCartoes() {
   if (!_ctIsEmpty) makeChart('chCt', 'bar', methods, [{
     label:'Gastos',
     data: _ctData,
-    backgroundColor: methods.map(function(c,i){ return CARD_RGBA[i % CARD_RGBA.length]; }),
-    borderColor:     methods.map(function(c,i){ return CARD_HEX[i % CARD_HEX.length]; }),
-    borderWidth: 2, borderRadius: 6, borderSkipped: false
+    backgroundColor: methods.map(function(c,i){ return CARD_HEX[i % CARD_HEX.length]; }),
+    borderRadius: 4
   }], {noLegend: true});
 
 
@@ -5057,8 +5063,8 @@ function renderMetas() {
   _applyAllVis();
 
   makeChart('chAnn','bar',months.map(monthLabel),[
-    {label:'Receitas',data:months.map(totRec),backgroundColor:'rgba(0,212,160,.18)',borderColor:'#00d4a0',borderWidth:2,borderRadius:4,borderSkipped:false},
-    {label:'Despesas',data:months.map(totDespRealized),backgroundColor:'rgba(255,84,112,.18)',borderColor:'#ff5470',borderWidth:2,borderRadius:4,borderSkipped:false}
+    {label:'Receitas',data:months.map(totRec),backgroundColor:chTok('--ch-grn')||'#0FA88A',borderRadius:4},
+    {label:'Despesas',data:months.map(totDespRealized),backgroundColor:chTok('--ch-red')||'#E14A6C',borderRadius:4}
   ]);
 }
 
