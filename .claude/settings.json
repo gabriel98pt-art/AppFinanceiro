@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; if [ \"$(basename \"$f\" 2>/dev/null)\" = \"financas.html\" ]; then node .github/scripts/check-inline-js.js financas.html; fi; }",
+            "statusMessage": "Validando sintaxe do financas.html..."
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; if [ \"$(basename \"$f\" 2>/dev/null)\" = \"database.rules.json\" ]; then echo '{\"systemMessage\": \"Lembrete: publique as novas regras no Firebase Console > Realtime Database > Rules > Publish (o deploy nao e automatico).\"}'; fi; }"
+          }
+        ]
+      }
+    ]
+  }
+}
