@@ -518,10 +518,29 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 .qdet:focus-within{border-color:rgba(255,255,255,.2)}
 .qdet input{background:none;border:none;outline:none;color:var(--txt);
             font-size:.78rem;font-weight:600;font-family:inherit;width:100%;min-width:0}
-.qdet input[type="date"]{color-scheme:dark;opacity:0;position:absolute;
-                          top:0;left:0;width:100%;height:100%;margin:0;padding:0;
-                          pointer-events:auto;cursor:pointer}
 .qdet input::placeholder{color:var(--mut)}
+
+/* mini-calendário da folha rápida: popup desenhado pela app (o picker nativo
+   abria cortado pelo fundo do ecrã). Curvas assimétricas como os outros
+   overlays: entrada desacelera, saída acelera e é mais curta. */
+.qcal{position:fixed;z-index:560;background:var(--s1);border-radius:14px;padding:.6rem;width:254px;
+      box-shadow:var(--sh),0 0 0 1px var(--brd);opacity:0;pointer-events:none;
+      transform:translateY(6px) scale(.97);
+      transition:transform .16s cubic-bezier(.4,0,1,1),opacity .16s cubic-bezier(.4,0,1,1)}
+.qcal.up{transform:translateY(-6px) scale(.97)}
+.qcal.on{opacity:1;pointer-events:auto;transform:none;
+         transition:transform .24s cubic-bezier(.32,.72,0,1),opacity .24s cubic-bezier(.32,.72,0,1)}
+.qcal-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.45rem}
+.qcal-hd button{background:var(--s2);border:none;border-radius:7px;width:26px;height:26px;color:var(--txt);cursor:pointer;font-size:.9rem;line-height:1;transition:background var(--tr),transform .1s cubic-bezier(.4,0,1,1)}
+.qcal-hd button:active{transform:scale(.88)}
+.qcal-hd span{font-size:.78rem;font-weight:700}
+.qcal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.qcal-dow{font-size:.56rem;color:var(--mut);text-align:center;font-weight:700;padding:.12rem 0}
+.qcal-d{background:var(--s2);border:1px solid transparent;border-radius:7px;font-size:.72rem;font-weight:600;color:var(--txt);text-align:center;padding:.3rem 0;cursor:pointer;font-family:inherit;transition:background var(--tr),border-color var(--tr),transform .1s cubic-bezier(.4,0,1,1)}
+.qcal-d:active{transform:scale(.88)}
+.qcal-d.om{opacity:.28}
+.qcal-d.td{border-color:var(--blu);color:var(--blu);font-weight:800}
+.qcal-d.selq{background:var(--blu);color:#fff}
 .qdet select{background:none;border:none;outline:none;color:var(--txt);
             font-size:.78rem;font-weight:600;font-family:inherit;width:100%;min-width:0;cursor:pointer}
 .qlbl{font-size:.7rem;color:var(--mut);font-weight:700}
@@ -809,6 +828,7 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
 @media (prefers-reduced-motion: reduce) {
   .qfab{animation:none}
   .mover.on .mbox,.gsrch-over.on .gsrch-box{transform:none!important}
+  .qcal{transform:none!important;transition:opacity .15s ease}
   .toast{transform:translateX(-50%)!important}
   .upd-banner{transform:none!important;opacity:0;pointer-events:none;transition:opacity .15s ease}
   .upd-banner.on{opacity:1;pointer-events:auto}
@@ -8621,6 +8641,71 @@ function qCalcCarga(){
   }
 }
 
+// ── mini-calendário do campo de data ─────────────────────────────
+// O <input type=date> nativo abria o picker do sistema, que ficava
+// cortado pelo fundo do ecrã (a folha vive colada ao fundo). Este popup
+// é desenhado pela app, ancorado ao campo, e vira para cima quando não
+// há espaço por baixo. Fecha ao escolher, clicar fora ou Esc.
+var _qcY=0,_qcM=0;
+function qCalOpen(e){
+  if(e) e.stopPropagation();
+  var cal=document.getElementById('qCal');
+  if(cal.classList.contains('on')){ qCalClose(); return; }
+  var v=(document.getElementById('qDate')||{}).value||todayStr();
+  _qcY=+v.slice(0,4); _qcM=+v.slice(5,7)-1;
+  qCalRender();
+  // ancora ao campo; mede o espaço antes de decidir a direção
+  var r=document.getElementById('qDateBtn').getBoundingClientRect();
+  var ch=cal.offsetHeight||300, cw=cal.offsetWidth||254;
+  var up=(window.innerHeight-r.bottom)<ch+12 && r.top>ch+12;
+  cal.classList.toggle('up', up);
+  cal.style.left=Math.max(8, Math.min(r.left, window.innerWidth-cw-8))+'px';
+  if(up){ cal.style.top=''; cal.style.bottom=(window.innerHeight-r.top+8)+'px'; }
+  else  { cal.style.bottom=''; cal.style.top=(r.bottom+8)+'px'; }
+  requestAnimationFrame(function(){ cal.classList.add('on'); });
+  setTimeout(function(){
+    document.addEventListener('pointerdown', _qCalOut, true);
+    document.addEventListener('keydown', _qCalEsc, true);
+  },0);
+}
+function _qCalOut(ev){
+  var cal=document.getElementById('qCal'), btn=document.getElementById('qDateBtn');
+  if(!cal.contains(ev.target) && !(btn&&btn.contains(ev.target))) qCalClose();
+}
+function _qCalEsc(ev){ if(ev.key==='Escape'){ ev.stopPropagation(); qCalClose(); } }
+function qCalClose(){
+  document.getElementById('qCal').classList.remove('on');
+  document.removeEventListener('pointerdown', _qCalOut, true);
+  document.removeEventListener('keydown', _qCalEsc, true);
+}
+function qCalNav(d){
+  _qcM+=d;
+  if(_qcM<0){_qcM=11;_qcY--;} else if(_qcM>11){_qcM=0;_qcY++;}
+  qCalRender();
+}
+function qCalPick(iso){
+  var inp=document.getElementById('qDate');
+  if(inp) inp.value=iso;
+  qOnDateChange();
+  qCalClose();
+}
+function qCalRender(){
+  document.getElementById('qCalTitle').textContent=MN[_qcM]+' '+_qcY;
+  var sel=(document.getElementById('qDate')||{}).value, today=todayStr();
+  // mesma linguagem da grelha da aba Calendário: 7 colunas, semana começa
+  // à segunda, hoje destacado, dias fora do mês esmaecidos; 6 semanas fixas
+  // para a altura do popup não saltar ao navegar
+  var h=['S','T','Q','Q','S','S','D'].map(function(d){return '<div class="qcal-dow">'+d+'</div>';}).join('');
+  var off=(new Date(_qcY,_qcM,1).getDay()+6)%7;
+  for(var i=0;i<42;i++){
+    var d=new Date(_qcY,_qcM,1-off+i);
+    var iso=d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+    h+='<button type="button" class="qcal-d'+(d.getMonth()!==_qcM?' om':'')+(iso===today?' td':'')+(iso===sel?' selq':'')
+      +'" onclick="qCalPick(\''+iso+'\')">'+d.getDate()+'</button>';
+  }
+  document.getElementById('qCalGrid').innerHTML=h;
+}
+
 function qOnDateChange(){
   var inp=document.getElementById('qDate');
   var lbl=document.getElementById('qDateLbl');
@@ -9225,9 +9310,9 @@ function _impBankFile(bank) {
     </div>
   </div>
   <div class="qdetail">
-    <div class="qdet" style="flex:.85">
+    <div class="qdet" style="flex:.85" id="qDateBtn" onclick="qCalOpen(event)">
       <span>📅</span><span id="qDateLbl">Hoje</span>
-      <input type="date" id="qDate" onchange="qOnDateChange()">
+      <input type="hidden" id="qDate">
     </div>
     <div class="qdet" style="flex:1.5">
       <span>✏</span>
@@ -9235,6 +9320,17 @@ function _impBankFile(bank) {
     </div>
   </div>
   <button class="qsave qte" id="qSaveBtn" onclick="qSave()">GUARDAR</button>
+</div>
+
+<!-- mini-calendário do campo de data da folha rápida — vive FORA da .qsh
+     (a folha tem transform, que faria um position:fixed interno ficar clipado) -->
+<div class="qcal" id="qCal" role="dialog" aria-label="Escolher data">
+  <div class="qcal-hd">
+    <button type="button" onclick="qCalNav(-1)">‹</button>
+    <span id="qCalTitle"></span>
+    <button type="button" onclick="qCalNav(1)">›</button>
+  </div>
+  <div class="qcal-grid" id="qCalGrid"></div>
 </div>
 <script>
 "use strict";
