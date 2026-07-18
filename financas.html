@@ -658,6 +658,21 @@ tr.swipe-del{background:rgba(255,84,112,.28)!important;transition:background .15
 /* diálogos */
 dialog.tvd-dlg{background:var(--s1);color:var(--txt);border:1px solid var(--brd);border-radius:16px;padding:1.1rem 1rem;width:min(440px,calc(100vw - 24px));max-height:88vh;overflow-y:auto;margin:auto}
 dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
+/* entrada/saída assimétricas, mesmas curvas do sistema .mover/.mbox:
+   entrar desacelera (.26s), sair acelera e é mais curto (.18s);
+   mesmo caminho nos dois sentidos (consistência espacial) */
+dialog.tvd-dlg[open]{animation:_tvdDlgIn .26s cubic-bezier(.32,.72,0,1)}
+dialog.tvd-dlg[open]::backdrop{animation:_tvdBdIn .24s cubic-bezier(.32,.72,0,1)}
+dialog.tvd-dlg._closing{animation:_tvdDlgOut .18s cubic-bezier(.4,0,1,1) forwards}
+dialog.tvd-dlg._closing::backdrop{animation:_tvdBdOut .18s cubic-bezier(.4,0,1,1) forwards}
+@keyframes _tvdDlgIn{from{opacity:0;transform:translateY(10px) scale(.98)}}
+@keyframes _tvdDlgOut{to{opacity:0;transform:translateY(10px) scale(.98)}}
+@keyframes _tvdBdIn{from{opacity:0}}
+@keyframes _tvdBdOut{to{opacity:0}}
+@media (prefers-reduced-motion: reduce){
+  dialog.tvd-dlg[open]{animation:_tvdBdIn .15s ease}
+  dialog.tvd-dlg._closing{animation:_tvdBdOut .15s ease forwards}
+}
 .tvd-dlg h2{font-size:1rem;margin-bottom:2px}
 .tvd-dlg .per{font-size:.72rem;color:var(--mut);font-family:ui-monospace,Menlo,monospace;margin-bottom:.8rem}
 .tvd-dlg label.f{display:block;margin-bottom:.55rem}
@@ -1269,7 +1284,7 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
   <div id="tvdVBlocos"></div>
   <button class="tvd-btn" id="tvdBtnEditWeek" onclick="tvdEditFromView()">✏️ Editar esta semana</button>
   <button class="tvd-btn ghost" id="tvdBtnLanc" onclick="tvdLancarSemana()">💰 Lançar receita nas finanças</button>
-  <button class="tvd-btn ghost" onclick="document.getElementById('tvdDlgView').close()">Fechar</button>
+  <button class="tvd-btn ghost" onclick="tvdDlgClose('tvdDlgView')">Fechar</button>
 </dialog>
 
 <!-- TVDE: editor de semana -->
@@ -1293,7 +1308,7 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
   <div class="calc" id="tvdWCalc"></div>
   <button class="tvd-btn" onclick="tvdSaveWeek()">Guardar semana</button>
   <button class="tvd-btn danger" id="tvdBtnDelWeek" onclick="tvdDelWeek()">Apagar esta semana</button>
-  <button class="tvd-btn ghost" onclick="document.getElementById('tvdDlgWeek').close()">Fechar</button>
+  <button class="tvd-btn ghost" onclick="tvdDlgClose('tvdDlgWeek')">Fechar</button>
 </dialog>
 
 <!-- TVDE: confirmar lançamento (receita + opcionalmente recarga própria) nas finanças -->
@@ -1303,7 +1318,7 @@ dialog.tvd-dlg::backdrop{background:rgba(0,0,0,.6);backdrop-filter:blur(2px)}
   <div class="calc" id="tvdLancResumo"></div>
   <div id="tvdLancRecpBox"></div>
   <button class="tvd-btn" id="tvdLancConfirmBtn" onclick="tvdConfirmarLancamento()">Confirmar lançamento</button>
-  <button class="tvd-btn ghost" onclick="document.getElementById('tvdDlgLanc').close()">Cancelar</button>
+  <button class="tvd-btn ghost" onclick="tvdDlgClose('tvdDlgLanc')">Cancelar</button>
 </dialog>
 
 <!-- MAIN MODAL -->
@@ -9529,7 +9544,7 @@ function tvdConfirmarLancamento(){
   }
   TV().lanc[ctx.chave]={rid:idRec,did:idDc,val:ctx.val,recP:lancarRecp?ctx.recP:0,at:Date.now()};
   saveState();
-  document.getElementById("tvdDlgLanc").close();
+  tvdDlgClose("tvdDlgLanc");
   showToast(lancarRecp?"✓ Receita e recarga própria lançadas nas finanças":"✓ Receita TVDE lançada — "+fEUR.format(ctx.val));
   var onDone=ctx.onDone;
   _lancCtx=null;
@@ -9540,9 +9555,11 @@ function tvdLancarSemana(){
   var w=TV().weeks[viewN]; if(!w) return;
   var c=calc(w,TV().cfg);
   // fecha a vista da semana antes de abrir a confirmação — dois <dialog> nativos abertos ao mesmo
-  // tempo têm bugs de clique conhecidos no Safari; o resto da app (ex. tvdEditFromView) já evita isto
-  document.getElementById("tvdDlgView").close();
-  tvdAbrirLancar("w"+viewN,c.receita,w.recP||0,isoDate(wkPagamento(viewN)),"TVDE · Semana "+viewN+" ("+wkLabel(viewN)+")","Semana "+viewN+" ("+wkLabel(viewN)+")",null);
+  // tempo têm bugs de clique conhecidos no Safari; o callback garante a sequência
+  var n=viewN;
+  tvdDlgClose("tvdDlgView",function(){
+    tvdAbrirLancar("w"+n,c.receita,w.recP||0,isoDate(wkPagamento(n)),"TVDE · Semana "+n+" ("+wkLabel(n)+")","Semana "+n+" ("+wkLabel(n)+")",null);
+  });
 }
 function tvdLancarMes(m){
   var o=monthData().find(function(x){return x.m===m;});
@@ -9803,7 +9820,7 @@ function tvdSaveWeek(){
   snapshot();
   TV().weeks[editN]=o;
   saveState();
-  document.getElementById("tvdDlgWeek").close();
+  tvdDlgClose("tvdDlgWeek");
   tvdRender();
   showToast("✓ Semana "+editN+" guardada");
 }
@@ -9812,7 +9829,7 @@ function tvdDelWeek(){
   snapshot();
   delete TV().weeks[editN];
   saveState();
-  document.getElementById("tvdDlgWeek").close();
+  tvdDlgClose("tvdDlgWeek");
   tvdRender();
   showToast("🗑 Semana "+editN+" apagada");
 }
@@ -9821,10 +9838,38 @@ function tvdAddWeek(){
   tvdOpenWeek(ns.length?Math.max.apply(null,ns)+1:1);
 }
 function tvdEditFromView(){
-  document.getElementById("tvdDlgView").close();
-  if(viewN!=null) tvdOpenWeek(viewN);
+  tvdDlgClose("tvdDlgView",function(){
+    if(viewN!=null) tvdOpenWeek(viewN);
+  });
+}
+// fecho animado dos <dialog> nativos: showModal()/close() não têm animação
+// de saída — adia-se o close() real até a animação CSS de _closing acabar
+// (animationend, com timeout de segurança). O callback permite sequenciar
+// "fechar este → abrir aquele" sem nunca ter dois <dialog> abertos ao mesmo
+// tempo (bugs de clique conhecidos no Safari).
+function tvdDlgClose(id, cb){
+  var d = typeof id === "string" ? document.getElementById(id) : id;
+  if(!d){ if(cb) cb(); return; }
+  if(!d.open || d.classList.contains("_closing")){ if(cb) cb(); return; }
+  var tm;
+  var fim = function(){
+    clearTimeout(tm);
+    d.removeEventListener("animationend", onEnd);
+    d.classList.remove("_closing");
+    d.close();
+    if(cb) cb();
+  };
+  var onEnd = function(e){ if(e.target === d) fim(); };
+  tm = setTimeout(fim, 300);
+  d.addEventListener("animationend", onEnd);
+  d.classList.add("_closing");
 }
 function tvdWireEditor(){
+  // Esc fecharia o <dialog> nativo sem animação — intercepta e anima
+  ["tvdDlgView","tvdDlgWeek","tvdDlgLanc"].forEach(function(id){
+    var d = document.getElementById(id);
+    if(d) d.addEventListener("cancel", function(e){ e.preventDefault(); tvdDlgClose(d); });
+  });
   WKEYS.forEach(function(k,i){ wEl(i).addEventListener("input",tvdLiveCalc); });
   document.getElementById("tvdWNum").addEventListener("input",function(){
     var n=parseInt(this.value,10);
@@ -10238,6 +10283,7 @@ window.tvdCSVResumo=tvdCSVResumo;
 window.tvdApagarTudo=tvdApagarTudo;
 window.tvdAddWeek=tvdAddWeek;
 window.tvdEditFromView=tvdEditFromView;
+window.tvdDlgClose=tvdDlgClose;
 window.tvdSaveWeek=tvdSaveWeek;
 window.tvdDelWeek=tvdDelWeek;
 window.tvdLancarSemana=tvdLancarSemana;
