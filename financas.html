@@ -187,9 +187,11 @@ tbody.anim tr:nth-child(5){animation-delay:.12s}
 tbody.anim tr:nth-child(n+6){animation-delay:.14s}
 
 /* BUTTONS */
-.btn{border:none;border-radius:var(--r-sm);cursor:pointer;font-size:.75rem;font-weight:600;padding:.38rem .9rem;transition:opacity var(--tr),transform .1s;display:inline-flex;align-items:center;gap:.3rem}
-.btn:hover{opacity:.85}.btn:active{transform:scale(.96)}
+.btn{border:none;border-radius:var(--r-sm);cursor:pointer;font-size:.75rem;font-weight:600;padding:.38rem .9rem;transition:transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .2s,opacity var(--tr);display:inline-flex;align-items:center;gap:.3rem}
+.btn:hover{transform:scale(1.02)}.btn:active{transform:scale(.94)}
 .pri{background:var(--blu);color:#fff;box-shadow:0 2px 8px rgba(var(--blu-rgb),.3)}
+.pri:hover{box-shadow:0 4px 16px rgba(var(--blu-rgb),.5),0 2px 6px rgba(0,0,0,.15)}
+.pri:active{box-shadow:0 1px 4px rgba(var(--blu-rgb),.35)}
 .sec{background:var(--s2);color:var(--txt);border:1px solid var(--brd);box-shadow:0 1px 3px rgba(0,0,0,.1)}
 .dan{background:var(--red);color:#fff}
 .sm{padding:.26rem .6rem;font-size:.7rem}
@@ -408,7 +410,7 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 .ic:active{background:var(--s2);color:var(--txt)}
 .tb:active:not(.on){background:var(--s3)}
 .pmc:active{opacity:.65}
-.btn:active{transform:scale(.95)}
+.btn:active{transform:scale(.94)}
 
 /* Toast: safe area iOS */
 .toast{bottom:calc(1.5rem + env(safe-area-inset-bottom,0px))}
