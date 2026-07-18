@@ -1002,7 +1002,7 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
       <div class="row g2">
         <button class="ic tip" id="eyeBtn_dc" data-tip="Mostrar/esconder" onclick="_toggleVis('dcCollapse','eyeBtn_dc')" style="font-size:.8rem;width:28px;height:28px"></button>
         <button class="btn sec sm" id="dcFilterBtn" onclick="toggleDcFilter()" title="Filtrar por intervalo de datas">🔍 Período</button>
-        <button class="btn pri sm" onclick="openModal('dcorr')">+ Adicionar</button>
+        <button class="btn pri sm" onclick="qOpen('e')">+ Adicionar</button>
       </div>
     </div>
     <div id="dcCollapse">
@@ -1076,7 +1076,7 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
           <button class="srch-pin" onclick="_vehWeekNav(1)" style="padding:.18rem .38rem">›</button>
         </div>
         <button class="ic tip" id="eyeBtn_cg" data-tip="Mostrar/esconder" onclick="_toggleVis('cgCollapse','eyeBtn_cg')" style="font-size:.8rem;width:28px;height:28px"></button>
-        <button class="btn pri sm" onclick="openModal('carga')">+ Adicionar</button>
+        <button class="btn pri sm" onclick="qOpen('v','cg')">+ Adicionar</button>
       </div>
     </div>
     <div id="cgCollapse">
@@ -1100,7 +1100,7 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
       <span class="slbl" style="margin:0">🚘 Despesas do Veículo</span>
       <div class="row g2">
         <button class="ic tip" id="eyeBtn_lp" data-tip="Mostrar/esconder" onclick="_toggleVis('lpCollapse','eyeBtn_lp')" style="font-size:.8rem;width:28px;height:28px"></button>
-        <button class="btn pri sm" onclick="openModal('limp')">+ Adicionar</button>
+        <button class="btn pri sm" onclick="qOpen('v','lp')">+ Adicionar</button>
       </div>
     </div>
     <div id="lpCollapse">
@@ -8177,7 +8177,10 @@ window.addEventListener('resize', fixStickyOffsets);
 // ================================================================
 var _qT='e', _qCat='', _qAcc='', _qVSub='cg', _qCgTouch=[], _qEditLocId=null;
 
-function qOpen() {
+// Sem argumentos: comportamento clássico do botão flutuante (mantém o último
+// tipo usado). Com tipo (e vsub para o veículo), abre já na pílula certa —
+// usado pelos "+ Adicionar" das tabelas que partilham o destino de dados.
+function qOpen(tipo, vsub) {
   _qCat=''; _qAcc=''; _qVSub='cg'; _qCgTouch=[]; _qEditLocId=null;
   var ai=document.getElementById('qAmt'); if(ai) { ai.value=''; delete ai.dataset.manual; }
   var ni=document.getElementById('qNote'); if(ni) ni.value='';
@@ -8191,6 +8194,8 @@ function qOpen() {
   var ll=document.getElementById('qDateLbl'); if(ll) ll.textContent='Hoje';
   _qRenderLocais();
   _qRender();
+  if (tipo) qType(tipo);
+  if (tipo === 'v' && vsub) qVSub(vsub);
   document.getElementById('qOv').classList.add('on');
   document.getElementById('qSh').classList.add('on');
   setTimeout(function(){ var a=document.getElementById('qAmt'); if(a) a.focus(); },350);
