@@ -12,7 +12,6 @@
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <title>Finanças Pessoais</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js" crossorigin="anonymous"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -60,7 +59,9 @@
 *::-webkit-scrollbar-thumb{background:var(--brd);border-radius:4px}
 *::-webkit-scrollbar-thumb:hover{background:var(--mut)}
 html{-webkit-text-size-adjust:100%}
-body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--txt);font-size:14px;min-height:100vh;transition:background var(--tr),color var(--tr);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,'Helvetica Neue',sans-serif;font-optical-sizing:auto;background:var(--bg);color:var(--txt);font-size:14px;min-height:100vh;transition:background var(--tr),color var(--tr);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+/* dinheiro e datas alinham em coluna: dígitos tabulares em tudo o que é número */
+tbody td,tfoot td,.kval,.ksub,.pgr,.mbar-lbl,#qAmt{font-variant-numeric:tabular-nums}
 
 /* HEADER */
 .hdr{background:var(--s1-t);backdrop-filter:blur(16px) saturate(160%);border-bottom:1px solid var(--brd);padding:0 .65rem;display:flex;align-items:center;justify-content:space-between;height:44px;position:sticky;top:0;z-index:300;box-shadow:var(--sh-sm);overflow:visible}
@@ -95,7 +96,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 @media(min-width:600px){.pnl{padding:1.25rem 1.5rem}}
 
 /* LABELS */
-.slbl{font-size:.76rem;font-weight:700;letter-spacing:.01em;color:var(--txt);opacity:.85;margin-bottom:.5rem}
+/* label de secção à iOS (cabeçalho de grouped table): pequeno, mudo, tracking largo */
+.slbl{font-size:.68rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--mut);margin-bottom:.5rem}
 
 /* KPI */
 .kg{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;margin-bottom:1rem}
@@ -106,7 +108,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 .kc:hover{transform:translateY(-2px);box-shadow:var(--sh-card-hi)}
 .kc::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--_a,var(--blu))}
 .klbl{font-size:.63rem;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.3rem}
-.kval{font-size:1.15rem;font-weight:800;line-height:1.1;letter-spacing:-.02em}
+.kval{font-size:1.2rem;font-weight:700;line-height:1.1;letter-spacing:-.025em}
 .ksub{font-size:.62rem;color:var(--mut);margin-top:.22rem}
 
 /* CHART */
