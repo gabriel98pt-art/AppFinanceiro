@@ -309,15 +309,15 @@ tbody.anim tr:nth-child(n+6){animation-delay:.14s}
 .ist-u{background:rgba(167,139,250,.2);color:var(--pur)}
 
 /* TOAST */
-.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(90px);background:var(--s1);border:1px solid var(--brd);border-left:3px solid var(--brd);border-radius:10px;padding:.5rem 1.1rem .5rem .85rem;font-size:.78rem;font-weight:600;z-index:2000;transition:transform .3s cubic-bezier(.34,1.4,.64,1),opacity .25s;pointer-events:none;box-shadow:var(--sh);opacity:0;max-width:calc(100vw - 2rem);white-space:nowrap}
-.toast.on{transform:translateX(-50%) translateY(0);opacity:1}
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(90px);background:var(--s1);border:1px solid var(--brd);border-left:3px solid var(--brd);border-radius:10px;padding:.5rem 1.1rem .5rem .85rem;font-size:.78rem;font-weight:600;z-index:2000;transition:transform .2s cubic-bezier(.4,0,1,1),opacity .2s cubic-bezier(.4,0,1,1);pointer-events:none;box-shadow:var(--sh);opacity:0;max-width:calc(100vw - 2rem);white-space:nowrap}
+.toast.on{transform:translateX(-50%) translateY(0);opacity:1;transition:transform .3s cubic-bezier(.34,1.4,.64,1),opacity .25s cubic-bezier(.32,.72,0,1)}
 .toast.t-ok{border-left-color:var(--grn)}
 .toast.t-err{border-left-color:var(--red);color:var(--red)}
 .toast.t-warn{border-left-color:var(--ylw)}
 .toast.t-info{border-left-color:var(--blu)}
 
-.upd-banner{position:fixed;top:0;left:0;right:0;background:var(--s2);border-bottom:1px solid var(--brd);padding:.6rem 1rem;font-size:.78rem;font-weight:600;z-index:2100;display:flex;align-items:center;justify-content:center;gap:.7rem;transform:translateY(-100%);transition:transform .3s cubic-bezier(.34,1.4,.64,1);box-shadow:var(--sh);text-align:center}
-.upd-banner.on{transform:translateY(0)}
+.upd-banner{position:fixed;top:0;left:0;right:0;background:var(--s2);border-bottom:1px solid var(--brd);padding:.6rem 1rem;font-size:.78rem;font-weight:600;z-index:2100;display:flex;align-items:center;justify-content:center;gap:.7rem;transform:translateY(-100%);transition:transform .25s cubic-bezier(.4,0,1,1);box-shadow:var(--sh);text-align:center}
+.upd-banner.on{transform:translateY(0);transition:transform .3s cubic-bezier(.34,1.4,.64,1)}
 .upd-banner button{background:var(--grn);color:#06281f;border:none;border-radius:var(--r-sm);padding:.3rem .8rem;font-weight:700;font-size:.75rem;cursor:pointer;flex-shrink:0}
 
 /* INFO BOX */
@@ -426,9 +426,9 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 .qov.on{opacity:1;pointer-events:auto}
 .qsh{position:fixed;bottom:0;left:0;right:0;z-index:520;background:var(--s1);
      border-radius:18px 18px 0 0;padding:0 1.1rem 1.6rem;
-     transform:translateY(105%);transition:transform .3s cubic-bezier(.32,1,.23,1);
+     transform:translateY(105%);transition:transform .28s cubic-bezier(.4,0,1,1);
      max-height:90vh;overflow-y:auto;box-shadow:0 -6px 40px rgba(0,0,0,.45)}
-.qsh.on{transform:translateY(0)}
+.qsh.on{transform:translateY(0);transition:transform .32s cubic-bezier(.32,.72,0,1)}
 .qsh._drag{transition:none!important;will-change:transform}
 .qhandle{width:42px;height:5px;background:linear-gradient(90deg,var(--blu),var(--pur));border-radius:3px;margin:.75rem auto 1rem;opacity:.7}
 .qsh-drag-zone{position:absolute;top:0;left:0;right:0;height:52px;cursor:grab;touch-action:none;z-index:1}
