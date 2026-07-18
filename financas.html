@@ -8124,10 +8124,54 @@ function qClose() {
 }
 
 // ── DRAG TO CLOSE ────────────────────────────────────────────────
+// Física real à Apple (WWDC "Designing Fluid Interfaces"):
+//  - mola amortecida integrada por rAF (parâmetros response/damping, não duração)
+//  - velocidade medida numa janela curta no fim do gesto, não na média total
+//  - destino decidido por projeção de momentum (decaimento exponencial, d≈0.998)
+//  - a velocidade do dedo entra na mola — não há costura entre arrasto e animação
+//  - a folha pode ser agarrada a meio do voo: a mola pára e o arrasto retoma
+//    da posição visível atual
 (function() {
-  var _sh, _ov, _sy, _st, _dy = 0, _live = false;
+  var _sh, _ov, _sy, _base = 0, _y = 0, _live = false, _anim = null, _hist = [];
 
   function _cy(e) { return e.touches ? e.touches[0].clientY : e.clientY; }
+
+  // mola: Euler semi-implícito (estável a 60/120 Hz); w0 = 2π/response
+  function _spring(from, to, v0, response, damping, onFrame, onDone) {
+    var w0 = 2 * Math.PI / response, x = from, v = v0, last = null, id = 0, done = false;
+    function step(now) {
+      if (last === null) last = now;
+      var dt = Math.min(0.032, (now - last) / 1000); last = now;
+      v += (-w0 * w0 * (x - to) - 2 * damping * w0 * v) * dt;
+      x += v * dt;
+      if (Math.abs(x - to) < 0.5 && Math.abs(v) < 20) {
+        done = true; onFrame(to); if (onDone) onDone(); return;
+      }
+      onFrame(x);
+      id = requestAnimationFrame(step);
+    }
+    id = requestAnimationFrame(step);
+    return {
+      stop: function() { if (!done) cancelAnimationFrame(id); },
+      pos:  function() { return x; }
+    };
+  }
+
+  // projeção de momentum: onde o gesto ia parar se deixássemos deslizar
+  // (forma exponencial da Apple, não v²/2a; d=0.998 = scroll normal)
+  function _project(v) { return (v / 1000) * 0.998 / (1 - 0.998); }
+
+  // resistência progressiva ao puxar acima do topo (rubber-band)
+  function _rubber(over, dim) { return (over * dim * 0.55) / (dim + 0.55 * over); }
+
+  function _setY(y) {
+    _y = y;
+    _sh.style.transform = 'translateY(' + y + 'px)';
+    if (_ov) {
+      var fade = Math.max(0, 1 - Math.max(0, y) / (window.innerHeight * 0.4));
+      _ov.style.opacity = (fade * 0.6).toFixed(3);
+    }
+  }
 
   function _start(e) {
     var sh = document.getElementById('qSh');
@@ -8140,45 +8184,60 @@ function qClose() {
                    && !/^(INPUT|BUTTON|SELECT|TEXTAREA)$/.test(t.tagName);
     if (!fromZone && !fromBody) return;
     _sh = sh; _ov = document.getElementById('qOv');
-    _sy = _cy(e); _st = Date.now(); _dy = 0; _live = true;
+    // agarrar a meio de uma animação: retomar da posição no ecrã, sem salto
+    if (_anim) { _anim.stop(); _base = _anim.pos(); _anim = null; }
+    else _base = 0;
+    _sy = _cy(e); _y = _base; _hist = [[performance.now(), _base]];
+    _live = true;
     sh.classList.add('_drag');
   }
 
   function _move(e) {
     if (!_live) return;
-    _dy = Math.max(0, _cy(e) - _sy);
-    if (_dy > 3 && e.cancelable) e.preventDefault();
-    _sh.style.transform = 'translateY(' + _dy + 'px)';
-    if (_ov) {
-      var fade = Math.max(0, 1 - _dy / (window.innerHeight * 0.4));
-      _ov.style.opacity = (fade * 0.6).toFixed(3);
-    }
+    var y = _base + _cy(e) - _sy;
+    if (y < 0) y = -_rubber(-y, _sh.offsetHeight);
+    if (Math.abs(y) > 3 && e.cancelable) e.preventDefault();
+    _setY(y);
+    var now = performance.now();
+    _hist.push([now, y]);
+    while (_hist.length > 2 && now - _hist[0][0] > 100) _hist.shift();
   }
 
   function _end() {
     if (!_live) return;
     _live = false;
-    var sh = _sh, ov = _ov, dy = _dy;
-    sh.classList.remove('_drag');
-    var vel = dy / Math.max(1, Date.now() - _st);
+    var sh = _sh, ov = _ov;
 
-    if (dy > 80 || vel > 0.4) {
-      // fechar: animar para fora e depois chamar qClose
-      sh.style.transform = 'translateY(110%)';
-      if (ov) ov.style.opacity = '0';
-      setTimeout(function() {
-        sh.style.transform = '';
-        if (ov) ov.style.opacity = '';
-        qClose();
-      }, 300);
-    } else {
-      // snap back com efeito elástico
-      sh.style.transition = 'transform .38s cubic-bezier(.34,1.56,.64,1)';
-      sh.style.transform = 'translateY(0)';
-      if (ov) ov.style.opacity = '';
-      setTimeout(function() { sh.style.transform = ''; sh.style.transition = ''; }, 400);
+    // velocidade instantânea (px/s) dos últimos ~100ms do gesto
+    var v = 0, n = _hist.length;
+    if (n > 1) {
+      var dt = _hist[n-1][0] - _hist[0][0];
+      if (dt > 0) v = (_hist[n-1][1] - _hist[0][1]) / dt * 1000;
     }
-    _sh = null; _ov = null;
+
+    var H = sh.offsetHeight;
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // snap points: 0 (aberta) e H (fechada); ganha o mais próximo da projeção
+    var closeIt = _y + _project(v) > H / 2;
+
+    if (closeIt) {
+      _anim = _spring(_y, H + 24, v, 0.3, 1, _setY, function() {
+        _anim = null;
+        qClose();                       // remove .on com _drag ainda ativo (sem transição)
+        sh.style.transform = ''; if (ov) ov.style.opacity = '';
+        sh.classList.remove('_drag');
+        _sh = null; _ov = null;
+      });
+    } else {
+      // regresso com um resto de bounce — o gesto trazia momentum
+      // (crítico, sem bounce, se o utilizador pediu movimento reduzido)
+      _anim = _spring(_y, 0, v, reduce ? 0.3 : 0.34, reduce ? 1 : 0.8, _setY, function() {
+        _anim = null;
+        sh.style.transform = ''; if (ov) ov.style.opacity = '';
+        sh.classList.remove('_drag');
+        _sh = null; _ov = null;
+      });
+    }
   }
 
   document.addEventListener('touchstart', _start, {passive: true});
