@@ -558,6 +558,7 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 .gselbtn{display:inline-flex;align-items:center;gap:.4rem;background:var(--bg);border:1px solid var(--brd);border-radius:var(--r-sm);padding:.3rem .55rem;font-size:.78rem;color:var(--txt);cursor:pointer;font-family:inherit;max-width:230px;transition:border-color var(--tr),box-shadow .22s cubic-bezier(.34,1.56,.64,1)}
 .gselbtn:focus-visible{outline:none;border-color:var(--blu);box-shadow:0 0 0 3px rgba(var(--blu-rgb),.15)}
 .gselbtn>span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#qVehLocalSel_gsbtn{flex:1;max-width:none}
 .qdet select{background:none;border:none;outline:none;color:var(--txt);
             font-size:.78rem;font-weight:600;font-family:inherit;width:100%;min-width:0;cursor:pointer}
 .qlbl{font-size:.7rem;color:var(--mut);font-weight:700}
@@ -5426,7 +5427,12 @@ function gpOpen(e, id) {
     return '<button type="button" class="qcal-d' + (itm.v === cur ? ' selq' : '') + '" data-v="' + _esc(itm.v) + '" onclick="gpPick(event,this)">' + _esc(itm.l) + '</button>';
   }).join('');
   // âncora ao campo; mede o espaço antes de decidir a direção (como o qCal)
-  var r = document.getElementById(cfg.anchor || id + '_btn').getBoundingClientRect();
+  var aEl = document.getElementById(cfg.anchor || id + '_btn');
+  // dentro de um <dialog> nativo (top layer), um fixed no body fica POR BAIXO
+  // do dialog independentemente do z-index — o popup muda-se para lá
+  var host = (aEl && aEl.closest && aEl.closest('dialog[open]')) || document.body;
+  if (gp.parentNode !== host) host.appendChild(gp);
+  var r = aEl.getBoundingClientRect();
   var ch = gp.offsetHeight || 280, cw = gp.offsetWidth || 240;
   var up = (window.innerHeight - r.bottom) < ch + 12 && r.top > ch + 12;
   gp.classList.toggle('up', up);
@@ -5540,6 +5546,8 @@ function gpOpenSel(ev, id) {
 ['recSrcFilt','recCardFilt','dfCardFilt','dcCardFilt','dcSrcFilt','dcCatFilt',
  'cgCardFilt','cgFrotaFilt','lpTipoFilt','lpCardFilt','vehDfCatFilt','vehDfCardFilt',
  'parcCatFilt','parcCardFilt','ctFilt'].forEach(function(id){ gpEnhanceSelect(id); });
+// qVehLocalSel vive na folha rápida, cujo markup vem depois deste script —
+// é realçado no primeiro qOpen (idempotente)
 
 function buildForm(type, d) {
   var dd = (d && d.date) ? d.date : defaultDate();
@@ -6422,6 +6430,10 @@ function openSettings() {
   h += `</div>`;
 
   document.getElementById('setBody').innerHTML = h;
+  // selects das Definições ganham o popup de grelha (moeda 2 col, tipo de cartão 3 col)
+  gpEnhanceSelect('si_currency', 2);
+  [].forEach.call(document.querySelectorAll('#setBody select[id^="sct_"]'), function(s) { gpEnhanceSelect(s.id, 3); });
+  gpSyncSelects();
   var _TABS = [
     {id:'listas',  lbl:'🏷 Listas'},
     {id:'tipos',   lbl:'🎨 Tipos'},
@@ -8385,6 +8397,7 @@ function qOpen(tipo, vsub) {
   var vp=document.getElementById('qVehPreco'); if(vp) vp.value='';
   var di=document.getElementById('qDate'); if(di) di.value=todayStr();
   var ll=document.getElementById('qDateLbl'); if(ll) ll.textContent='Hoje';
+  gpEnhanceSelect('qVehLocalSel');
   _qRenderLocais();
   _qRender();
   if (tipo) qType(tipo);
@@ -8652,6 +8665,7 @@ function _qRenderLocais(selVal){
   if(selVal===undefined||selVal===null) selVal=locs.length?locs[0].id:'__new__';
   sel.innerHTML=_qLocalOpts(selVal);
   sel.value=String(selVal);
+  gpSyncSelects();
   qLocalChange();
 }
 function qLocalChange(){
@@ -9869,6 +9883,7 @@ function tvdAbrirLancar(chave,val,recP,dataIso,nota,rotulo,onDone){
       '<label class="chkrow"><input type="checkbox" id="tvdLancRecpChk" checked><span>Lançar também a recarga própria (<b class="tvd-num">'+fEUR.format(rp)+'</b>) como despesa</span></label>'
       +selectHtml;
     var chk=document.getElementById("tvdLancRecpChk"), wrap=document.getElementById("tvdLancCardWrap");
+    if(window.gpEnhanceSelect){ gpEnhanceSelect('tvdLancCard', 2); gpSyncSelects(); }
     chk.checked=true;
     chk.addEventListener("change",function(){ wrap.style.display=chk.checked?"":"none"; });
   } else {
