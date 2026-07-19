@@ -523,7 +523,7 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 /* mini-calendário da folha rápida: popup desenhado pela app (o picker nativo
    abria cortado pelo fundo do ecrã). Curvas assimétricas como os outros
    overlays: entrada desacelera, saída acelera e é mais curta. */
-.qcal{position:fixed;z-index:560;background:var(--s1);border-radius:14px;padding:.6rem;width:254px;
+.qcal{position:fixed;z-index:1200;background:var(--s1);border-radius:14px;padding:.6rem;width:254px;
       box-shadow:var(--sh),0 0 0 1px var(--brd);opacity:0;pointer-events:none;
       transform:translateY(6px) scale(.97);
       transition:transform .16s cubic-bezier(.4,0,1,1),opacity .16s cubic-bezier(.4,0,1,1)}
@@ -541,6 +541,8 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 .qcal-d.om{opacity:.28}
 .qcal-d.td{border-color:var(--blu);color:var(--blu);font-weight:800}
 .qcal-d.selq{background:var(--blu);color:#fff}
+.qcal-clr{display:block;width:100%;margin-top:.45rem;background:var(--s2);border:none;border-radius:7px;padding:.35rem 0;font-size:.72rem;font-weight:600;color:var(--mut);cursor:pointer;font-family:inherit;transition:background var(--tr),transform .1s cubic-bezier(.4,0,1,1)}
+.qcal-clr:active{transform:scale(.95)}
 
 /* popup de grelha genérico (contas, dia de vencimento, mês, ano) — a mesma
    mecânica e visual do mini-calendário, mas N colunas com o que o campo tiver.
@@ -2398,6 +2400,7 @@ function clearDcRange() {
   var cb = document.getElementById('dcClearBtn'); if (cb) cb.style.display = 'none';
   var lb = document.getElementById('dcFilterLbl'); if (lb) lb.style.display = 'none';
   var catB = document.getElementById('dcCatBadge'); if (catB) catB.style.display = 'none';
+  gpSyncSelects();
   DC_PG = 1; renderDespesas();
 }
 
@@ -2439,6 +2442,7 @@ function clearCtRange() {
   var ct = document.getElementById('ctTo');   if (ct) ct.value = '';
   var cb = document.getElementById('ctClearBtn'); if (cb) cb.style.display = 'none';
   var lb = document.getElementById('ctFilterLbl'); if (lb) lb.style.display = 'none';
+  gpSyncSelects();
   renderCartoes();
 }
 
@@ -2446,6 +2450,7 @@ function _syncCtInputs() {
   var cf = document.getElementById('ctFrom'); if (cf) cf.value = CT_FROM || '';
   var ct = document.getElementById('ctTo');   if (ct) ct.value = CT_TO   || '';
   var cb = document.getElementById('ctClearBtn'); if (cb) cb.style.display = (CT_FROM && CT_TO) ? '' : 'none';
+  gpSyncSelects();
 }
 
 function _getWeekRange(offset) {
@@ -2513,6 +2518,7 @@ function _syncDcInputs() {
   var df = document.getElementById('dcFrom'); if (df) df.value = DC_FROM || '';
   var dt = document.getElementById('dcTo');   if (dt) dt.value = DC_TO   || '';
   var cb = document.getElementById('dcClearBtn'); if (cb) cb.style.display = (DC_FROM && DC_TO) ? '' : 'none';
+  gpSyncSelects();
 }
 
 function goToCatFilter(cat) {
@@ -5324,6 +5330,11 @@ function openModal(type, id) {
   if (title) title.textContent = (mId ? 'Editar ' : 'Nova ') + (MODAL_TITLES[type]||type);
   var body = document.getElementById('modalBody');
   if (body) body.innerHTML = buildForm(type, data);
+  // datas do formulário: mini-calendário da app em vez do picker nativo
+  // (f_dl e f_until são opcionais → popup ganha "Limpar")
+  if (body) [].forEach.call(body.querySelectorAll('input[type=date]'), function(el) {
+    dateEnhance(el, el.id === 'f_dl' || el.id === 'f_until');
+  });
   // Show delete button only when editing an existing record
   var delArea = document.getElementById('modalDelArea');
   if (delArea) {
@@ -5479,18 +5490,44 @@ function gpEnhanceSelect(id, cols) {
   b.addEventListener('click', function(ev) { gpOpenSel(ev, id); });
   s.parentNode.insertBefore(b, s.nextSibling);
   s.classList.add('gsel-hid');
-  s.addEventListener('change', function() { _gpLbl(s, b); });
-  _gpLbl(s, b);
+  s._gpUpd = function() { _gpLbl(s, b); };
+  s.addEventListener('change', s._gpUpd);
+  s._gpUpd();
 }
 function _gpLbl(s, b) {
   var o = s.options[s.selectedIndex];
   b.firstChild.textContent = o ? o.text : '—';
 }
 function gpSyncSelects() {
-  [].forEach.call(document.querySelectorAll('select.gsel-hid'), function(s) {
-    var b = document.getElementById(s.id + '_gsbtn'); if (b) _gpLbl(s, b);
+  [].forEach.call(document.querySelectorAll('.gsel-hid'), function(el) {
+    if (el._gpUpd) el._gpUpd();
   });
 }
+
+// ── enhancement de <input type=date> (mesmo bug do qDate: o picker nativo
+// corta perto do fundo do ecrã). O input fica escondido mas continua a ser
+// a fonte de verdade; o botão abre o mini-calendário generalizado. ──
+function dateEnhance(el, clearable) {
+  if (!el || el._dtEn) return; el._dtEn = 1;
+  var id = el.id; if (!id) return;
+  if (!_DTC) _DTC = {};   // o var do bloco qCal é içado, mas o ={} só corre mais abaixo
+  var b = document.createElement('button');
+  b.type = 'button'; b.className = 'gselbtn'; b.id = id + '_dtbtn';
+  b.innerHTML = '<span></span><span class="fsel-ch">📅</span>';
+  b.addEventListener('click', function(ev) { qCalOpen(ev, id); });
+  el.parentNode.insertBefore(b, el.nextSibling);
+  el.classList.add('gsel-hid');
+  _DTC[id] = {clear: !!clearable, anchor: b.id};
+  el._gpUpd = function() {
+    var v = el.value;
+    b.firstChild.textContent = v ? v.split('-').reverse().join('/') : '—';
+    b.firstChild.style.color = v ? '' : 'var(--mut)';
+  };
+  el.addEventListener('change', el._gpUpd);
+  el._gpUpd();
+}
+// filtros de intervalo (markup estático) — com "Limpar" no popup
+['dcFrom','dcTo','ctFrom','ctTo'].forEach(function(id){ dateEnhance(document.getElementById(id), true); });
 function gpOpenSel(ev, id) {
   var s = document.getElementById(id); if (!s) return;
   _GP[id] = {
@@ -8760,21 +8797,27 @@ function qCalcCarga(){
   }
 }
 
-// ── mini-calendário do campo de data ─────────────────────────────
+// ── mini-calendário dos campos de data ───────────────────────────
 // O <input type=date> nativo abria o picker do sistema, que ficava
-// cortado pelo fundo do ecrã (a folha vive colada ao fundo). Este popup
-// é desenhado pela app, ancorado ao campo, e vira para cima quando não
-// há espaço por baixo. Fecha ao escolher, clicar fora ou Esc.
-var _qcY=0,_qcM=0;
-function qCalOpen(e){
+// cortado perto do fundo do ecrã. Este popup é desenhado pela app,
+// ancorado ao campo, e vira para cima quando não há espaço por baixo.
+// Generalizado: serve o qDate da folha e qualquer input de data
+// realçado por dateEnhance (registo _DTC: âncora + se tem "Limpar").
+var _qcY=0,_qcM=0,_qcFor='qDate';
+var _DTC = _DTC || {};   // pode já ter registos do dateEnhance (corre antes deste bloco)
+function qCalOpen(e, id){
   if(e) e.stopPropagation();
+  id = id || 'qDate';
   var cal=document.getElementById('qCal');
-  if(cal.classList.contains('on')){ qCalClose(); return; }
-  var v=(document.getElementById('qDate')||{}).value||todayStr();
+  if(cal.classList.contains('on')){ var same=(_qcFor===id); qCalClose(); if(same) return; }
+  _qcFor=id;
+  var v=(document.getElementById(id)||{}).value||todayStr();
   _qcY=+v.slice(0,4); _qcM=+v.slice(5,7)-1;
+  var clr=document.getElementById('qCalClr');
+  if(clr) clr.style.display=(_DTC[id]&&_DTC[id].clear)?'':'none';
   qCalRender();
   // ancora ao campo; mede o espaço antes de decidir a direção
-  var r=document.getElementById('qDateBtn').getBoundingClientRect();
+  var r=document.getElementById((_DTC[id]&&_DTC[id].anchor)||'qDateBtn').getBoundingClientRect();
   var ch=cal.offsetHeight||300, cw=cal.offsetWidth||254;
   var up=(window.innerHeight-r.bottom)<ch+12 && r.top>ch+12;
   cal.classList.toggle('up', up);
@@ -8788,7 +8831,8 @@ function qCalOpen(e){
   },0);
 }
 function _qCalOut(ev){
-  var cal=document.getElementById('qCal'), btn=document.getElementById('qDateBtn');
+  var cal=document.getElementById('qCal');
+  var btn=document.getElementById((_DTC[_qcFor]&&_DTC[_qcFor].anchor)||'qDateBtn');
   if(!cal.contains(ev.target) && !(btn&&btn.contains(ev.target))) qCalClose();
 }
 function _qCalEsc(ev){ if(ev.key==='Escape'){ ev.stopPropagation(); qCalClose(); } }
@@ -8803,14 +8847,15 @@ function qCalNav(d){
   qCalRender();
 }
 function qCalPick(iso){
-  var inp=document.getElementById('qDate');
+  var inp=document.getElementById(_qcFor);
   if(inp) inp.value=iso;
-  qOnDateChange();
+  if(_qcFor==='qDate') qOnDateChange();
+  else if(inp) inp.dispatchEvent(new Event('change',{bubbles:true}));
   qCalClose();
 }
 function qCalRender(){
   document.getElementById('qCalTitle').textContent=MN[_qcM]+' '+_qcY;
-  var sel=(document.getElementById('qDate')||{}).value, today=todayStr();
+  var sel=(document.getElementById(_qcFor)||{}).value, today=todayStr();
   // mesma linguagem da grelha da aba Calendário: 7 colunas, semana começa
   // à segunda, hoje destacado, dias fora do mês esmaecidos; 6 semanas fixas
   // para a altura do popup não saltar ao navegar
@@ -9450,6 +9495,7 @@ function _impBankFile(bank) {
     <button type="button" onclick="qCalNav(1)">›</button>
   </div>
   <div class="qcal-grid" id="qCalGrid"></div>
+  <button type="button" class="qcal-clr" id="qCalClr" style="display:none" onclick="qCalPick('')">Limpar</button>
 </div>
 
 <!-- popup de grelha genérico (partilha a base .qcal; ver gpOpen/gpField) -->
