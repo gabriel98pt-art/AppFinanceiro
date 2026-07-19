@@ -541,6 +541,16 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 .qcal-d.om{opacity:.28}
 .qcal-d.td{border-color:var(--blu);color:var(--blu);font-weight:800}
 .qcal-d.selq{background:var(--blu);color:#fff}
+
+/* popup de grelha genérico (contas, dia de vencimento, mês, ano) — a mesma
+   mecânica e visual do mini-calendário, mas N colunas com o que o campo tiver.
+   z-index acima dos modais (.mover é 1000). */
+.gp{z-index:1200;width:auto;min-width:200px;max-width:min(340px,calc(100vw - 16px));max-height:min(320px,48vh);overflow-y:auto}
+.gp .qcal-d{padding:.42rem .35rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+/* campo-botão que substitui o <select>: mesma pele do .fi, com chevron */
+.fsel{display:flex;align-items:center;justify-content:space-between;gap:.4rem;text-align:left;cursor:pointer}
+.fsel.ph{color:var(--mut)}
+.fsel-ch{color:var(--mut);font-size:.58rem;flex-shrink:0}
 .qdet select{background:none;border:none;outline:none;color:var(--txt);
             font-size:.78rem;font-weight:600;font-family:inherit;width:100%;min-width:0;cursor:pointer}
 .qlbl{font-size:.7rem;color:var(--mut);font-weight:700}
@@ -5361,23 +5371,94 @@ function chipPick(id, el) {
   [].forEach.call(box.children, function(b) { b.classList.toggle('on', b === el); });
 }
 
-// Como selOpts, mas sem conta pré-escolhida (registo novo) começa em branco — evita
-// que esquecer de escolher a conta lance sozinho na primeira da lista (ex: Revolut)
-function selOptsReq(list, sel, placeholder) {
-  var blank = sel ? '' : `<option value="" disabled selected>${placeholder||'Escolhe...'}</option>`;
-  return blank + selOpts(list, sel);
+// ── popup de grelha genérico (generalização do mini-calendário da folha) ──
+// Substitui os <select> nativos de Conta/Cartão, Dia, Mês e Ano por um
+// campo-botão + popup de grelha desenhado pela app, ancorado ao campo e com
+// a mesma lógica de virar para cima quando não cabe por baixo. O contrato
+// de leitura não muda: getElementById(id).value via input hidden.
+// gpField(id, items, cur, o) — items: strings/números ou {v,l};
+// o: {ph: placeholder, clear: item de limpar (valor ''), cols, onpick: nome
+// de função global a chamar depois de escolher}
+var _GP = {}, _gpFor = null;
+function gpField(id, items, cur, o) {
+  o = o || {};
+  var norm = (items || []).map(function(x) {
+    return (x && typeof x === 'object') ? {v: String(x.v), l: String(x.l)} : {v: String(x), l: String(x)};
+  });
+  if (o.clear !== undefined) norm.unshift({v: '', l: o.clear || '—'});
+  _GP[id] = {items: norm, cols: o.cols || 2, onpick: o.onpick || null, ph: o.ph || '—'};
+  var curS = (cur == null) ? '' : String(cur);
+  var it = null;
+  for (var i = 0; i < norm.length; i++) if (norm[i].v === curS) { it = norm[i]; break; }
+  var empty = !it || it.v === '';
+  var lbl = empty ? (o.ph || '—') : it.l;
+  return '<button type="button" class="fi fsel' + (empty ? ' ph' : '') + '" id="' + id + '_btn" onclick="gpOpen(event,\'' + id + '\')">'
+       + '<span id="' + id + '_lbl">' + _esc(lbl) + '</span><span class="fsel-ch">▾</span></button>'
+       + '<input type="hidden" id="' + id + '" value="' + _esc(it ? it.v : curS) + '">';
+}
+function gpOpen(e, id) {
+  if (e) { e.stopPropagation(); e.preventDefault(); }
+  var cfg = _GP[id]; if (!cfg) return;
+  var gp = document.getElementById('gp');
+  if (gp.classList.contains('on')) { var again = (_gpFor === id); gpClose(); if (again) return; }
+  _gpFor = id;
+  var cur = (document.getElementById(id) || {}).value;
+  var g = document.getElementById('gpGrid');
+  g.style.gridTemplateColumns = 'repeat(' + cfg.cols + ',1fr)';
+  g.innerHTML = cfg.items.map(function(itm) {
+    return '<button type="button" class="qcal-d' + (itm.v === cur ? ' selq' : '') + '" data-v="' + _esc(itm.v) + '" onclick="gpPick(event,this)">' + _esc(itm.l) + '</button>';
+  }).join('');
+  // âncora ao campo; mede o espaço antes de decidir a direção (como o qCal)
+  var r = document.getElementById(id + '_btn').getBoundingClientRect();
+  var ch = gp.offsetHeight || 280, cw = gp.offsetWidth || 240;
+  var up = (window.innerHeight - r.bottom) < ch + 12 && r.top > ch + 12;
+  gp.classList.toggle('up', up);
+  gp.style.left = Math.max(8, Math.min(r.left, window.innerWidth - cw - 8)) + 'px';
+  if (up) { gp.style.top = ''; gp.style.bottom = (window.innerHeight - r.top + 8) + 'px'; }
+  else    { gp.style.bottom = ''; gp.style.top = (r.bottom + 8) + 'px'; }
+  requestAnimationFrame(function() { gp.classList.add('on'); });
+  setTimeout(function() {
+    document.addEventListener('pointerdown', _gpOut, true);
+    document.addEventListener('keydown', _gpEsc, true);
+    document.addEventListener('scroll', _gpScroll, true);
+  }, 0);
+}
+function _gpOut(ev) {
+  var gp = document.getElementById('gp'), btn = _gpFor && document.getElementById(_gpFor + '_btn');
+  if (!gp.contains(ev.target) && !(btn && btn.contains(ev.target))) gpClose();
+}
+function _gpEsc(ev) { if (ev.key === 'Escape') { ev.stopPropagation(); gpClose(); } }
+function _gpScroll(ev) { if (!document.getElementById('gp').contains(ev.target)) gpClose(); }
+function gpClose() {
+  document.getElementById('gp').classList.remove('on');
+  document.removeEventListener('pointerdown', _gpOut, true);
+  document.removeEventListener('keydown', _gpEsc, true);
+  document.removeEventListener('scroll', _gpScroll, true);
+}
+function gpPick(ev, el) {
+  ev.stopPropagation();
+  var cfg = _GP[_gpFor]; if (!cfg) return;
+  var v = el.dataset.v;
+  var inp = document.getElementById(_gpFor); if (inp) inp.value = v;
+  var it = null;
+  for (var i = 0; i < cfg.items.length; i++) if (cfg.items[i].v === v) { it = cfg.items[i]; break; }
+  var lb = document.getElementById(_gpFor + '_lbl'), btn = document.getElementById(_gpFor + '_btn');
+  if (lb) lb.textContent = (v === '') ? cfg.ph : (it ? it.l : v);
+  if (btn) btn.classList.toggle('ph', v === '');
+  var cb = cfg.onpick;
+  gpClose();
+  if (cb && typeof window[cb] === 'function') window[cb]();
 }
 
 function buildForm(type, d) {
   var dd = (d && d.date) ? d.date : defaultDate();
-  var po = selOptsReq(S.cfg.pay, d&&d.card, 'Escolhe uma conta...');
 
   switch(type) {
     case 'receita': return `<div class="fg">
       <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
       <div class="ff"><label class="fl">Fonte</label>${chipField('f_src', S.cfg.src, d&&d.src)}</div>
       <div class="ff"><label class="fl">Valor (${curSym()})</label><input class="fi fiu fmoney" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
-      <div class="ff"><label class="fl">Conta de Destino</label><select class="fi" id="f_card">${po}</select></div>
+      <div class="ff"><label class="fl">Conta de Destino</label>${gpField('f_card', S.cfg.pay, d&&d.card, {ph:'Escolhe uma conta...'})}</div>
       <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
     </div>`;
     case 'dfixa': {
@@ -5386,28 +5467,24 @@ function buildForm(type, d) {
       var _atD = (d && d.activeTo) ? d.activeTo : '';
       var _atY = _atD.slice(0,4), _atM2 = _atD.slice(5,7);
       var _yrs = getYearRange();
-      var _yrOptAf = _yrs.map(function(y){return '<option value="'+y+'"'+(String(y)===_afY?' selected':'')+'>'+y+'</option>';}).join('');
-      var _yrOptAt = '<option value="">—</option>'+_yrs.map(function(y){return '<option value="'+y+'"'+(String(y)===_atY?' selected':'')+'>'+y+'</option>';}).join('');
-      var _moOptAf = MN.map(function(n,i){var v=pad2(i+1);return '<option value="'+v+'"'+(v===_afM2?' selected':'')+'>'+n+'</option>';}).join('');
-      var _moOptAt = '<option value="">—</option>'+MN.map(function(n,i){var v=pad2(i+1);return '<option value="'+v+'"'+(v===_atM2?' selected':'')+'>'+n+'</option>';}).join('');
-      var _dyOpts = '<option value="">—</option>';
-      for (var _di=1;_di<=31;_di++) _dyOpts += '<option value="'+_di+'"'+(d&&d.day===_di?' selected':'')+'>'+_di+'</option>';
+      var _meses = MN.map(function(n,i){return {v:pad2(i+1),l:n};});
+      var _dias = []; for (var _di=1;_di<=31;_di++) _dias.push(_di);
       return `<div class="fg">
         <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
         <div class="ff"><label class="fl">Categoria</label>${chipField('f_cat', S.cfg.ccat, d&&d.cat)}</div>
         <div class="ff"><label class="fl">Valor (${curSym()})</label><input class="fi fiu fmoney" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
-        <div class="ff"><label class="fl">Dia Vencimento</label><select class="sel" id="f_day">${_dyOpts}</select></div>
-        <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${po}</select></div>
+        <div class="ff"><label class="fl">Dia Vencimento</label>${gpField('f_day', _dias, d&&d.day, {clear:'—',cols:7})}</div>
+        <div class="ff"><label class="fl">Cartão</label>${gpField('f_card', S.cfg.pay, d&&d.card, {ph:'Escolhe uma conta...'})}</div>
         <div class="ff full"><label class="fl">Ativo a partir de</label>
           <div class="row g1">
-            <select class="sel" id="f_afM" style="flex:1">${_moOptAf}</select>
-            <select class="sel" id="f_afY" style="flex:1">${_yrOptAf}</select>
+            <div style="flex:1">${gpField('f_afM', _meses, _afM2, {cols:4})}</div>
+            <div style="flex:1">${gpField('f_afY', _yrs, _afY, {cols:4})}</div>
           </div>
         </div>
         <div class="ff full"><label class="fl">Encerrar em <span class="tmut" style="font-weight:400;text-transform:none">(opcional)</span></label>
           <div class="row g1">
-            <select class="sel" id="f_atM" style="flex:1">${_moOptAt}</select>
-            <select class="sel" id="f_atY" style="flex:1">${_yrOptAt}</select>
+            <div style="flex:1">${gpField('f_atM', _meses, _atM2, {clear:'—',cols:4})}</div>
+            <div style="flex:1">${gpField('f_atY', _yrs, _atY, {clear:'—',cols:4})}</div>
           </div>
         </div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
@@ -5420,34 +5497,29 @@ function buildForm(type, d) {
     }
     case 'vehfix': {
       var _vcat2 = (S.cfg.vcat && S.cfg.vcat.length) ? S.cfg.vcat : DEFAULTS.cfg.vcat.slice();
-      var poV = selOptsReq(S.cfg.pay, d&&d.card, 'Escolhe um cartão...');
       var _vafD = (d && d.activeFrom) ? d.activeFrom : globalMonth;
       var _vafY = _vafD.slice(0,4), _vafM2 = _vafD.slice(5,7);
       var _vatD = (d && d.activeTo) ? d.activeTo : '';
       var _vatY = _vatD.slice(0,4), _vatM2 = _vatD.slice(5,7);
       var _vyrs = getYearRange();
-      var _vyrOptAf = _vyrs.map(function(y){return '<option value="'+y+'"'+(String(y)===_vafY?' selected':'')+'>'+y+'</option>';}).join('');
-      var _vyrOptAt = '<option value="">—</option>'+_vyrs.map(function(y){return '<option value="'+y+'"'+(String(y)===_vatY?' selected':'')+'>'+y+'</option>';}).join('');
-      var _vmoOptAf = MN.map(function(n,i){var v=pad2(i+1);return '<option value="'+v+'"'+(v===_vafM2?' selected':'')+'>'+n+'</option>';}).join('');
-      var _vmoOptAt = '<option value="">—</option>'+MN.map(function(n,i){var v=pad2(i+1);return '<option value="'+v+'"'+(v===_vatM2?' selected':'')+'>'+n+'</option>';}).join('');
-      var _vdyOpts = '<option value="">—</option>';
-      for (var _vdi=1;_vdi<=31;_vdi++) _vdyOpts += '<option value="'+_vdi+'"'+(d&&d.day===_vdi?' selected':'')+'>'+_vdi+'</option>';
+      var _vmeses = MN.map(function(n,i){return {v:pad2(i+1),l:n};});
+      var _vdias = []; for (var _vdi=1;_vdi<=31;_vdi++) _vdias.push(_vdi);
       return `<div class="fg">
         <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
         <div class="ff"><label class="fl">Categoria</label>${chipField('f_cat', _vcat2, d&&d.cat)}</div>
         <div class="ff"><label class="fl">Valor (${curSym()}/mês)</label><input class="fi fiu fmoney" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
-        <div class="ff"><label class="fl">Dia Vencimento</label><select class="sel" id="f_day">${_vdyOpts}</select></div>
-        <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${poV}</select></div>
+        <div class="ff"><label class="fl">Dia Vencimento</label>${gpField('f_day', _vdias, d&&d.day, {clear:'—',cols:7})}</div>
+        <div class="ff"><label class="fl">Cartão</label>${gpField('f_card', S.cfg.pay, d&&d.card, {ph:'Escolhe um cartão...'})}</div>
         <div class="ff full"><label class="fl">Ativo a partir de</label>
           <div class="row g1">
-            <select class="sel" id="f_afM" style="flex:1">${_vmoOptAf}</select>
-            <select class="sel" id="f_afY" style="flex:1">${_vyrOptAf}</select>
+            <div style="flex:1">${gpField('f_afM', _vmeses, _vafM2, {cols:4})}</div>
+            <div style="flex:1">${gpField('f_afY', _vyrs, _vafY, {cols:4})}</div>
           </div>
         </div>
         <div class="ff full"><label class="fl">Encerrar em <span class="tmut" style="font-weight:400;text-transform:none">(opcional)</span></label>
           <div class="row g1">
-            <select class="sel" id="f_atM" style="flex:1">${_vmoOptAt}</select>
-            <select class="sel" id="f_atY" style="flex:1">${_vyrOptAt}</select>
+            <div style="flex:1">${gpField('f_atM', _vmeses, _vatM2, {clear:'—',cols:4})}</div>
+            <div style="flex:1">${gpField('f_atY', _vyrs, _vatY, {clear:'—',cols:4})}</div>
           </div>
         </div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
@@ -5468,11 +5540,10 @@ function buildForm(type, d) {
       <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
       <div class="ff"><label class="fl">Categoria</label>${chipField('f_cat', S.cfg.ccat, d&&d.cat)}</div>
       <div class="ff"><label class="fl">Valor (${curSym()})</label><input class="fi fiu fmoney" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
-      <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${po}</select></div>
+      <div class="ff"><label class="fl">Cartão</label>${gpField('f_card', S.cfg.pay, d&&d.card, {ph:'Escolhe uma conta...'})}</div>
       <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
     </div>`;
     case 'carga': {
-      var poC = selOptsReq(S.cfg.pay, d&&d.card, 'Escolhe um cartão...');
       var _isFrota = !!(d && d.frota);
       var _frS = d&&d.frSessao!=null ? d.frSessao : (S.cfg.frotaSessao||'');
       var _frM = d&&d.frPerMin!=null ? d.frPerMin : (S.cfg.frotaMin||'');
@@ -5495,19 +5566,18 @@ function buildForm(type, d) {
           </div>
         </div>
         <div class="ff"><label class="fl">Valor (${curSym()}) ${_isFrota?'<span class="tmut" style="font-weight:400">(auto, mas edita se já souberes o total)</span>':''}</label><input class="fi fiu fmoney" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" ${d?'data-manual="1"':''} oninput="moneyMask(event,2);this.dataset.manual='1'"></div>
-        <div class="ff" id="f_cardRow" style="display:${_isFrota?'none':''}"><label class="fl">Cartão</label><select class="fi" id="f_card">${poC}</select></div>
+        <div class="ff" id="f_cardRow" style="display:${_isFrota?'none':''}"><label class="fl">Cartão</label>${gpField('f_card', S.cfg.pay, d&&d.card, {ph:'Escolhe um cartão...'})}</div>
         <div class="ff" id="f_frotaCardNote" style="display:${_isFrota?'':'none'};align-self:end"><span class="tmut" style="font-size:.72rem">💼 Descontado direto no vencimento — sem conta associada.</span></div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
       </div>`;
     }
     case 'limp': {
       var _vcat = (S.cfg.vcat && S.cfg.vcat.length) ? S.cfg.vcat : DEFAULTS.cfg.vcat.slice();
-      var poL = selOptsReq(S.cfg.pay, d&&d.card, 'Escolhe um cartão...');
       return `<div class="fg">
         <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${dd}"></div>
         <div class="ff"><label class="fl">Tipo de Despesa</label>${chipField('f_tipo', _vcat, d&&d.tipo)}</div>
         <div class="ff"><label class="fl">Valor (${curSym()})</label><input class="fi fiu fmoney" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
-        <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card">${poL}</select></div>
+        <div class="ff"><label class="fl">Cartão</label>${gpField('f_card', S.cfg.pay, d&&d.card, {ph:'Escolhe um cartão...'})}</div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
       </div>`;
     }
@@ -5515,11 +5585,10 @@ function buildForm(type, d) {
       var vpVal = d ? d.vp : '';
       var fdVal = d ? d.fd : defaultDate();
       var numVal = d ? d.num : '';
-      var poP = selOptsReq(S.cfg.pay, d&&d.card, 'Escolhe um cartão...');
       return `<div class="fg">
         <div class="ff full"><label class="fl">Nome</label><input class="fi fiu" id="f_name" value="${d?_esc(d.name||''):''}"></div>
         <div class="ff"><label class="fl">Categoria</label>${chipField('f_cat', S.cfg.ccat, d&&d.cat)}</div>
-        <div class="ff"><label class="fl">Cartão</label><select class="fi" id="f_card" onchange="onParcCardChange()">${poP}</select></div>
+        <div class="ff"><label class="fl">Cartão</label>${gpField('f_card', S.cfg.pay, d&&d.card, {ph:'Escolhe um cartão...',onpick:'onParcCardChange'})}</div>
         <div class="ff"><label class="fl">Sistema de pagamento</label>
           <select class="fi" id="f_sys" onchange="_parcRecalc()">
             <option value="">Cartão / direto</option>
@@ -5570,7 +5639,7 @@ function buildForm(type, d) {
         <div class="ff full" style="border-top:1px solid var(--brd);padding-top:.7rem">
           <label class="fl">Ajustar um mês <span class="tmut" style="font-weight:400;text-transform:none">(opcional — só muda esse mês)</span></label>
           <div class="row g1">
-            <select class="sel" id="f_ovM" style="flex:1.2" onchange="_parcOvPickMonth()">${parcMonths(d).map(function(m){return '<option value="'+m+'">'+monthLabel(m)+'</option>';}).join('')}</select>
+            <div style="flex:1.2">${gpField('f_ovM', parcMonths(d).map(function(m){return {v:m,l:monthLabel(m)};}), parcMonths(d)[0], {cols:2,onpick:'_parcOvPickMonth'})}</div>
             <input class="fi" id="f_ovV" type="text" inputmode="decimal" placeholder="0,00" style="flex:1" oninput="moneyMask(event,2)">
             <button type="button" class="btn sec" style="padding:.4rem .9rem;font-size:.78rem;flex-shrink:0" onclick="applyParcOv()">Aplicar</button>
           </div>
@@ -5597,13 +5666,11 @@ function buildForm(type, d) {
       </div>`;
     }
     case 'trf': {
-      var po1 = selOptsReq(S.cfg.pay, d&&d.from, 'Escolhe a origem...');
-      var po2 = selOptsReq(S.cfg.pay, d&&d.to, 'Escolhe o destino...');
       return `<div class="fg">
         <div class="ff"><label class="fl">Data</label><input class="fi fiu" id="f_date" type="date" value="${d?d.date:todayStr()}"></div>
         <div class="ff"><label class="fl">Valor (${curSym()})</label><input class="fi fiu fmoney" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
-        <div class="ff"><label class="fl">De (origem)</label><select class="fi" id="f_from">${po1}</select></div>
-        <div class="ff"><label class="fl">Para (destino)</label><select class="fi" id="f_to">${po2}</select></div>
+        <div class="ff"><label class="fl">De (origem)</label>${gpField('f_from', S.cfg.pay, d&&d.from, {ph:'Escolhe a origem...'})}</div>
+        <div class="ff"><label class="fl">Para (destino)</label>${gpField('f_to', S.cfg.pay, d&&d.to, {ph:'Escolhe o destino...'})}</div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
       </div>`;
     }
@@ -5616,13 +5683,12 @@ function buildForm(type, d) {
       return `<div class="fg">${_rinfo}<div class="ff full"><label class="fl">Saldo real no banco (${curSym()})</label><input class="fi fiu" id="f_real_bal" type="text" inputmode="decimal" placeholder="${_appBal !== null ? _appBal.toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2}) : '0,00'}" autofocus oninput="moneyMask(event,2)"></div></div>`;
     }
     case 'recrule': {
-      var poR = selOptsReq(S.cfg.pay, d&&d.card, 'Escolhe uma conta...');
       var _fqR = (d&&d.freq)||'monthly';
       return `<div class="fg">
         <div class="ff"><label class="fl">Fonte</label>${chipField('f_src', S.cfg.src, d&&d.src)}</div>
         <div class="ff"><label class="fl">Valor (${curSym()})</label><input class="fi fiu fmoney" id="f_val" type="text" inputmode="decimal" placeholder="0,00" value="${d?moneyDisp(d.val,2):''}" oninput="moneyMask(event,2)"></div>
         <div class="ff"><label class="fl">Frequência</label><select class="fi" id="f_freq"><option value="monthly"${_fqR==='monthly'?' selected':''}>Mensal</option><option value="weekly"${_fqR==='weekly'?' selected':''}>Semanal</option></select></div>
-        <div class="ff"><label class="fl">Conta de Destino</label><select class="fi" id="f_card">${poR}</select></div>
+        <div class="ff"><label class="fl">Conta de Destino</label>${gpField('f_card', S.cfg.pay, d&&d.card, {ph:'Escolhe uma conta...'})}</div>
         <div class="ff"><label class="fl">Primeira receita</label><input class="fi fiu" id="f_start" type="date" value="${d&&d.start?d.start:defaultDate()}"></div>
         <div class="ff"><label class="fl">Terminar em <span class="tmut" style="font-weight:400;text-transform:none">(opcional)</span></label><input class="fi" id="f_until" type="date" value="${d&&d.until?d.until:''}"></div>
         <div class="ff full"><label class="fl">Notas</label><input class="fi" id="f_notes" value="${d?_esc(d.notes||''):''}"></div>
@@ -5646,12 +5712,11 @@ function buildForm(type, d) {
           </span>
         </div>`;
       }).join('');
-      var _cardOpts = d.debitCards.map(function(c){return `<option value="${_esc(c)}">${_esc(c)}</option>`;}).join('');
       return `<div class="fg">
         <div class="inf" style="margin-bottom:.75rem">Fatura total: <strong>${fmt(d.total)}</strong> · já pago: <strong>${fmt(d.pago)}</strong> · falta: <strong style="color:var(--red)">${fmt(d.restante)}</strong></div>
         ${_payHist ? '<div class="ff full" style="margin-bottom:.25rem">'+_payHist+'</div>' : ''}
         <div class="ff"><label class="fl">Valor a pagar agora (${curSym()})</label><input class="fi fiu" id="f_fatpay_val" type="text" inputmode="decimal" value="${moneyDisp(d.restante,2)}" autofocus oninput="moneyMask(event,2)"></div>
-        <div class="ff"><label class="fl">Pagar com</label><select class="fi" id="f_fatpay_from">${_cardOpts}</select></div>
+        <div class="ff"><label class="fl">Pagar com</label>${gpField('f_fatpay_from', d.debitCards, d.debitCards[0], {ph:'Escolhe a conta...'})}</div>
         <div class="tmut" style="font-size:.72rem;margin-top:.35rem">Pode ser um valor parcial — o que faltar continua pendente.</div>
       </div>`;
     }
@@ -9331,6 +9396,11 @@ function _impBankFile(bank) {
     <button type="button" onclick="qCalNav(1)">›</button>
   </div>
   <div class="qcal-grid" id="qCalGrid"></div>
+</div>
+
+<!-- popup de grelha genérico (partilha a base .qcal; ver gpOpen/gpField) -->
+<div class="qcal gp" id="gp" role="listbox">
+  <div class="qcal-grid" id="gpGrid"></div>
 </div>
 <script>
 "use strict";
