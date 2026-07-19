@@ -551,6 +551,11 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 .fsel{display:flex;align-items:center;justify-content:space-between;gap:.4rem;text-align:left;cursor:pointer}
 .fsel.ph{color:var(--mut)}
 .fsel-ch{color:var(--mut);font-size:.58rem;flex-shrink:0}
+/* filtros: o select nativo fica escondido (continua a mandar) e este botão é a cara */
+.gsel-hid{display:none!important}
+.gselbtn{display:inline-flex;align-items:center;gap:.4rem;background:var(--bg);border:1px solid var(--brd);border-radius:var(--r-sm);padding:.3rem .55rem;font-size:.78rem;color:var(--txt);cursor:pointer;font-family:inherit;max-width:230px;transition:border-color var(--tr),box-shadow .22s cubic-bezier(.34,1.56,.64,1)}
+.gselbtn:focus-visible{outline:none;border-color:var(--blu);box-shadow:0 0 0 3px rgba(var(--blu-rgb),.15)}
+.gselbtn>span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .qdet select{background:none;border:none;outline:none;color:var(--txt);
             font-size:.78rem;font-weight:600;font-family:inherit;width:100%;min-width:0;cursor:pointer}
 .qlbl{font-size:.7rem;color:var(--mut);font-weight:700}
@@ -2966,6 +2971,7 @@ function renderTab(id) {
   };
   if (fns[id]) {
     try { fns[id](); } catch(e) { console.error(id, e); }
+    gpSyncSelects();   // labels dos filtros seguem as options repopuladas
   }
   // Repor as setas do modo organizar — os renders substituem o conteúdo dos cartões
   if (_secEditMode) _renderSecHandles();
@@ -5409,7 +5415,7 @@ function gpOpen(e, id) {
     return '<button type="button" class="qcal-d' + (itm.v === cur ? ' selq' : '') + '" data-v="' + _esc(itm.v) + '" onclick="gpPick(event,this)">' + _esc(itm.l) + '</button>';
   }).join('');
   // âncora ao campo; mede o espaço antes de decidir a direção (como o qCal)
-  var r = document.getElementById(id + '_btn').getBoundingClientRect();
+  var r = document.getElementById(cfg.anchor || id + '_btn').getBoundingClientRect();
   var ch = gp.offsetHeight || 280, cw = gp.offsetWidth || 240;
   var up = (window.innerHeight - r.bottom) < ch + 12 && r.top > ch + 12;
   gp.classList.toggle('up', up);
@@ -5424,7 +5430,8 @@ function gpOpen(e, id) {
   }, 0);
 }
 function _gpOut(ev) {
-  var gp = document.getElementById('gp'), btn = _gpFor && document.getElementById(_gpFor + '_btn');
+  var cfg = _gpFor && _GP[_gpFor];
+  var gp = document.getElementById('gp'), btn = _gpFor && document.getElementById((cfg && cfg.anchor) || _gpFor + '_btn');
   if (!gp.contains(ev.target) && !(btn && btn.contains(ev.target))) gpClose();
 }
 function _gpEsc(ev) { if (ev.key === 'Escape') { ev.stopPropagation(); gpClose(); } }
@@ -5439,6 +5446,14 @@ function gpPick(ev, el) {
   ev.stopPropagation();
   var cfg = _GP[_gpFor]; if (!cfg) return;
   var v = el.dataset.v;
+  if (cfg.selId) {
+    // modo select-escondido (filtros): o select é a fonte de verdade — escreve
+    // e despacha 'change' para o onchange inline correr tal e qual
+    var sEl = document.getElementById(cfg.selId);
+    gpClose();
+    if (sEl) { sEl.value = v; sEl.dispatchEvent(new Event('change', {bubbles: true})); }
+    return;
+  }
   var inp = document.getElementById(_gpFor); if (inp) inp.value = v;
   var it = null;
   for (var i = 0; i < cfg.items.length; i++) if (cfg.items[i].v === v) { it = cfg.items[i]; break; }
@@ -5449,6 +5464,45 @@ function gpPick(ev, el) {
   gpClose();
   if (cb && typeof window[cb] === 'function') window[cb]();
 }
+
+// ── enhancement de <select> existentes (filtros das listas) ──────
+// O select fica escondido mas continua a ser a fonte de verdade: os renders
+// continuam a (re)preencher as options, o .value é o mesmo, e o onchange
+// inline dispara na mesma. O botão .gselbtn abre o popup de grelha com as
+// options do próprio select; o label sincroniza no 'change' e em cada render.
+function gpEnhanceSelect(id, cols) {
+  var s = document.getElementById(id);
+  if (!s || s._gpEn) return; s._gpEn = 1; s._gpCols = cols || 2;
+  var b = document.createElement('button');
+  b.type = 'button'; b.className = 'gselbtn'; b.id = id + '_gsbtn';
+  b.innerHTML = '<span></span><span class="fsel-ch">▾</span>';
+  b.addEventListener('click', function(ev) { gpOpenSel(ev, id); });
+  s.parentNode.insertBefore(b, s.nextSibling);
+  s.classList.add('gsel-hid');
+  s.addEventListener('change', function() { _gpLbl(s, b); });
+  _gpLbl(s, b);
+}
+function _gpLbl(s, b) {
+  var o = s.options[s.selectedIndex];
+  b.firstChild.textContent = o ? o.text : '—';
+}
+function gpSyncSelects() {
+  [].forEach.call(document.querySelectorAll('select.gsel-hid'), function(s) {
+    var b = document.getElementById(s.id + '_gsbtn'); if (b) _gpLbl(s, b);
+  });
+}
+function gpOpenSel(ev, id) {
+  var s = document.getElementById(id); if (!s) return;
+  _GP[id] = {
+    items: [].map.call(s.options, function(o) { return {v: o.value, l: o.text}; }),
+    cols: s._gpCols || 2, onpick: null, ph: '—', selId: id, anchor: id + '_gsbtn'
+  };
+  gpOpen(ev, id);
+}
+// filtros das listas (markup estático, já existente quando o script corre)
+['recSrcFilt','recCardFilt','dfCardFilt','dcCardFilt','dcSrcFilt','dcCatFilt',
+ 'cgCardFilt','cgFrotaFilt','lpTipoFilt','lpCardFilt','vehDfCatFilt','vehDfCardFilt',
+ 'parcCatFilt','parcCardFilt','ctFilt'].forEach(function(id){ gpEnhanceSelect(id); });
 
 function buildForm(type, d) {
   var dd = (d && d.date) ? d.date : defaultDate();
