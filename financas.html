@@ -2248,7 +2248,14 @@ function updateUR() {
 }
 
 function undo() {
-  if (HIDX <= 0) return;
+  if (HIDX < 0) return;
+  if (HIDX === HIST.length - 1) {
+    // o estado atual (pós-última edição) nunca foi guardado — captura
+    // antes de sair dele, senão "Refazer" depois não consegue voltar
+    HIST.push(JSON.stringify(S));
+    HIDX = HIST.length - 1;
+  }
+  if (HIDX <= 0) { updateUR(); return; }
   HIDX--;
   S = JSON.parse(HIST[HIDX]);
   localStorage.setItem(SK, JSON.stringify(S));
