@@ -1226,6 +1226,19 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
       <div class="srch-bar">
         <select id="parcCatFilt" onchange="PARC_CAT=this.value;renderParcelas()"><option value="">Todas as categorias</option></select>
         <select id="parcCardFilt" onchange="PARC_CARD=this.value;renderParcelas()"><option value="all">Todos os cartões</option></select>
+        <select id="parcSortFilt" onchange="PARC_SORT_COL=this.value||null;renderParcelas()">
+          <option value="">Ordenar por</option>
+          <option value="name">Nome</option>
+          <option value="vp">Valor</option>
+          <option value="fd">Início</option>
+          <option value="exp">Expiração</option>
+          <option value="rest">Restante</option>
+          <option value="pct">Progresso</option>
+        </select>
+        <select id="parcSortDirFilt" onchange="PARC_SORT_DIR=parseInt(this.value,10);renderParcelas()">
+          <option value="1">Crescente</option>
+          <option value="-1">Decrescente</option>
+        </select>
       </div>
       <div id="parcGrid" style="padding:1rem"></div>
     </div>
@@ -4170,6 +4183,7 @@ function renderParcelas() {
           case 'paid': av = a.paid; bv = b.paid; break;
           case 'rest': av = a.rest; bv = b.rest; break;
           case 'pct':  av = a.pct;  bv = b.pct;  break;
+          case 'exp': var ms1=parcMonths(a.p), ms2=parcMonths(b.p); av=ms1.length?parcDate(a.p,ms1[ms1.length-1]):''; bv=ms2.length?parcDate(b.p,ms2[ms2.length-1]):''; break;
           default: av = 0; bv = 0;
         }
         if (av < bv) return -dir;
@@ -5495,7 +5509,7 @@ function gpOpenSel(ev, id) {
 // filtros das listas (markup estático, já existente quando o script corre)
 ['recSrcFilt','recCardFilt','dfCardFilt','dcCardFilt','dcSrcFilt','dcCatFilt',
  'cgCardFilt','cgFrotaFilt','lpTipoFilt','lpCardFilt','vehDfCatFilt','vehDfCardFilt',
- 'parcCatFilt','parcCardFilt','ctFilt'].forEach(function(id){ gpEnhanceSelect(id); });
+ 'parcCatFilt','parcCardFilt','parcSortFilt','parcSortDirFilt','ctFilt'].forEach(function(id){ gpEnhanceSelect(id); });
 // qVehLocalSel vive na folha rápida, cujo markup vem depois deste script —
 // é realçado no primeiro qOpen (idempotente)
 
