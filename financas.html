@@ -326,6 +326,29 @@ tbody.anim tr:nth-child(n+6){animation-delay:.14s}
 .pmp .pmv{color:var(--grn)}
 .pmd{font-size:.5rem;color:var(--mut);line-height:1}
 
+/* PARCELA CARDS (mobile — abaixo do breakpoint de .parc-cards no JS) */
+/* estrutura como .fcard, valor protagonista como .fmoney, barra como .pb/.pf, chips como .pmc/.pmv/.pmd */
+.parc-cards{display:flex;flex-direction:column;gap:.65rem}
+.pcc{background:var(--s1);border-left:3px solid var(--_pc,var(--pur));border-radius:var(--r);padding:.9rem 1rem;box-shadow:var(--sh-card)}
+.pcc.done{opacity:.6}
+.pcc-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.5rem}
+.pcc-name{font-weight:700;font-size:.88rem;display:flex;align-items:center;flex-wrap:wrap;gap:.3rem;line-height:1.3}
+.pcc-money{display:flex;align-items:baseline;gap:.3rem;flex-wrap:wrap;margin-bottom:.15rem}
+.pcc-money-val{font-size:1.35rem;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.pcc-money-sub{font-size:.72rem;color:var(--mut)}
+.pcc-bar-row{display:flex;align-items:center;gap:.5rem;margin:.4rem 0}
+.pcc-bar-row .pb{flex:1;margin-top:0}
+.pcc-pct{font-size:.66rem;color:var(--mut);white-space:nowrap}
+.pcc-next{display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;padding-top:.55rem;margin-top:.15rem;border-top:1px solid var(--brd)}
+.pcc-next-lbl{font-size:.72rem;color:var(--mut)}
+.pcc-next-auto{font-size:.76rem;font-weight:600;color:var(--grn)}
+.pcc-toggle{background:none;border:none;cursor:pointer;color:var(--blu);font-size:.72rem;font-weight:600;padding:.35rem 0;width:100%;text-align:center;margin-top:.55rem;border-top:1px solid var(--brd)}
+.pcc-months{display:flex;flex-wrap:wrap;gap:.35rem;padding-top:.6rem}
+/* mola nos botões novos do cartão e no menu ⋮ — mesma curva de .btn */
+.pcc-pay-btn,.pcc-toggle,.pcc-more>.ic{transition:transform .22s cubic-bezier(.34,1.56,.64,1),background var(--tr),color var(--tr),box-shadow .2s}
+.pcc-pay-btn:hover,.pcc-toggle:hover{transform:scale(1.02)}
+.pcc-pay-btn:active,.pcc-toggle:active,.pcc-more>.ic:active{transform:scale(.92)}
+
 /* SINKING FUNDS */
 .fcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.65rem;margin-bottom:1rem}
 .fcard{background:var(--s1);border-left:3px solid var(--_fc,var(--grn));border-radius:var(--r);padding:1rem;box-shadow:var(--sh-card)}
