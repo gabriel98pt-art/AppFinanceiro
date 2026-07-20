@@ -4665,32 +4665,6 @@ function cardBalAtDate(card, endDate) {
   return snap.val + recIn - dcOut + trfIn - trfOut;
 }
 
-// Sum of fixed expenses (df) for a card with effective date > afterDate and <= upToDate,
-// only counting entries that are paid (autoRenew or paidMonths marked).
-function dfDebitsGtLte(card, afterDate, upToDate) {
-  var total = 0;
-  var fromYm = afterDate.slice(0,7);
-  var toYm   = upToDate.slice(0,7);
-  S.df.forEach(function(d) {
-    if (d.card !== card) return;
-    var y = parseInt(fromYm.slice(0,4)), m = parseInt(fromYm.slice(5,7));
-    while (true) {
-      var cur = y + '-' + (m < 10 ? '0' : '') + m;
-      if (cur > toYm) break;
-      if (isActiveForYm(d, cur)) {
-        var lastDay = new Date(y, m, 0).getDate();
-        var day = Math.min(d.day || 1, lastDay);
-        var eff = cur + '-' + (day < 10 ? '0' : '') + day;
-        if (eff > afterDate && eff <= upToDate && (d.autoRenew || (d.paidMonths && d.paidMonths[cur]))) {
-          total += d.val;
-        }
-      }
-      if (++m > 12) { m = 1; y++; }
-    }
-  });
-  return total;
-}
-
 function getCardSnap(card, refDate) {
   var raw = (S.cfg.balSnap||{})[card];
   if (!raw) return {val: 0, date: '0000-01-01'};
