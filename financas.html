@@ -8413,62 +8413,6 @@ document.addEventListener('keydown', function(e) {
       S.cfg._migrationBackupDone = true;
     }
 
-    if (!S.cfg._mig_dedup3_revolut_2026) {
-      // MODO SEGURO: identifica potenciais duplicados por valor, não apaga nada
-      if (!S.cfg.migrationLog) S.cfg.migrationLog = {};
-      var _cgSeen3 = {}, _dupes3 = [];
-      S.veh.cg.forEach(function(e) {
-        var k = Math.round(e.val * 100);
-        if (_cgSeen3[k]) {
-          _dupes3.push({ type: 'veh.cg', id: e.id, val: e.val, date: e.date, note: 'valor duplicado de id ' + _cgSeen3[k] });
-        } else {
-          _cgSeen3[k] = e.id;
-        }
-      });
-      S.cfg.migrationLog._mig_dedup3 = { ts: new Date().toISOString(), potential_dupes: _dupes3 };
-      S.cfg._mig_dedup3_revolut_2026 = true;
-      saveState();
-    }
-
-    if (!S.cfg._mig_clean_dupes_2026) {
-      // MODO SEGURO: identifica potenciais duplicados, não apaga nada
-      if (!S.cfg.migrationLog) S.cfg.migrationLog = {};
-      var _pm = {}, _dupes2 = [];
-      S.dc.forEach(function(e) {
-        if (e._src === 'parc') {
-          var k = (e.name||'') + '|' + Math.round(e.val*100) + '|' + (e.date||'').slice(0,7);
-          _pm[k] = true;
-        }
-      });
-      S.dc.forEach(function(e) {
-        if (e._src) return;
-        if (e.name === 'Svea Bank') {
-          _dupes2.push({ type: 'dc', id: e.id, name: e.name, val: e.val, date: e.date, note: 'Svea Bank sem _src — possível duplicado de parcela' });
-        }
-        var k = (e.name||'') + '|' + Math.round(e.val*100) + '|' + (e.date||'').slice(0,7);
-        if (_pm[k]) {
-          _dupes2.push({ type: 'dc', id: e.id, name: e.name, val: e.val, date: e.date, note: 'coincide com _src:parc no mesmo mês' });
-        }
-      });
-      S.cfg.migrationLog._mig_clean_dupes = { ts: new Date().toISOString(), potential_dupes: _dupes2 };
-      S.cfg._mig_clean_dupes_2026 = true;
-      saveState();
-    }
-
-    if (!S.cfg._mig_clean_klarna_2026) {
-      // MODO SEGURO: identifica entradas Klarna sem _src, não apaga nada
-      if (!S.cfg.migrationLog) S.cfg.migrationLog = {};
-      var _klarDupes = [];
-      S.dc.forEach(function(e) {
-        if (!e._src && (e.name||'').toLowerCase().indexOf('klarna') >= 0) {
-          _klarDupes.push({ type: 'dc', id: e.id, name: e.name, val: e.val, date: e.date, note: 'Klarna sem _src — possível duplicado de parcela' });
-        }
-      });
-      S.cfg.migrationLog._mig_clean_klarna = { ts: new Date().toISOString(), potential_dupes: _klarDupes };
-      S.cfg._mig_clean_klarna_2026 = true;
-      saveState();
-    }
-
     if (!S.cfg._mig_fcat_merged_2026) {
       if (S.cfg.fcat && S.cfg.fcat.length) {
         S.cfg.ccat = S.cfg.ccat || [];
