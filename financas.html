@@ -4407,9 +4407,13 @@ function renderParcelas() {
     return c;
   }
 
-  // Active parcelas table
+  // Mobile: cartões (buildParcCards) — desktop: tabela de meses (buildParcTable), como sempre
+  var _parcMobile = _isParcMobile();
+  _parcLastMobile = _parcMobile;
+
+  // Active parcelas
   if (activePar.length) {
-    h += buildParcTable(activePar, false);
+    h += _parcMobile ? ('<div class="parc-cards">' + buildParcCards(activePar, false) + '</div>') : buildParcTable(activePar, false);
   } else {
     h += _emptyDiv('✅','Todas as parcelas concluídas','Não há prestações em aberto');
   }
@@ -4423,14 +4427,28 @@ function renderParcelas() {
         <span style="flex:1;height:1px;background:var(--brd);margin-left:.5rem"></span>
       </button>
       <div id="parcDoneSection" style="display:none">`;
-    h += buildParcTable(donePar, true);
+    h += _parcMobile ? ('<div class="parc-cards">' + buildParcCards(donePar, true) + '</div>') : buildParcTable(donePar, true);
     h += '</div></div>';
   }
 
   document.getElementById('parcGrid').innerHTML = h;
   _applyAllVis();
-  _parcFreezeCols();
+  // As colunas fixas são só da tabela desktop — em mobile os cartões não precisam disso
+  if (!_parcMobile) _parcFreezeCols();
 }
+
+// Redesenha Parcelas se o ecrã atravessar o breakpoint mobile/desktop enquanto
+// a tab está aberta — não em todo pixel de resize (debounce) nem quando a tab
+// não é a atual (senão recalculávamos algo que nem está visível).
+var _parcResizeTimer = null;
+window.addEventListener('resize', function() {
+  clearTimeout(_parcResizeTimer);
+  _parcResizeTimer = setTimeout(function() {
+    if (typeof CUR !== 'undefined' && CUR !== 'parcelas') return;
+    var nowMobile = _isParcMobile();
+    if (nowMobile !== _parcLastMobile) renderParcelas();
+  }, 150);
+});
 
 // As colunas Pago/Restante/Progresso/Ações ficam fixas à direita (tabela tem uma coluna
 // por mês, pode passar de 20). O deslocamento de cada uma tem de bater com a largura RÊAL

@@ -1,4 +1,4 @@
-var CACHE = 'qf-v14';
+var CACHE = 'qf-v15';
 var FILES = ['./financas.html', './manifest.json'];
 var NO_CACHE = ['quick.html'];
 
