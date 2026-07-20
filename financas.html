@@ -4095,6 +4095,12 @@ var PARC_YRBRK = [];
 // sentido ao mesmo tempo: uma é ordem calculada, a outra é ordem escolhida à mão).
 var PARC_SORT_COL = null;
 var PARC_SORT_DIR = 1;
+// Cartões (mobile): estado de "ver meses" por parcela, e último modo desenhado
+// (tabela vs cartões) para o listener de resize saber quando precisa redesenhar.
+var _pccExpanded = {};
+var _parcLastMobile = null;
+// Mesmo breakpoint que o resto da app usa para mudanças estruturais em mobile (@media(max-width:600px)).
+function _isParcMobile() { return window.innerWidth <= 600; }
 function parcSort(col) {
   if (PARC_SORT_COL === col) {
     PARC_SORT_DIR = PARC_SORT_DIR === 1 ? -1 : null;
@@ -4297,6 +4303,110 @@ function renderParcelas() {
     return t;
   }
 
+  // Mobile: cada parcela vira um cartão em vez de linha de tabela — espelha
+  // buildParcTable() acima (mesmo pré-cálculo de paid/rest/pct/ordenação),
+  // mas sem drag&drop (não faz sentido reordenar por toque num cartão).
+  function buildParcCards(list, isDone) {
+    var rows = list.map(function(item) {
+      var p = item.p, ms = parcMonths(p);
+      var paid = 0;
+      for (var k = 0; k < ms.length; k++) { if (p.py[ms[k]]) paid++; }
+      var rest = sumMoney(ms.filter(function(m){return !p.py[m];}), function(m){ return parcVal(p, m); });
+      var pct = ms.length ? Math.round(paid / ms.length * 100) : 0;
+      return { p: p, pi: item.pi, ms: ms, paid: paid, rest: rest, pct: pct };
+    });
+
+    if (PARC_SORT_COL) {
+      var dir = PARC_SORT_DIR;
+      rows.sort(function(a, b) {
+        var av, bv;
+        switch (PARC_SORT_COL) {
+          case 'name': av = (a.p.name||'').toLowerCase(); bv = (b.p.name||'').toLowerCase(); break;
+          case 'fd':   av = a.p.fd||''; bv = b.p.fd||''; break;
+          case 'cat':  av = (a.p.cat||'').toLowerCase();  bv = (b.p.cat||'').toLowerCase();  break;
+          case 'vp':   av = a.p.vp||0; bv = b.p.vp||0; break;
+          case 'paid': av = a.paid; bv = b.paid; break;
+          case 'rest': av = a.rest; bv = b.rest; break;
+          case 'pct':  av = a.pct;  bv = b.pct;  break;
+          default: av = 0; bv = 0;
+        }
+        if (av < bv) return -dir;
+        if (av > bv) return dir;
+        return 0;
+      });
+    }
+
+    var c = '';
+    for (var li = 0; li < rows.length; li++) {
+      var p = rows[li].p, ms = rows[li].ms, paid = rows[li].paid, rest = rows[li].rest, pct = rows[li].pct;
+      var col = pct>=100?'var(--grn)':pct>=50?'var(--blu)':'var(--pur)';
+      var adBadge = p.autoDebit ? ' <span style="font-size:.58rem;background:rgba(0,212,160,.12);color:var(--grn);border:1px solid rgba(0,212,160,.25);border-radius:4px;padding:.05rem .3rem;font-weight:600">auto</span>' : '';
+      var sysBadge = p.sys ? ' <span style="font-size:.58rem;background:rgba(244,114,182,.12);color:#f472b6;border:1px solid rgba(244,114,182,.28);border-radius:4px;padding:.05rem .3rem;font-weight:600" title="' + (p.sys==='klarna' ? 'Klarna — cobrada a cada 30 dias' : 'Sequra') + '">' + (p.sys==='klarna' ? 'Klarna' : 'Sequra') + '</span>' : '';
+      var hasUnpaid = ms.filter(function(m){return !p.py[m];}).length > 0;
+
+      // Próxima parcela: o mês corrente se estiver por pagar, senão o primeiro em aberto
+      var nextHtml = '';
+      if (!isDone) {
+        var nextMonth = null;
+        if (ms.indexOf(globalMonth) >= 0 && !p.py[globalMonth]) nextMonth = globalMonth;
+        else { for (var nmi = 0; nmi < ms.length; nmi++) { if (!p.py[ms[nmi]]) { nextMonth = ms[nmi]; break; } } }
+        if (nextMonth) {
+          var nDate = parcDate(p, nextMonth);
+          var nVal = parcVal(p, nextMonth);
+          var nOv = !!(p.ov && p.ov[nextMonth] != null);
+          var nOvMark = nOv ? '<span style="color:var(--ylw);font-weight:800" title="Valor ajustado neste mês: '+fmt(nVal)+'">*</span>' : '';
+          var nLbl = `<span class="pcc-next-lbl">${monthLabel(nextMonth)} · vence ${fmtDateShort(nDate)}${nOvMark}</span>`;
+          nextHtml = p.autoDebit
+            ? `<div class="pcc-next">${nLbl}<span class="pcc-next-auto">⚡ Débito automático</span></div>`
+            : `<div class="pcc-next">${nLbl}<button class="btn sm pri pcc-pay-btn" onclick="payParc(${p.id},'${nextMonth}','${nDate}')">Marcar pago</button></div>`;
+        }
+      }
+
+      // "Ver os N meses" — todos os meses como chips .pmc/.pma/.pmp/.pmv/.pmd (mesmos estilos da tabela)
+      var monthsHtml = '';
+      for (var ci = 0; ci < ms.length; ci++) {
+        var cm = ms[ci];
+        var ip = p.py[cm];
+        var dt = parcDate(p, cm);
+        var ds = fmtDateShort(dt);
+        var cv = parcVal(p, cm);
+        var isOv = !!(p.ov && p.ov[cm] != null);
+        var ovMark = isOv ? '<span style="color:var(--ylw);font-weight:800" title="Valor ajustado neste mês: '+fmt(cv)+'">*</span>' : '';
+        var monLbl = MN[parseInt(cm.slice(5))-1] + '/' + cm.slice(2,4);
+        if (ip) {
+          var unPayClick = p.autoDebit ? '' : `onclick="unpayParc(${p.id},'${cm}')"`;
+          var unPayTitle = p.autoDebit ? 'Pago via fatura do cartão' : 'Clique para desmarcar — '+fmt(cv);
+          monthsHtml += `<div class="pmc pmp" ${unPayClick} title="${unPayTitle}"><span class="pmv">${monLbl}</span><span class="pmd">${p.autoDebit?'⚡':'✓'} ${ds}${ovMark}</span></div>`;
+        } else if (p.autoDebit) {
+          monthsHtml += `<div class="pmc" title="Débito automático — será pago com a fatura (${fmt(cv)})" style="cursor:default"><span class="pmv" style="color:var(--mut)">${monLbl}</span><span class="pmd" style="color:var(--mut)">auto · ${ds}${ovMark}</span></div>`;
+        } else {
+          monthsHtml += `<div class="pmc pma" onclick="payParc(${p.id},'${cm}','${dt}')" title="Marcar como pago — ${fmt(cv)}"><span class="pmv">${monLbl}</span><span class="pmd" style="font-weight:600;color:var(--blu)">${ds}${ovMark}</span></div>`;
+        }
+      }
+      var toggleHtml = ms.length ? `<button class="pcc-toggle" id="pccToggle_${p.id}" data-n="${ms.length}" onclick="_pccToggleMonths(${p.id})">${_pccExpanded[p.id]?'Esconder meses ⌃':'Ver os '+ms.length+' meses ⌄'}</button>
+        <div class="pcc-months" id="pccMonths_${p.id}" style="display:${_pccExpanded[p.id]?'flex':'none'}">${monthsHtml}</div>` : '';
+
+      c += `<div class="pcc${isDone?' done':''}" style="--_pc:${col}">
+        <div class="pcc-hdr">
+          <div class="pcc-name">${p.cat?ccatBadge(p.cat):''} ${_esc(p.name||'')}${adBadge}${sysBadge}</div>
+          <div class="hdr-more pcc-more">
+            <button class="ic" onclick="_pccMenuToggle(event,${p.id})" title="Mais ações">⋮</button>
+            <div class="hdr-more-menu" id="pccMenu_${p.id}">
+              <button class="hdr-more-item" onclick="openModal('parc',${p.id})">✏ <span style="color:var(--mut);font-size:.72rem">Editar</span></button>
+              ${hasUnpaid&&!isDone?`<button class="hdr-more-item" onclick="quitarParc(${p.id})">💰 <span style="color:var(--mut);font-size:.72rem">Quitar antecipadamente</span></button>`:''}
+              ${!isDone?`<button class="hdr-more-item" onclick="delRec('par',${p.id})">🗑 <span style="color:var(--mut);font-size:.72rem">Eliminar</span></button>`:''}
+            </div>
+          </div>
+        </div>
+        <div class="pcc-money"><span class="pcc-money-val">${fmt(p.vp)}</span><span class="pcc-money-sub">/mês · ${paid}/${ms.length} pagas</span></div>
+        <div class="pcc-bar-row"><div class="pb"><div class="pf" style="width:${pct}%;background:${col}"></div></div><span class="pcc-pct">${pct}% · ${fmt(rest)} restante</span></div>
+        ${nextHtml}
+        ${toggleHtml}
+      </div>`;
+    }
+    return c;
+  }
+
   // Active parcelas table
   if (activePar.length) {
     h += buildParcTable(activePar, false);
@@ -4354,6 +4464,31 @@ function toggleParcDone() {
   // colunas fixas só conseguem medir a largura real agora que ficou visível
   if (isHidden) _parcFreezeCols();
 }
+
+// Cartões de parcela (mobile) — expandir/colapsar a faixa de meses e o menu ⋮.
+// Estado fica só em memória (_pccExpanded); não precisa persistir entre sessões.
+function _pccToggleMonths(id) {
+  var box = document.getElementById('pccMonths_' + id);
+  var btn = document.getElementById('pccToggle_' + id);
+  if (!box || !btn) return;
+  var willOpen = box.style.display === 'none';
+  box.style.display = willOpen ? 'flex' : 'none';
+  btn.textContent = willOpen ? 'Esconder meses ⌃' : ('Ver os ' + btn.dataset.n + ' meses ⌄');
+  _pccExpanded[id] = willOpen;
+}
+function _pccMenuToggle(e, id) {
+  if (e) e.stopPropagation();
+  var m = document.getElementById('pccMenu_' + id);
+  if (!m) return;
+  var wasOpen = m.classList.contains('open');
+  document.querySelectorAll('.pcc-more .hdr-more-menu.open').forEach(function(x) { x.classList.remove('open'); });
+  if (!wasOpen) m.classList.add('open');
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.pcc-more')) {
+    document.querySelectorAll('.pcc-more .hdr-more-menu.open').forEach(function(x) { x.classList.remove('open'); });
+  }
+});
 
 function payParc(id, month, date) {
   snapshot();
