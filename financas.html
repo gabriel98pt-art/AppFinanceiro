@@ -2925,6 +2925,14 @@ function ccatBadge(cat) {
   var col = CCAT_PAL[((idx % CCAT_PAL.length) + CCAT_PAL.length) % CCAT_PAL.length];
   return '<span class="bdg" style="background:'+col.bg+';color:'+col.c+'">'+_esc(cat)+'</span>';
 }
+function ccatColor(cat) {
+  var custom = (S.cfg.catColors||{})['ccat:'+cat];
+  if (custom) return custom;
+  if (CAT_SEMANTIC[cat]) return CAT_SEMANTIC[cat];
+  var idx = (S.cfg.ccat||[]).indexOf(cat);
+  if (idx < 0) idx = cat.split('').reduce(function(h,ch){return h+ch.charCodeAt(0);},0);
+  return CCAT_PAL[((idx % CCAT_PAL.length) + CCAT_PAL.length) % CCAT_PAL.length].c;
+}
 function catBadge(type, cat, prefix) {
   var custom = (S.cfg.catColors||{})[type+':'+cat];
   if (custom) return _hexToBadge(custom, (prefix||'')+cat);
