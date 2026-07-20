@@ -8241,6 +8241,10 @@ function exportCSV() {
   });
 
   S.dc.forEach(function(d) {
+    // Pagamento de fatura (_src:'fat') é o mesmo dinheiro da(s) compra(s) original(is),
+    // que já tem sua própria linha — exportar as duas conta a saída em dobro. Mesmo
+    // critério que totCorrManual() já usa pra excluir isso do total mensal.
+    if (d._src === 'fat') return;
     var sec, tipo, ref;
     if (d._src === 'parc') {
       sec = 'Despesas Correntes'; tipo = 'Parcela';
