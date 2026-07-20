@@ -4347,7 +4347,6 @@ function renderParcelas() {
     for (var li = 0; li < rows.length; li++) {
       var p = rows[li].p, ms = rows[li].ms, paid = rows[li].paid, rest = rows[li].rest, pct = rows[li].pct;
       var col = pct>=100?'var(--grn)':pct>=50?'var(--blu)':'var(--pur)';
-      var adBadge = p.autoDebit ? ' <span style="font-size:.58rem;background:rgba(0,212,160,.12);color:var(--grn);border:1px solid rgba(0,212,160,.25);border-radius:4px;padding:.05rem .3rem;font-weight:600">auto</span>' : '';
       var sysBadge = p.sys ? ' <span style="font-size:.58rem;background:rgba(244,114,182,.12);color:#f472b6;border:1px solid rgba(244,114,182,.28);border-radius:4px;padding:.05rem .3rem;font-weight:600" title="' + (p.sys==='klarna' ? 'Klarna — cobrada a cada 30 dias' : 'Sequra') + '">' + (p.sys==='klarna' ? 'Klarna' : 'Sequra') + '</span>' : '';
       var hasUnpaid = ms.filter(function(m){return !p.py[m];}).length > 0;
 
@@ -4395,7 +4394,7 @@ function renderParcelas() {
 
       c += `<div class="pcc${isDone?' done':''}" style="--_pc:${col}">
         <div class="pcc-hdr">
-          <div class="pcc-name">${p.cat?ccatBadge(p.cat):''} ${_esc(p.name||'')}${adBadge}${sysBadge}</div>
+          <div class="pcc-name">${p.cat?ccatBadge(p.cat):''} ${_esc(p.name||'')}${sysBadge}</div>
           <div class="hdr-more pcc-more">
             <button class="ic" onclick="_pccMenuToggle(event,${p.id})" title="Mais ações">⋮</button>
             <div class="hdr-more-menu" id="pccMenu_${p.id}">
