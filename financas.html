@@ -4203,7 +4203,6 @@ function renderParcelas() {
     var c = '';
     for (var li = 0; li < rows.length; li++) {
       var p = rows[li].p, ms = rows[li].ms, paid = rows[li].paid, rest = rows[li].rest, pct = rows[li].pct;
-      var col = pct>=100?'var(--grn)':pct>=50?'var(--blu)':'var(--pur)';
       var sysBadge = p.sys ? ' <span style="font-size:.58rem;background:rgba(244,114,182,.12);color:#f472b6;border:1px solid rgba(244,114,182,.28);border-radius:4px;padding:.05rem .3rem;font-weight:600" title="' + (p.sys==='klarna' ? 'Klarna — cobrada a cada 30 dias' : 'Sequra') + '">' + (p.sys==='klarna' ? 'Klarna' : 'Sequra') + '</span>' : '';
       var hasUnpaid = ms.filter(function(m){return !p.py[m];}).length > 0;
 
@@ -4249,7 +4248,7 @@ function renderParcelas() {
       var toggleHtml = ms.length ? `<button class="pcc-toggle" id="pccToggle_${p.id}" data-n="${ms.length}" onclick="_pccToggleMonths(${p.id})">${_pccExpanded[p.id]?'Esconder meses ⌃':'Ver os '+ms.length+' meses ⌄'}</button>
         <div class="pcc-months" id="pccMonths_${p.id}" style="display:${_pccExpanded[p.id]?'flex':'none'}">${monthsHtml}</div>` : '';
 
-      c += `<div class="pcc${isDone?' done':''}" style="--_pc:${col}">
+      c += `<div class="pcc${isDone?' done':''}" style="--_pc:${p.cat?ccatColor(p.cat):'var(--mut)'}">
         <div class="pcc-hdr">
           <div class="pcc-name">${p.cat?ccatBadge(p.cat):''} ${_esc(p.name||'')}${sysBadge}</div>
           <div class="hdr-more pcc-more">
@@ -4262,7 +4261,7 @@ function renderParcelas() {
           </div>
         </div>
         <div class="pcc-money"><span class="pcc-money-val">${fmt(p.vp)}</span><span class="pcc-money-sub">/mês · ${paid}/${ms.length} pagas</span></div>
-        <div class="pcc-bar-row"><div class="pb"><div class="pf" style="width:${pct}%;background:${col}"></div></div><span class="pcc-pct">${pct}% · ${fmt(rest)} restante</span></div>
+        <div class="pcc-bar-row"><div class="pb"><div class="pf" style="width:${pct}%;background:var(--grn)"></div></div><span class="pcc-pct">${pct}% · ${fmt(rest)} restante</span></div>
         ${nextHtml}
         ${toggleHtml}
       </div>`;
