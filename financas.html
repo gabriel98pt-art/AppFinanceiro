@@ -402,8 +402,8 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 /* backup alert */
 .backup-alert{background:rgba(var(--ylw-rgb),.1);border:1px solid rgba(var(--ylw-rgb),.25);border-radius:var(--r-sm);padding:.5rem .9rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;font-size:.78rem;color:var(--ylw);margin-bottom:.75rem;flex-wrap:wrap}
 /* compact annual row */
-.ann-mini{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;margin-top:.6rem}
-.ann-cell{text-align:center;padding:.3rem .1rem;border-radius:4px;background:var(--s2);font-size:.62rem}
+.ann-mini{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:2px;margin-top:.6rem}
+.ann-cell{text-align:center;padding:.3rem .1rem;border-radius:4px;background:var(--s2);font-size:.62rem;min-width:0;overflow:hidden}
 .ann-cell .av{font-weight:700;font-size:.68rem}
 /* source totals */
 
