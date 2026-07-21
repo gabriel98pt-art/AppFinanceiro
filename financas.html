@@ -1235,6 +1235,12 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
       <div class="srch-bar">
         <select id="parcCatFilt" onchange="PARC_CAT=this.value;renderParcelas()"><option value="">Todas as categorias</option></select>
         <select id="parcCardFilt" onchange="PARC_CARD=this.value;renderParcelas()"><option value="all">Todos os cartões</option></select>
+        <select id="parcDueFilt" onchange="PARC_DUE_FILT=this.value;renderParcelas()">
+          <option value="">Todos os vencimentos</option>
+          <option value="overdue">Vencidas</option>
+          <option value="7d">Próximos 7 dias</option>
+          <option value="30d">Próximos 30 dias</option>
+        </select>
         <select id="parcSortFilt" onchange="PARC_SORT_COL=this.value||null;renderParcelas()">
           <option value="">Ordenar por</option>
           <option value="name">Nome</option>
@@ -2588,7 +2594,7 @@ var DF_SEARCH='',DF_CARD='all';
 var CG_CARD='all',CG_FROTA='all';
 var LP_CARD='all',LP_TIPO='all';
 var VEHDF_CARD='all',VEHDF_CAT='';
-var PARC_CAT='',PARC_CARD='all';
+var PARC_CAT='',PARC_CARD='all',PARC_DUE_FILT='';
 var CT_SORT='date',CT_DIR=-1,CT_TIPO='all';
 var CT_SEARCH='',CT_FROM=null,CT_TO=null,_ctFilterOpen=false,CT_PIN=false,CT_EXPANDED={};
 var _CAL_EV = {}, _CAL_YM = '';
@@ -2742,6 +2748,31 @@ function parcDate(p, ym) {
   var last = new Date(parseInt(pt[0]), parseInt(pt[1]), 0).getDate();
   day = Math.min(day, last);
   return pt[0] + '-' + pt[1] + '-' + pad2(day);
+}
+
+// Próxima parcela em aberto: o mês corrente se ainda não paga, senão o
+// primeiro mês em aberto. Fonte única — usada no cartão e no filtro de
+// vencimento, pra não ter duas lógicas que podem divergir.
+function parcNextDue(p) {
+  var ms = parcMonths(p);
+  var nextMonth = null;
+  if (ms.indexOf(globalMonth) >= 0 && !p.py[globalMonth]) nextMonth = globalMonth;
+  else { for (var i = 0; i < ms.length; i++) { if (!p.py[ms[i]]) { nextMonth = ms[i]; break; } } }
+  if (!nextMonth) return null;
+  return { month: nextMonth, date: parcDate(p, nextMonth) };
+}
+
+// Filtro de vencimento (PARC_DUE_FILT) — parcela sem próxima data em aberto
+// (já quitada) nunca bate com nenhum filtro específico, só com "Todos".
+function parcMatchesDueFilt(p) {
+  if (!PARC_DUE_FILT) return true;
+  var due = parcNextDue(p);
+  if (!due) return false;
+  var diffDays = Math.round((new Date(due.date + 'T00:00:00') - new Date(todayStr() + 'T00:00:00')) / 864e5);
+  if (PARC_DUE_FILT === 'overdue') return diffDays < 0;
+  if (PARC_DUE_FILT === '7d') return diffDays >= 0 && diffDays <= 7;
+  if (PARC_DUE_FILT === '30d') return diffDays >= 0 && diffDays <= 30;
+  return true;
 }
 
 // Totals
@@ -4158,8 +4189,8 @@ function renderParcelas() {
     if (PARC_CARD!=='all' && !parcCards[PARC_CARD]) PARC_CARD = 'all';
   }
 
-  if (!S.par.some(function(p){ return (!PARC_CAT || p.cat===PARC_CAT) && (PARC_CARD==='all' || p.card===PARC_CARD); })) {
-    document.getElementById('parcGrid').innerHTML = _emptyDiv('🔍','Nenhuma parcela com este filtro','Ajusta os filtros de categoria ou cartão');
+  if (!S.par.some(function(p){ return (!PARC_CAT || p.cat===PARC_CAT) && (PARC_CARD==='all' || p.card===PARC_CARD) && parcMatchesDueFilt(p); })) {
+    document.getElementById('parcGrid').innerHTML = _emptyDiv('🔍','Nenhuma parcela com este filtro','Ajusta os filtros de categoria, cartão ou vencimento');
     return;
   }
 
@@ -4169,6 +4200,7 @@ function renderParcelas() {
     var p = S.par[pi];
     if (PARC_CAT && p.cat !== PARC_CAT) continue;
     if (PARC_CARD !== 'all' && p.card !== PARC_CARD) continue;
+    if (!parcMatchesDueFilt(p)) continue;
     var ms = parcMonths(p);
     if (!ms.length) continue;
     var paid = ms.filter(function(m){ return p.py[m]; }).length;
@@ -4215,14 +4247,13 @@ function renderParcelas() {
       var sysBadge = p.sys ? ' <span style="font-size:.58rem;background:rgba(244,114,182,.12);color:#f472b6;border:1px solid rgba(244,114,182,.28);border-radius:4px;padding:.05rem .3rem;font-weight:600" title="' + (p.sys==='klarna' ? 'Klarna — cobrada a cada 30 dias' : 'Sequra') + '">' + (p.sys==='klarna' ? 'Klarna' : 'Sequra') + '</span>' : '';
       var hasUnpaid = ms.filter(function(m){return !p.py[m];}).length > 0;
 
-      // Próxima parcela: o mês corrente se estiver por pagar, senão o primeiro em aberto
+      // Próxima parcela: fonte única em parcNextDue() (mesma lógica do filtro de vencimento)
       var nextHtml = '';
       if (!isDone) {
-        var nextMonth = null;
-        if (ms.indexOf(globalMonth) >= 0 && !p.py[globalMonth]) nextMonth = globalMonth;
-        else { for (var nmi = 0; nmi < ms.length; nmi++) { if (!p.py[ms[nmi]]) { nextMonth = ms[nmi]; break; } } }
+        var nextDue = parcNextDue(p);
+        var nextMonth = nextDue ? nextDue.month : null;
         if (nextMonth) {
-          var nDate = parcDate(p, nextMonth);
+          var nDate = nextDue.date;
           var nVal = parcVal(p, nextMonth);
           var nOv = !!(p.ov && p.ov[nextMonth] != null);
           var nOvMark = nOv ? '<span style="color:var(--ylw);font-weight:800" title="Valor ajustado neste mês: '+fmt(nVal)+'">*</span>' : '';
@@ -5525,7 +5556,7 @@ function gpOpenSel(ev, id) {
 // filtros das listas (markup estático, já existente quando o script corre)
 ['recSrcFilt','recCardFilt','dfCardFilt','dcCardFilt','dcSrcFilt','dcCatFilt',
  'cgCardFilt','cgFrotaFilt','lpTipoFilt','lpCardFilt','vehDfCatFilt','vehDfCardFilt',
- 'parcCatFilt','parcCardFilt','parcSortFilt','parcSortDirFilt','ctFilt'].forEach(function(id){ gpEnhanceSelect(id); });
+ 'parcCatFilt','parcCardFilt','parcDueFilt','parcSortFilt','parcSortDirFilt','ctFilt'].forEach(function(id){ gpEnhanceSelect(id); });
 // qVehLocalSel vive na folha rápida, cujo markup vem depois deste script —
 // é realçado no primeiro qOpen (idempotente)
 
