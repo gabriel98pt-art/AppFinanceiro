@@ -3817,7 +3817,7 @@ function renderDespesas() {
     var nameCell = d._src === 'fat' ? ('Cartão de Crédito '+_esc(d._fatCard||'')) : _esc(d.name || (d._src === 'parc' ? (d.notes||'').split(' — ')[0] : '') || '—');
     var catLabel;
     if (d._src === 'parc') {
-      catLabel = '<span class="bdg gp">🔗 ' + _esc(d.cat||'Parcelas') + '</span>';
+      catLabel = '🔗 ' + ccatBadge(d.cat||'Parcelas');
     } else if (d._src === 'veh') {
       catLabel = catBadge('vcat', d.cat, '🚘 ');
     } else if (d._src === 'fat') {
