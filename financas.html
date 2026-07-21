@@ -3729,11 +3729,10 @@ function renderDespesas() {
     var urg = !inactive && !_paid && dy<=3 ? 'color:var(--red)' : !inactive && !_paid && dy<=7 ? 'color:var(--ylw)' : '';
     var rowStyle = inactive ? 'opacity:.45' : '';
     var inactBadge = inactive ? ' <span class="bdg" style="font-size:.6rem;background:rgba(128,128,128,.15);color:var(--mut)" title="Fora do período de vigência configurado">inativo</span>' : '';
-    var autoBadge = d.autoRenew ? ' <span class="bdg" style="font-size:.58rem;background:rgba(0,212,160,.12);color:var(--grn);border:1px solid rgba(0,212,160,.25)" title="Renovação automática — não gera aviso">auto</span>' : '';
     var chkDisabled = inactive || d.autoRenew ? 'disabled' : '';
     var _dcc = _rowCatColor(d.cat, 'fcat');
     var _rs = (rowStyle ? rowStyle+';' : '') + '--cc:'+_dcc;
-    return `<tr style="${_rs}" data-cc="${_dcc}"><td style="${urg};font-weight:${urg?700:400}">${_esc(d.name)}${inactBadge}${autoBadge}</td><td>${catBadge('fcat',d.cat)}</td><td class="bold">${inactive?'<span style="color:var(--mut)">'+fmt(d.val)+'</span>':fmt(d.val)}</td><td style="${urg}">${d.day||'—'}</td><td>${_esc(d.card||'—')}</td><td><input type="checkbox" ${_paid?'checked':''} ${chkDisabled} onchange="togglePaid(${d.id},this.checked,'${ym}')"></td><td>${_esc(d.notes||'—')}</td><td><div class="ac"><button class="ic e" onclick="openModal('dfixa',${d.id})">✏</button><button class="ic d" onclick="delRec('df',${d.id})">🗑</button></div></td></tr>`;
+    return `<tr style="${_rs}" data-cc="${_dcc}"><td style="${urg};font-weight:${urg?700:400}">${_esc(d.name)}${inactBadge}</td><td>${catBadge('fcat',d.cat)}</td><td class="bold">${inactive?'<span style="color:var(--mut)">'+fmt(d.val)+'</span>':fmt(d.val)}</td><td style="${urg}">${d.day||'—'}</td><td>${_esc(d.card||'—')}</td><td><input type="checkbox" ${_paid?'checked':''} ${chkDisabled} onchange="togglePaid(${d.id},this.checked,'${ym}')"></td><td>${_esc(d.notes||'—')}</td><td><div class="ac"><button class="ic e" onclick="openModal('dfixa',${d.id})">✏</button><button class="ic d" onclick="delRec('df',${d.id})">🗑</button></div></td></tr>`;
   }).join('') : _emptyRow(8,'↘','Nenhuma despesa fixa','Adiciona despesas recorrentes como renda, subscrições, etc.'); })());
   var ft = document.getElementById('dfFoot');
   var _dfTotFiltered = sumVal(dfList.filter(function(d){ return isActiveForYm(d, ym); }));
