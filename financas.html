@@ -7,7 +7,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Finanças">
-<meta name="theme-color" content="#0B0B0F">
+<meta name="theme-color" content="#0A1622">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="./icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
@@ -21,14 +21,14 @@
 :root{
   color-scheme:dark;
   /* Tinta — superfícies neutras, sem o cast azul-marinho de dashboard */
-  --bg:#0B0B0F;--s1:#151519;--s2:#1D1D23;--s3:#27272F;
-  --s1-t:rgba(21,21,25,.72);
-  --txt:#F2F2F5;--mut:#8E8E99;--brd:#27272F;
+  --bg:#0A1622;--s1:#101E30;--s2:#16283F;--s3:#1E3349;
+  --s1-t:rgba(16,30,48,.72);
+  --txt:#EAF1F7;--mut:#93A5B8;--brd:#1E3349;
   /* acentos UI (texto/chrome) — brilhantes sobre tinta */
-  --grn:#2BD9A8;--red:#FF6482;--ylw:#F0B429;--blu:#5B9BFF;--pur:#B08DFC;
-  --grn-rgb:43,217,168;--red-rgb:255,100,130;--ylw-rgb:240,180,41;--blu-rgb:91,155,255;--pur-rgb:176,141,252;
+  --grn:#4ADE80;--red:#FB7185;--ylw:#FBBF24;--blu:#00D9B5;--pur:#B08DFC;
+  --grn-rgb:74,222,128;--red-rgb:251,113,133;--ylw-rgb:251,191,36;--blu-rgb:0,217,181;--pur-rgb:176,141,252;
   /* séries de gráfico — degraus próprios do dark (banda OKLCH .48–.67), validados */
-  --ch-blu:#3D7FE8;--ch-grn:#0FA88A;--ch-ylw:#B8871A;--ch-red:#E14A6C;--ch-pur:#9B6DE8;
+  --ch-blu:#0A836F;--ch-grn:#31AA5D;--ch-ylw:#C09013;--ch-red:#E93650;--ch-pur:#9B6DE8;
   --r:16px;--r-sm:9px;--tr:.18s ease;
   --sh:0 4px 20px rgba(0,0,0,.35);--sh-sm:0 2px 8px rgba(0,0,0,.2);
   --sh-card:0 1px 2px rgba(0,0,0,.28),0 4px 14px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.05);
@@ -38,14 +38,14 @@
 [data-theme="light"]{
   color-scheme:light;
   /* Porcelana — cinza-claro à Apple, superfícies brancas */
-  --bg:#F5F5F7;--s1:#fff;--s2:#EFEFF2;--s3:#E4E4EA;
+  --bg:#F5F7FA;--s1:#fff;--s2:#EEF2F6;--s3:#DCE3EA;
   --s1-t:rgba(255,255,255,.72);
-  --txt:#1A1A1E;--mut:#71717A;--brd:#E4E4EA;
+  --txt:#0A2540;--mut:#5B6B7C;--brd:#DCE3EA;
   /* acentos UI — fundos o suficiente para texto sobre branco (≥4.5:1) */
-  --grn:#0A8F72;--red:#D93A5C;--ylw:#B07D10;--blu:#2762D9;--pur:#7C4FD8;
-  --grn-rgb:10,143,114;--red-rgb:217,58,92;--ylw-rgb:176,125,16;--blu-rgb:39,98,217;--pur-rgb:124,79,216;
+  --grn:#15803D;--red:#BE123C;--ylw:#B45309;--blu:#0B7A66;--pur:#7C4FD8;
+  --grn-rgb:21,128,61;--red-rgb:190,18,60;--ylw-rgb:180,83,9;--blu-rgb:11,122,102;--pur-rgb:124,79,216;
   /* em light, série de gráfico = acento de texto (já dentro da banda .43–.77) */
-  --ch-blu:#2762D9;--ch-grn:#0A8F72;--ch-ylw:#B07D10;--ch-red:#D93A5C;--ch-pur:#7C4FD8;
+  --ch-blu:#0B7A66;--ch-grn:#15803D;--ch-ylw:#B45309;--ch-red:#BE123C;--ch-pur:#7C4FD8;
   --sh:0 4px 20px rgba(0,0,0,.07);--sh-sm:0 2px 8px rgba(0,0,0,.05);
   --sh-card:0 1px 2px rgba(20,23,32,.06),0 4px 14px rgba(20,23,32,.07),inset 0 1px 0 rgba(255,255,255,.7);
   --sh-card-hi:0 2px 5px rgba(20,23,32,.08),0 12px 28px rgba(20,23,32,.13),inset 0 1px 0 rgba(255,255,255,.8);
