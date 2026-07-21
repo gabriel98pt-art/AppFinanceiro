@@ -443,8 +443,13 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 /* Mobile compacto */
 @media(max-width:600px){
   /* Tabs mais compactos para caber todos os labels */
-  .tabs{justify-content:flex-start}
+  /* Barra de abas desce pra base do ecrã — top:auto sobrepõe o sticky top:52px
+     (fixStickyOffsets() já sabe não mexer no top inline nesta largura, ver JS) */
+  .tabs{justify-content:flex-start;position:fixed;left:0;right:0;bottom:0;top:auto;padding-bottom:calc(.45rem + env(safe-area-inset-bottom,0px))}
   .tb{padding:.38rem .55rem;font-size:.7rem}
+  /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra —
+     FAB e painéis usam a mesma medida pra não ficarem escondidos atrás dela */
+  .qfab{bottom:calc(var(--tabbar-h,60px) + .6rem)}
   /* Zonas de toque maiores nos botões de ação das tabelas */
   .ic{width:36px;height:36px}
   /* Padding reduzido nas células — reduz scroll horizontal desnecessário */
@@ -452,7 +457,7 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
   tbody td{padding:.4rem .6rem}
   tfoot td{padding:.4rem .6rem}
   /* Padding dos painéis e cards */
-  .pnl{padding:.75rem}
+  .pnl{padding:.75rem;padding-bottom:calc(var(--tabbar-h,60px) + 1rem)}
   .tch{padding:.6rem .75rem}
   .kc{padding:.7rem .75rem}
   .meta-sav-grid{grid-template-columns:1fr}
@@ -8294,8 +8299,19 @@ function fixStickyOffsets() {
   var gnav = document.querySelector('.gmnav-bar');
   if (!hdr || !tabs || !gnav) return;
   var hh = hdr.offsetHeight;
-  tabs.style.top = hh + 'px';
-  gnav.style.top = (hh + tabs.offsetHeight) + 'px';
+  var mobile = window.innerWidth <= 600;
+  // No mobile as abas saem do topo (viram barra fixa na base) — o gmnav-bar
+  // só precisa descontar o cabeçalho, não a altura das abas. tabs.style.top
+  // tem de ser limpo (não só "não mexido"): um valor inline de uma largura
+  // anterior venceria o top:auto da media query, já que inline > stylesheet.
+  if (mobile) {
+    tabs.style.top = '';
+    gnav.style.top = hh + 'px';
+    document.documentElement.style.setProperty('--tabbar-h', tabs.offsetHeight + 'px');
+  } else {
+    tabs.style.top = hh + 'px';
+    gnav.style.top = (hh + tabs.offsetHeight) + 'px';
+  }
   _centerActiveTab();
 }
 window.addEventListener('resize', fixStickyOffsets);
