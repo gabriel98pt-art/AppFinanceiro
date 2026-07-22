@@ -486,12 +486,15 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      usuário, ver .tb-ic/.tb-lbl). Afastada das duas laterais: encostada
      ponta a ponta (left:0;right:0) ela caía bem em cima da curvatura física
      do ecrã nos cantos de baixo, cortando visualmente Dashboard/Mais. */
-  .tabs{justify-content:space-around;position:fixed;left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.55rem .3rem;border-radius:999px;box-shadow:0 6px 28px rgba(0,0,0,.35);overflow:visible}
+  .tabs{justify-content:space-around;position:fixed;left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.3rem .25rem;border-radius:999px;box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:visible}
   /* flex:1 — cada aba visível ocupa uma fatia igual da barra em vez de
      ficar com o tamanho mínimo do conteúdo e sobrar vão vazio entre elas
-     (reportado pelo usuário: "muito espaço vazio na tab bar") */
-  .tb{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:.2rem;padding:.35rem .3rem;font-size:.7rem;border-radius:16px}
-  .tb-ic{font-size:1.35rem;line-height:1;display:flex;align-items:center;justify-content:center;width:2.15rem;height:2.15rem;border-radius:50%;transition:background var(--tr),transform var(--tr),box-shadow var(--tr)}
+     (reportado pelo usuário: "muito espaço vazio na tab bar"). Barra
+     inteira encolhida de novo (2ª rodada) — a versão anterior, mesmo já
+     maior que a original, continuava bem mais alta que a referência
+     passada pelo usuário. */
+  .tb{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:.1rem;padding:.15rem .2rem;font-size:.58rem;border-radius:16px}
+  .tb-ic{font-size:1rem;line-height:1;display:flex;align-items:center;justify-content:center;width:1.55rem;height:1.55rem;border-radius:50%;transition:background var(--tr),transform var(--tr),box-shadow var(--tr)}
   .tb-lbl{line-height:1}
   /* Aba ativa: o ícone vira uma bolha verde-água elevada, saindo por cima
      da borda da pílula (referência visual passada pelo usuário). O rótulo
@@ -502,7 +505,7 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      desfeita aqui, só o ícone (.tb-ic) deve ficar colorido. */
   .tb.on{background:none;color:var(--mut);box-shadow:none}
   .tb.on .tb-lbl{color:var(--blu);font-weight:700}
-  .tb.on .tb-ic{background:var(--blu);box-shadow:0 4px 14px rgba(var(--blu-rgb),.5);transform:translateY(-.45rem) scale(1.1)}
+  .tb.on .tb-ic{background:var(--blu);box-shadow:0 2px 8px rgba(var(--blu-rgb),.45);transform:translateY(-.3rem) scale(1.05)}
   /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra —
      FAB e painéis usam a mesma medida, mais o afastamento do fundo acima,
      pra não ficarem escondidos atrás dela. !important porque existe uma
