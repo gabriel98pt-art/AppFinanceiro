@@ -1,4 +1,4 @@
-var CACHE = 'qf-v30';
+var CACHE = 'qf-v31';
 var FILES = ['./financas.html', './manifest.json'];
 var NO_CACHE = ['quick.html'];
 
@@ -25,8 +25,12 @@ self.addEventListener('fetch', function(e) {
     e.respondWith(fetch(e.request));
     return;
   }
+  // cache:'no-store' — sem isto, o fetch "network-first" podia ser respondido
+  // pelo cache HTTP do próprio navegador (o GitHub Pages manda
+  // Cache-Control: max-age=600) em vez de ir buscar de verdade ao servidor,
+  // fazendo uma mudança recém-publicada não aparecer por até 10 minutos.
   e.respondWith(
-    fetch(e.request).then(function(res) {
+    fetch(e.request, {cache: 'no-store'}).then(function(res) {
       var clone = res.clone();
       caches.open(CACHE).then(function(c){ c.put(e.request, clone); });
       return res;
