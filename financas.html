@@ -58,8 +58,17 @@
 *::-webkit-scrollbar-track{background:transparent}
 *::-webkit-scrollbar-thumb{background:var(--brd);border-radius:4px}
 *::-webkit-scrollbar-thumb:hover{background:var(--mut)}
-html{-webkit-text-size-adjust:100%}
-body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,'Helvetica Neue',sans-serif;font-optical-sizing:auto;background:var(--bg);color:var(--txt);font-size:14px;min-height:100vh;transition:background var(--tr),color var(--tr);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+/* overflow-x:hidden nos dois — trava a página inteira pra nunca rolar de
+   lado, não importa o que tente estourar a largura em algum quadro (uma
+   tabela larga foi identificada, mas pode ter mais). Sem isso, qualquer
+   overflow horizontal na página confundia o cálculo de largura/posição da
+   barra de navegação fixa no fundo — %, vw e até window.innerWidth em
+   alguns casos, dependendo do motor do navegador — resultando na barra
+   ficando com folgas bem diferentes dos dois lados num aparelho real
+   (bug reportado 3x pelo usuário, com print e desenho, mesmo depois de
+   duas tentativas de corrigir só o cálculo da barra em vez da causa). */
+html{-webkit-text-size-adjust:100%;overflow-x:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,'Helvetica Neue',sans-serif;font-optical-sizing:auto;background:var(--bg);color:var(--txt);font-size:14px;min-height:100vh;overflow-x:hidden;transition:background var(--tr),color var(--tr);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
 /* dinheiro e datas alinham em coluna: dígitos tabulares em tudo o que é número */
 tbody td,tfoot td,.kval,.ksub,.pgr,.mbar-lbl,#qAmt{font-variant-numeric:tabular-nums}
 
@@ -517,7 +526,15 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      fiquem mesmo recortados pelos cantos arredondados — não sobra mais
      necessidade do :visible de antes, que era só pra bolha elevada da aba
      ativa (removida faz duas rodadas). */
-  .tabs{position:fixed;left:14px;right:14px;bottom:calc(16px + env(safe-area-inset-bottom,0px));top:auto;padding:.35rem .2rem;border-radius:24px;background:var(--s1-t);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(255,255,255,.14);box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:hidden;gap:0}
+  /* SEM right aqui de propósito — left+width (JS, em px de verdade) já
+     definem a caixa toda; ter right:14px AO MESMO TEMPO que left+width
+     deixava o elemento "sobre-restringido" (3 propriedades de posição
+     horizontal ao mesmo tempo), e é exatamente esse tipo de caso que
+     motores de navegador resolvem de forma inconsistente entre si — pode
+     ter sido essa a causa real da barra ainda saindo torta depois da
+     correção anterior (que só tinha corrigido left/width, sem tirar o
+     right concorrente). */
+  .tabs{position:fixed;left:14px;bottom:calc(16px + env(safe-area-inset-bottom,0px));top:auto;padding:.35rem .2rem;border-radius:24px;background:var(--s1-t);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(255,255,255,.14);box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:hidden;gap:0}
   /* white-space:normal + min-width:0 desfazem o white-space:nowrap do botão
      genérico (.tb base, sem media query, linha ~88) — sem isso, o item flex
      nunca encolhe abaixo da largura do rótulo inteiro numa linha só (é o
@@ -9006,6 +9023,11 @@ function fixStickyOffsets() {
     var margin = 14;
     tabs.style.left = margin + 'px';
     tabs.style.width = (window.innerWidth - margin * 2) + 'px';
+    tabs.style.right = 'auto'; // nunca deixar "right" concorrendo com
+    // left+width ao mesmo tempo — 3 propriedades de posição horizontal
+    // simultâneas ("sobre-restringido") é resolvido de forma inconsistente
+    // entre motores de navegador; foi provavelmente a causa real da barra
+    // ainda saindo torta mesmo depois de left/width já estarem certos.
     document.documentElement.style.setProperty('--tabbar-h', tabs.offsetHeight + 'px');
     var fab = document.querySelector('.qfab');
     if (fab) {
