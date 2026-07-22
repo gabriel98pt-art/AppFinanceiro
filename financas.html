@@ -501,11 +501,15 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      aparelhos reais — feio e reportado pelo usuário com print). Ícone em
      cima, rótulo embaixo, abas do mesmo tamanho dividindo a largura,
      aba ativa só muda de cor (sem bolha/elevação). */
-  /* width:calc(100vw - 28px) explícito — left:14px;right:14px sozinho não
-     bastava (mesmo problema da tabela larga que força scroll horizontal da
-     página, ver comentário grande mais abaixo/no histórico: confunde o
-     cálculo de largura de elementos position:fixed nesse cenário). 100vw é
-     sempre relativo à tela de verdade. */
+  /* left/width em px fixos aqui são só fallback pro instante antes do JS
+     rodar — o valor de verdade vem de fixStickyOffsets() (window.innerWidth
+     direto), porque tanto % quanto vw têm um bug conhecido no Safari real:
+     quando alguma coisa na página tem overflow horizontal (uma tabela larga
+     em outro quadro do Dashboard, por exemplo), % e vw passam a calcular
+     contra a largura "estourada" da página, não a tela visível de verdade
+     — a barra ficava com folgas bem diferentes dos dois lados (bug
+     reportado pelo usuário com print/desenho, duas tentativas em CSS puro
+     não resolveram). window.innerWidth não sofre disso. */
   /* Toque de "liquid glass" (pedido do usuário) — mais desfoque/saturação
      que o --s1-t padrão do resto do app, mais uma borda clara bem sutil
      simulando o brilho de borda que o material de vidro da Apple tem.
@@ -513,7 +517,7 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      fiquem mesmo recortados pelos cantos arredondados — não sobra mais
      necessidade do :visible de antes, que era só pra bolha elevada da aba
      ativa (removida faz duas rodadas). */
-  .tabs{position:fixed;left:14px;right:14px;width:calc(100vw - 28px);bottom:calc(16px + env(safe-area-inset-bottom,0px));top:auto;padding:.35rem .2rem;border-radius:24px;background:var(--s1-t);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(255,255,255,.14);box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:hidden;gap:0}
+  .tabs{position:fixed;left:14px;right:14px;bottom:calc(16px + env(safe-area-inset-bottom,0px));top:auto;padding:.35rem .2rem;border-radius:24px;background:var(--s1-t);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(255,255,255,.14);box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:hidden;gap:0}
   /* white-space:normal + min-width:0 desfazem o white-space:nowrap do botão
      genérico (.tb base, sem media query, linha ~88) — sem isso, o item flex
      nunca encolhe abaixo da largura do rótulo inteiro numa linha só (é o
@@ -551,13 +555,11 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      (14px dos dois lados, conferido por medição — reportado pelo usuário
      com print, achava que a barra em si estava torta). Centralizado, some
      essa sensação de desequilíbrio.
-     left:calc(50vw - 23px) em vez de left:50%+transform:translateX(-50%) —
-     mesmo problema da tabela larga que confunde o cálculo de % em
-     elementos position:fixed (ver comentário grande na .tabs, linhas
-     acima); vw é sempre relativo à tela de verdade. 23px = metade da
-     largura do botão (46px). */
+     left é fallback fixo (46px de botão numa tela de ~390px); o valor de
+     verdade vem de fixStickyOffsets() com window.innerWidth direto — vw e
+     % têm o mesmo bug descrito no comentário grande da .tabs acima. */
   .qfab{
-    left:calc(50vw - 23px) !important;right:auto !important;transform:none !important;
+    left:172px !important;right:auto !important;transform:none !important;
     bottom:calc(16px + env(safe-area-inset-bottom,0px) + var(--tabbar-h,56px) + 20px) !important;
     width:46px !important;height:46px !important;font-size:1.3rem !important;
   }
@@ -8993,14 +8995,42 @@ function fixStickyOffsets() {
   if (mobile) {
     tabs.style.top = '';
     gnav.style.top = hh + 'px';
+    // left/width da barra em px, calculados de window.innerWidth — não de
+    // % nem vw. Achamos uma tabela larga no Dashboard que deixa a página
+    // com overflow horizontal, e no Safari real (não só no Chrome de
+    // teste) isso faz % e vw calcularem contra a largura "estourada" da
+    // página em vez da tela visível — a barra ficava com folgas bem
+    // diferentes dos dois lados (bug reportado 2x pelo usuário, com print
+    // e depois com desenho apontando a diferença). window.innerWidth é
+    // sempre a largura visível de verdade, não sofre esse problema.
+    var margin = 14;
+    tabs.style.left = margin + 'px';
+    tabs.style.width = (window.innerWidth - margin * 2) + 'px';
     document.documentElement.style.setProperty('--tabbar-h', tabs.offsetHeight + 'px');
+    var fab = document.querySelector('.qfab');
+    if (fab) {
+      var fabW = fab.offsetWidth || 46; // offsetWidth é seguro aqui: largura
+      // fixa em CSS (46px!important), não depende de texto/fonte carregada
+      // (diferente da tentativa antiga de medir a barra pelo conteúdo).
+      fab.style.left = Math.round((window.innerWidth - fabW) / 2) + 'px';
+    }
   } else {
     tabs.style.top = hh + 'px';
     gnav.style.top = (hh + tabs.offsetHeight) + 'px';
+    tabs.style.left = '';
+    tabs.style.width = '';
+    var fabD = document.querySelector('.qfab');
+    if (fabD) fabD.style.left = '';
   }
   _centerActiveTab();
 }
 window.addEventListener('resize', fixStickyOffsets);
+// A 1ª chamada de fixStickyOffsets() acontece no boot, ainda dentro do
+// parsing do HTML — o botão .qfab só existe bem mais abaixo no documento,
+// então na 1ª passada ele ainda não existe pra centralizar. DOMContentLoaded
+// garante uma 2ª passada depois que o HTML inteiro já existe (a barra em si
+// não depende disso, .tabs já existe bem antes no documento).
+document.addEventListener('DOMContentLoaded', fixStickyOffsets);
 
 // ================================================================
 // QUICK-ADD FAB
