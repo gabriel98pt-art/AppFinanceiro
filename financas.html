@@ -102,9 +102,12 @@ tbody td,tfoot td,.kval,.ksub,.pgr,.mbar-lbl,#qAmt{font-variant-numeric:tabular-
 
 /* KPI */
 .kg{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem;margin-bottom:1rem}
-@media(min-width:500px){.kg{grid-template-columns:repeat(3,1fr)}}
 @media(min-width:768px){.kg{grid-template-columns:repeat(4,1fr)}}
-@media(min-width:1100px){.kg{grid-template-columns:repeat(4,1fr)}}
+/* Cartão sozinho na última linha (nº ímpar de cartões) ocupa a largura toda
+   em vez de ficar isolado à esquerda com um vão vazio do lado — reportado
+   pelo usuário como "3 em cima, 1 embaixo" num viewport que caía no estágio
+   intermediário de 3 colunas (removido acima, já não existe mais). */
+.kg>*:last-child:nth-child(odd){grid-column:1/-1}
 .kc{background:var(--s1);border-radius:var(--r);padding:.9rem 1rem;position:relative;overflow:hidden;box-shadow:var(--sh-card);transition:transform var(--tr),box-shadow var(--tr);min-height:82px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}
 .kc:hover{transform:translateY(-2px);box-shadow:var(--sh-card-hi)}
 /* assinatura "aura de categoria": o acento do cartão respira através do
@@ -483,16 +486,23 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      usuário, ver .tb-ic/.tb-lbl). Afastada das duas laterais: encostada
      ponta a ponta (left:0;right:0) ela caía bem em cima da curvatura física
      do ecrã nos cantos de baixo, cortando visualmente Dashboard/Mais. */
-  .tabs{justify-content:space-around;position:fixed;left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.5rem .4rem;border-radius:999px;box-shadow:0 6px 28px rgba(0,0,0,.35);overflow:visible}
-  .tb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;padding:.4rem .5rem;font-size:.62rem;border-radius:16px}
-  .tb-ic{font-size:1.2rem;line-height:1;display:flex;align-items:center;justify-content:center;width:1.9rem;height:1.9rem;border-radius:50%;transition:background var(--tr),transform var(--tr),box-shadow var(--tr)}
+  .tabs{justify-content:space-around;position:fixed;left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.55rem .3rem;border-radius:999px;box-shadow:0 6px 28px rgba(0,0,0,.35);overflow:visible}
+  /* flex:1 — cada aba visível ocupa uma fatia igual da barra em vez de
+     ficar com o tamanho mínimo do conteúdo e sobrar vão vazio entre elas
+     (reportado pelo usuário: "muito espaço vazio na tab bar") */
+  .tb{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:.2rem;padding:.35rem .3rem;font-size:.7rem;border-radius:16px}
+  .tb-ic{font-size:1.35rem;line-height:1;display:flex;align-items:center;justify-content:center;width:2.15rem;height:2.15rem;border-radius:50%;transition:background var(--tr),transform var(--tr),box-shadow var(--tr)}
   .tb-lbl{line-height:1}
-  /* Aba ativa: em vez de pintar o botão inteiro, o ícone vira uma bolha
-     verde-água elevada, saindo por cima da borda da pílula (referência
-     visual passada pelo usuário). O rótulo some — a bolha já basta pra
-     indicar qual está ativa. */
-  .tb.on .tb-ic{background:var(--blu);box-shadow:0 4px 14px rgba(var(--blu-rgb),.5);transform:translateY(-.55rem) scale(1.12)}
-  .tb.on .tb-lbl{display:none}
+  /* Aba ativa: o ícone vira uma bolha verde-água elevada, saindo por cima
+     da borda da pílula (referência visual passada pelo usuário). O rótulo
+     continua visível embaixo — escondê-lo (tentativa anterior) deixava um
+     vão vazio feio só na aba ativa e tirava a certeza de qual está selecionada.
+     A regra .tb.on{background:var(--blu)...} do desktop (não tem media query,
+     vale pra todos os tamanhos) pintava o botão inteiro — precisa ser
+     desfeita aqui, só o ícone (.tb-ic) deve ficar colorido. */
+  .tb.on{background:none;color:var(--mut);box-shadow:none}
+  .tb.on .tb-lbl{color:var(--blu);font-weight:700}
+  .tb.on .tb-ic{background:var(--blu);box-shadow:0 4px 14px rgba(var(--blu-rgb),.5);transform:translateY(-.45rem) scale(1.1)}
   /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra —
      FAB e painéis usam a mesma medida, mais o afastamento do fundo acima,
      pra não ficarem escondidos atrás dela. !important porque existe uma
