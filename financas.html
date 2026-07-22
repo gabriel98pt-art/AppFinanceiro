@@ -364,6 +364,11 @@ tbody.anim tr:nth-child(n+6){animation-delay:.14s}
 .funds-hdr{display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem;flex-wrap:wrap}
 
 /* IMPORT */
+/* Só o passo inicial (escolher ficheiro/erro/loading) fica estreito e
+   centrado — em telas largas, um cartão de upload esticado até 1400px
+   deixa muito espaço morto ao lado. A pré-visualização (_impPreview,
+   tabela de transações) continua a usar a largura toda de propósito. */
+.imp-narrow{max-width:640px;margin:0 auto}
 .imp-zone{border:2px dashed var(--brd);border-radius:var(--r);padding:2.5rem 1rem;text-align:center;cursor:pointer;transition:border-color var(--tr),background var(--tr)}
 .imp-zone:hover,.imp-zone.drag{border-color:var(--blu);background:rgba(var(--blu-rgb),.05)}
 .imp-ico{font-size:2.2rem;margin-bottom:.5rem;opacity:.55;display:block}
@@ -7132,7 +7137,7 @@ function renderImport() {
   if (!el) return;
   if (_IMP.txs !== null) { _impPreview(); return; }
   el.innerHTML =
-    '<div class="tc"><div class="tch"><span class="slbl" style="margin:0">📥 Importar Extrato Bancário</span></div>' +
+    '<div class="tc imp-narrow"><div class="tch"><span class="slbl" style="margin:0">📥 Importar Extrato Bancário</span></div>' +
     '<div style="padding:1.25rem">' +
     '<div class="imp-zone" id="impZone"' +
     ' onclick="document.getElementById(\'impFileIn\').click()"' +
@@ -7173,14 +7178,14 @@ function _impFile(inp) {
 function _impLoading(msg) {
   var el = document.getElementById('p-import');
   if (el) el.innerHTML =
-    '<div class="tc"><div style="padding:3rem 1rem;text-align:center;color:var(--mut)">' +
+    '<div class="tc imp-narrow"><div style="padding:3rem 1rem;text-align:center;color:var(--mut)">' +
     '<div style="font-size:1.5rem;margin-bottom:.75rem">⏳</div>' +
     '<div style="font-size:.85rem">' + (msg||'A processar ficheiro…') + '</div></div></div>';
 }
 function _impErr(msg) {
   var el = document.getElementById('p-import');
   if (el) el.innerHTML =
-    '<div class="tc"><div style="padding:1.25rem">' +
+    '<div class="tc imp-narrow"><div style="padding:1.25rem">' +
     '<div class="alrt ar" style="margin-bottom:.75rem">⚠ ' + msg + '</div>' +
     '<button class="btn sec sm" onclick="_IMP.txs=null;renderImport()">← Voltar</button>' +
     '</div></div>';
