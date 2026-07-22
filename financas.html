@@ -483,13 +483,16 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      usuário, ver .tb-ic/.tb-lbl). Afastada das duas laterais: encostada
      ponta a ponta (left:0;right:0) ela caía bem em cima da curvatura física
      do ecrã nos cantos de baixo, cortando visualmente Dashboard/Mais. */
-  .tabs{justify-content:space-around;position:fixed;left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.5rem .4rem;border-radius:999px;box-shadow:0 6px 28px rgba(0,0,0,.35)}
+  .tabs{justify-content:space-around;position:fixed;left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.5rem .4rem;border-radius:999px;box-shadow:0 6px 28px rgba(0,0,0,.35);overflow:visible}
   .tb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;padding:.4rem .5rem;font-size:.62rem;border-radius:16px}
-  .tb-ic{font-size:1.2rem;line-height:1}
+  .tb-ic{font-size:1.2rem;line-height:1;display:flex;align-items:center;justify-content:center;width:1.9rem;height:1.9rem;border-radius:50%;transition:background var(--tr),transform var(--tr),box-shadow var(--tr)}
   .tb-lbl{line-height:1}
-  /* Destaque suave da aba ativa — pílula clara atrás só dela, não o bloco
-     sólido azul cobrindo tudo que o resto da app usa pra "on" */
-  .tb.on{background:var(--s2);color:var(--blu);box-shadow:none}
+  /* Aba ativa: em vez de pintar o botão inteiro, o ícone vira uma bolha
+     verde-água elevada, saindo por cima da borda da pílula (referência
+     visual passada pelo usuário). O rótulo some — a bolha já basta pra
+     indicar qual está ativa. */
+  .tb.on .tb-ic{background:var(--blu);box-shadow:0 4px 14px rgba(var(--blu-rgb),.5);transform:translateY(-.55rem) scale(1.12)}
+  .tb.on .tb-lbl{display:none}
   /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra —
      FAB e painéis usam a mesma medida, mais o afastamento do fundo acima,
      pra não ficarem escondidos atrás dela. !important porque existe uma
