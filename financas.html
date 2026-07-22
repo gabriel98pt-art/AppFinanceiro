@@ -3828,7 +3828,17 @@ function renderDespesas() {
     var valCls = d._src === 'parc' ? 'tpur' : d._src === 'veh' ? 'tylw' : d._src === 'fat' ? 'tblu' : 'tred';
     var notesCell = _esc(d.notes || '—');
     var _dcc2 = _rowCatColor(d.cat, 'ccat');
-    return `<tr class="parc-r swipe-row" data-cc="${_dcc2}" style="--cc:${_dcc2}" data-sid="${d.id}" data-stype="${isAuto?'':'dc'}"><td title="${fmtDate(d.date)}">${fmtDateShort(d.date)}</td><td style="font-size:.82rem">${nameCell}</td><td>${catLabel}</td><td class="${valCls}">${fmt(d.val)}</td><td>${d.card||'—'}</td><td style="font-size:.74rem">${notesCell}</td><td><div class="ac">${!isAuto?`<button class="ic e" onclick="openModal('dcorr',${d.id})">✏</button><button class="ic d" onclick="delRec('dc',${d.id})">🗑</button>`:'<span class="tmut" style="font-size:.63rem;padding:.15rem .35rem;background:var(--s2);border-radius:4px" title="Criado automaticamente — edite na aba de origem">auto</span>'}</div></td></tr>`;
+    var autoTag = '<span class="tmut" style="font-size:.63rem;padding:.15rem .35rem;background:var(--s2);border-radius:4px" title="Criado automaticamente — edite na aba de origem">auto</span>';
+    // Parcela: o cartão vem sempre do cartão padrão da própria parcela — se esse
+    // pagamento específico saiu de outro cartão (ex: parcela pontualmente paga
+    // noutra conta), dá pra corrigir só o cartão deste lançamento, sem mexer
+    // no "Marcar pago" nem no cartão padrão da parcela.
+    var acoesCell = !isAuto
+      ? `<button class="ic e" onclick="openModal('dcorr',${d.id})">✏</button><button class="ic d" onclick="delRec('dc',${d.id})">🗑</button>`
+      : (d._src === 'parc'
+          ? `<button class="ic e" onclick="editAutoParcCard(${d.id})" title="Mudar o cartão usado neste pagamento">✏</button>${autoTag}`
+          : autoTag);
+    return `<tr class="parc-r swipe-row" data-cc="${_dcc2}" style="--cc:${_dcc2}" data-sid="${d.id}" data-stype="${isAuto?'':'dc'}"><td title="${fmtDate(d.date)}">${fmtDateShort(d.date)}</td><td style="font-size:.82rem">${nameCell}</td><td>${catLabel}</td><td class="${valCls}">${fmt(d.val)}</td><td>${d.card||'—'}</td><td style="font-size:.74rem">${notesCell}</td><td><div class="ac">${acoesCell}</div></td></tr>`;
   }).join('') : _emptyRow(7,'📋','Nenhuma despesa em '+dcPeriodLbl,'Regista despesas variáveis com o botão +'); })());
   _setTwTall(document.querySelector('#p-despesas .tw:last-of-type'), corrPage.length);
   _initSwipe('dcBody', 'dc');
@@ -3849,6 +3859,51 @@ function renderDespesas() {
   _renderPager('dcPager',DC_PG,corrDisplay.length,DC_PGS,'pgDC');
   _applyAllVis();
   // Budget
+}
+
+// Edita só o cartão de UM lançamento automático de parcela (ex: pagaste essa
+// prestação pontualmente noutra conta) — não mexe no cartão padrão da parcela
+// nem no fluxo de "Marcar pago", só corrige o registo já gerado.
+function editAutoParcCard(dcId) {
+  var d = S.dc.find(function(x) { return x.id === dcId; });
+  if (!d || d._src !== 'parc') return;
+  var el = document.getElementById('_dcCardEditModal');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = '_dcCardEditModal';
+    el.className = 'mover';
+    el.onclick = function(e) { if (e.target === el) _dcCardEditClose(); };
+    document.body.appendChild(el);
+  }
+  var cards = S.cfg.pay || [];
+  el.innerHTML = `<div class="mbox" style="max-width:360px">
+    <div class="mhdr"><div class="mttl">Cartão deste pagamento</div><button class="ib" onclick="_dcCardEditClose()" style="font-size:1.1rem">✕</button></div>
+    <div class="note" style="margin-bottom:.8rem;font-size:.78rem;color:var(--mut);line-height:1.5">Só muda o cartão deste lançamento (${_esc(d.name||'')}) — o cartão padrão da parcela e os outros meses continuam iguais.</div>
+    <label class="ff"><span class="fl">Cartão usado</span><select id="_dcCardEditSel" class="sel" style="width:100%">
+      <option value=""${!d.card ? ' selected' : ''}>—</option>
+      ${cards.map(function(c) { return '<option value="' + _esc(c) + '"' + (c === d.card ? ' selected' : '') + '>' + _esc(c) + '</option>'; }).join('')}
+    </select></label>
+    <div class="row g2 mftr" style="justify-content:flex-end">
+      <button class="btn sec" onclick="_dcCardEditClose()">Cancelar</button>
+      <button class="btn pri" onclick="_dcCardEditSave(${dcId})">Guardar</button>
+    </div>
+  </div>`;
+  el.classList.add('on');
+}
+function _dcCardEditClose() {
+  var el = document.getElementById('_dcCardEditModal');
+  if (el) el.classList.remove('on');
+}
+function _dcCardEditSave(dcId) {
+  var d = S.dc.find(function(x) { return x.id === dcId; });
+  var sel = document.getElementById('_dcCardEditSel');
+  if (!d || !sel) return;
+  snapshot();
+  d.card = sel.value || '';
+  saveState();
+  _dcCardEditClose();
+  renderDespesas();
+  showToast('✓ Cartão deste pagamento actualizado');
 }
 
 function isPaidInYm(d, ym) {
