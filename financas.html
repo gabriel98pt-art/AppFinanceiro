@@ -123,7 +123,16 @@ tbody td,tfoot td,.kval,.ksub,.pgr,.mbar-lbl,#qAmt{font-variant-numeric:tabular-
 .dash-grid{display:grid;grid-template-columns:1fr;gap:.75rem;align-items:stretch;margin-bottom:.75rem}
 @media(min-width:768px){.dash-grid{grid-template-columns:1fr 1fr}}
 .cc{background:var(--s1);border-radius:var(--r);padding:1rem 1.1rem;box-shadow:var(--sh-card)}
-.cc canvas{max-height:240px}
+.cc canvas{max-height:300px}
+.cp-a b{font-weight:700}
+.cp-dots{display:inline-flex;gap:3px;align-items:center;height:12px}
+.cp-dots span{width:4px;height:4px;border-radius:50%;background:var(--mut);opacity:.5}
+@media (prefers-reduced-motion:no-preference){
+  .cp-dots span{animation:_cpBounce 1s ease-in-out infinite}
+  .cp-dots span:nth-child(2){animation-delay:.15s}
+  .cp-dots span:nth-child(3){animation-delay:.3s}
+}
+@keyframes _cpBounce{0%,60%,100%{transform:translateY(0);opacity:.5}30%{transform:translateY(-3px);opacity:1}}
 
 /* TABLE */
 .tc{background:var(--s1);border-radius:var(--r);overflow:hidden;margin-bottom:.75rem;box-shadow:var(--sh-card)}
@@ -993,6 +1002,21 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
           </div>
         </div>
         <div style="padding:.75rem 1rem;flex:1" id="dMiniAnnual"></div>
+      </div>
+      <div class="tc" data-sec="copiloto" style="margin-bottom:0;flex:2;display:flex;flex-direction:column">
+        <div class="tch" style="padding:.5rem 1rem"><span class="slbl" style="margin:0">🤖 Pergunte aos seus dados</span></div>
+        <div class="gsrch-inp-row" style="padding:.6rem 1rem 0">
+          <span style="color:var(--pur);flex:none">✦</span>
+          <input class="gsrch-inp" id="cpInput" type="text" placeholder="ex. quanto gastei em Casa?" autocomplete="off" onkeydown="if(event.key==='Enter'){cpAsk(this.value);this.value='';}">
+          <button class="ic" id="cpSend" title="Perguntar" onclick="var i=document.getElementById('cpInput');cpAsk(i.value);i.value='';">➤</button>
+        </div>
+        <div class="cp-a" id="cpA" style="padding:.5rem 1rem .3rem;flex:1">Pergunte algo — ex. <b>"resume o meu mês"</b> ou <b>"quanto gastei em Casa"</b>.</div>
+        <div class="cp-chips" id="cpChips" style="padding:.4rem 1rem 1rem;display:flex;flex-wrap:wrap;gap:.4rem">
+          <span class="tag" onclick="cpAsk('Quanto gastei em Casa?')">Quanto gastei em Casa?</span>
+          <span class="tag" onclick="cpAsk('Estou dentro do orçamento?')">Dentro do orçamento?</span>
+          <span class="tag" onclick="cpAsk('Resume o meu mês')">Resume o mês</span>
+          <span class="tag" onclick="cpAsk('Tenho pendentes?')">Tenho pendentes?</span>
+        </div>
       </div>
     </div>
   </div>
@@ -3489,7 +3513,343 @@ function renderDashboard() {
     <div style="display:flex;justify-content:space-between;font-size:.62rem;color:var(--mut)">
       <span>${_remain>0?'faltam '+fmt(_remain):'excesso '+fmt(-_remain)}</span><span>${pct2}%</span>
     </div>`;
+  // Cache p/ o Copiloto — evita reimplementar a fórmula de "pendente" (isCurrentYm-only) à parte
+  // Cache p/ o Copiloto — para o mês que os KPIs já mostram, usa estes valores
+  // em vez de recalcular com totDesp() (que conta despesas fixas por pagar,
+  // enquanto o KPI "Despesas" do mês actual só conta o já realizado).
+  window._cpDash = { ym: ym, rec: rec, desp: desp, sld: sld, pendente: _pendente };
   renderMiniAnnual();
+}
+
+// ================================================================
+// COPILOTO LOCAL — quadro "Pergunte aos seus dados" do Dashboard.
+// Responde em linguagem natural usando só os dados já em S, sem
+// nenhuma chamada externa (ver feedback do utilizador sobre custo/
+// privacidade). _CP_INTENTS é tentado em ordem, mais específico
+// primeiro; o primeiro item cujo test() bate vence. Para acrescentar
+// uma pergunta nova: adicionar um item à lista, não editar os outros.
+// ================================================================
+var _CP_ACCENTS = {'á':'a','à':'a','â':'a','ã':'a','ä':'a','é':'e','ê':'e','è':'e','ë':'e','í':'i','ì':'i','î':'i','ï':'i','ó':'o','ò':'o','ô':'o','õ':'o','ö':'o','ú':'u','ù':'u','û':'u','ü':'u','ç':'c'};
+function _cpNorm(s) {
+  return String(s || '').toLowerCase().replace(/[áàâãäéêèëíìîïóòôõöúùûüç]/g, function(m) { return _CP_ACCENTS[m]; });
+}
+
+// Acha em `list` (nomes definidos pelo utilizador — categorias, fontes de
+// receita, cartões, parcelas) a entrada cuja palavra normalizada (ou a
+// frase inteira) aparece na pergunta. Palavras com menos de 4 letras são
+// ignoradas para não dar falso-positivo (ex. "de", "com").
+function _cpEsc(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+// Acha em `list` a entrada cujo nome (ou uma palavra dele) aparece na
+// pergunta. Casa por PALAVRA INTEIRA (não substring solto), pra "AB" não
+// bater com "abacate" nem "casa" com "casaco". Nomes com anotação entre
+// parênteses (ex. cartões "AB (D)") também casam pelo nome "limpo" sem a
+// anotação, mesmo sendo curto — é assim que alguém realmente escreveria.
+function _cpFindInList(q, list, minLen) {
+  minLen = minLen || 4;
+  var best = null, bestLen = 0;
+  function tryWholeWord(item, w) {
+    if (!w) return;
+    var re = new RegExp('\\b' + _cpEsc(w) + '\\b');
+    if (re.test(q) && w.length > bestLen) { best = item; bestLen = w.length; }
+  }
+  (list || []).forEach(function(item) {
+    if (!item) return;
+    var norm = _cpNorm(item);
+    var flat = norm.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+    var words = flat.split(' ').filter(function(w) { return w.length >= minLen; });
+    words.forEach(function(w) { tryWholeWord(item, w); });
+    if (flat) tryWholeWord(item, flat);
+    if (norm && q.indexOf(norm) > -1 && norm.length > bestLen) { best = item; bestLen = norm.length; }
+  });
+  return best;
+}
+
+var _CP_MN_NORM = MN.map(_cpNorm), _CP_MF_NORM = MF.map(_cpNorm);
+function _cpMonthIndex(w) {
+  var i = _CP_MN_NORM.indexOf(w);
+  if (i > -1) return i;
+  return _CP_MF_NORM.indexOf(w);
+}
+
+function _cpAddDays(dateStr, n) {
+  var d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+}
+
+// A que mês/ano a pergunta se refere. Sem nenhuma pista, segue o mês que
+// o Dashboard já está a mostrar (globalMonth) — igual aos KPIs.
+function _cpParseRef(q) {
+  if (q.indexOf('mes passado') > -1) return { ym: addMonths(currentYm(), -1), label: monthLabel(addMonths(currentYm(), -1)) };
+  if (q.indexOf('este mes') > -1 || q.indexOf('mes atual') > -1) return { ym: currentYm(), label: monthLabel(currentYm()) };
+  var yearMatch = q.match(/\b(20\d{2})\b/);
+  var year = yearMatch ? parseInt(yearMatch[1], 10) : null;
+  var words = q.split(/[^a-z0-9]+/);
+  for (var i = 0; i < words.length; i++) {
+    var mi = _cpMonthIndex(words[i]);
+    if (mi > -1) {
+      var y = year || parseInt(currentYm().slice(0, 4), 10);
+      var ym = y + '-' + pad2(mi + 1);
+      if (!year && ym > currentYm()) ym = (y - 1) + '-' + pad2(mi + 1);
+      return { ym: ym, label: monthLabel(ym) };
+    }
+  }
+  if (q.indexOf('ano passado') > -1) return { isYear: true, year: parseInt(currentYm().slice(0, 4), 10) - 1 };
+  if (/\bano\b/.test(q)) return { isYear: true, year: parseInt(currentYm().slice(0, 4), 10) };
+  return { ym: globalMonth, label: monthLabel(globalMonth) };
+}
+
+// Totais de despesa por categoria num mês — mesma lógica do donut de
+// renderDashboard, mantida à parte para não arriscar mexer no render.
+function _cpCatTotals(ym) {
+  var ct = {};
+  S.df.filter(function(d) { return isActiveForYm(d, ym); }).forEach(function(d) { ct[d.cat] = (ct[d.cat] || 0) + d.val; });
+  S.dc.filter(function(d) { return inMonth(d.date, ym) && !d._src; }).forEach(function(d) { ct[d.cat] = (ct[d.cat] || 0) + d.val; });
+  S.veh.cg.filter(function(d) { return inMonth(d.date, ym); }).forEach(function(d) { ct['Veículo'] = (ct['Veículo'] || 0) + d.val; });
+  S.veh.lp.filter(function(d) { return inMonth(d.date, ym); }).forEach(function(d) { ct['Veículo'] = (ct['Veículo'] || 0) + d.val; });
+  (S.veh.df || []).filter(function(d) { return isActiveForYm(d, ym); }).forEach(function(d) { ct['Veículo'] = (ct['Veículo'] || 0) + d.val; });
+  S.dc.filter(function(d) { return inMonth(d.date, ym) && d._src === 'parc'; }).forEach(function(d) { var c = d.cat || 'Parcelas'; ct[c] = (ct[c] || 0) + d.val; });
+  return ct;
+}
+
+// Para o mês que os KPIs já mostram, usa o cache (bate certo com o que está
+// visível no ecrã); para qualquer outro mês, totRec/totDesp já são a fonte
+// única usada em todo o resto da app.
+function _cpMonthTotals(ym) {
+  if (window._cpDash && window._cpDash.ym === ym) return { rec: window._cpDash.rec, desp: window._cpDash.desp };
+  return { rec: totRec(ym), desp: totDesp(ym) };
+}
+
+function _cpBestWorstMonth() {
+  var year = currentYm().slice(0, 4), best = null, worst = null;
+  for (var mi = 1; mi <= 12; mi++) {
+    var ym = year + '-' + pad2(mi);
+    if (ym > currentYm()) break;
+    var net = totRec(ym) - totDespRealized(ym);
+    if (!best || net > best.net) best = { ym: ym, net: net };
+    if (!worst || net < worst.net) worst = { ym: ym, net: net };
+  }
+  return { best: best, worst: worst };
+}
+
+// Testado ao vivo com dados reais em 3 rondas (22/07/2026) — cobriu toda a
+// lista original: categoria, orçamento (dentro E estourado), resumo, pendente,
+// poupança + projecção "no ritmo actual", melhor/pior mês, veículo (caso
+// vazio), parcela específica + agregado, cartão específico (incl. nomes
+// curtos tipo "AB") + "mais usado", receita por fonte, resumo/saldo do ANO
+// inteiro, parsing de mês por nome/relativo, calendário e alertas com dado
+// real (não só o caso vazio). 6 bugs reais achados e corrigidos no processo —
+// detalhe de cada um em [[project_appfinanceiro]] na memória. Fora do escopo
+// de propósito: TVDE (fórmulas protegidas, não vale o risco).
+var _CP_INTENTS = [
+  // combustível / carregamento do veículo
+  { test: function(q) { return /combust|gasolina|carregament|abasteci/.test(q); },
+    run: function(q, ref) {
+      if (q.indexOf('ultimo') > -1 || q.indexOf('ultima') > -1) {
+        var sorted = S.veh.cg.slice().sort(function(a, b) { return a.date < b.date ? 1 : -1; });
+        if (!sorted.length) return 'Ainda não há registos de combustível/carregamento.';
+        var d = sorted[0];
+        return 'O último carregamento foi em <b>' + fmtDate(d.date) + '</b>' + (d.local ? ' em <b>' + d.local + '</b>' : '') + ', no valor de <b>' + fmt(d.val) + '</b>.';
+      }
+      var total = sumVal(S.veh.cg.filter(function(d) { return inMonth(d.date, ref.ym); }));
+      return total > 0 ? 'Gastou <b>' + fmt(total) + '</b> em combustível/carregamento em ' + ref.label + '.' : 'Não há gastos de combustível/carregamento registados em ' + ref.label + '.';
+    }
+  },
+  // manutenção / limpeza do veículo
+  { test: function(q) { return /manutenc|limpeza|lavagem/.test(q); },
+    run: function(q, ref) {
+      var total = sumVal(S.veh.lp.filter(function(d) { return inMonth(d.date, ref.ym); }));
+      return total > 0 ? 'Gastou <b>' + fmt(total) + '</b> em manutenção/limpeza do veículo em ' + ref.label + '.' : 'Não há gastos de manutenção/limpeza registados em ' + ref.label + '.';
+    }
+  },
+  // veículo genérico
+  { test: function(q) { return /veiculo|\bcarro\b/.test(q); },
+    run: function(q, ref) { return 'O total gasto com o veículo em ' + ref.label + ' foi <b>' + fmt(totVeh(ref.ym)) + '</b> (combustível, manutenção e despesas fixas).'; }
+  },
+  // parcela específica (por nome — não exige a palavra "parcela" na pergunta,
+  // ninguém pergunta "quanto falta pagar de parcela da TV Nova" no dia a dia)
+  { test: function(q) { return !!_cpFindInList(q, (S.par || []).map(function(p) { return p.name; })); },
+    run: function(q, ref) {
+      var name = _cpFindInList(q, (S.par || []).map(function(p) { return p.name; }));
+      var p = S.par.find(function(x) { return x.name === name; });
+      if (!p) return null;
+      var restantes = parcMonths(p).filter(function(m) { return !p.py[m]; });
+      if (!restantes.length) return 'A parcela <b>' + p.name + '</b> já está totalmente paga.';
+      var restTotal = restantes.reduce(function(s, m) { return s + parcVal(p, m); }, 0);
+      var due = parcNextDue(p);
+      return 'Faltam <b>' + restantes.length + '</b> parcela(s) de <b>' + p.name + '</b>, no total de <b>' + fmt(restTotal) + '</b>.' + (due ? ' Próxima em <b>' + fmtDate(due.date) + '</b>.' : '');
+    }
+  },
+  // parcelas agregado
+  { test: function(q) { return /parcela|prestac/.test(q); },
+    run: function(q, ref) {
+      var total = 0, n = 0;
+      (S.par || []).forEach(function(p) {
+        parcMonths(p).forEach(function(m) { if (!p.py[m]) { total += parcVal(p, m); n++; } });
+      });
+      return n ? 'Tem <b>' + n + '</b> parcela(s) por pagar, no total de <b>' + fmt(total) + '</b>.' : 'Não há parcelas em aberto.';
+    }
+  },
+  // cartão específico
+  { test: function(q) { return q.indexOf('cartao') > -1 && !!_cpFindInList(q, S.cfg.pay || [], 5); },
+    run: function(q, ref) {
+      var card = _cpFindInList(q, S.cfg.pay || [], 5);
+      var total = sumVal(S.df.filter(function(d) { return isActiveForYm(d, ref.ym) && d.card === card; }))
+                + sumVal(S.dc.filter(function(d) { return inMonth(d.date, ref.ym) && d.card === card; }));
+      return 'Gastou <b>' + fmt(total) + '</b> no cartão <b>' + card + '</b> em ' + ref.label + '.';
+    }
+  },
+  // cartões agregado / mais usado
+  { test: function(q) { return /cartao|cartões|cartoes/.test(q); },
+    run: function(q, ref) {
+      var methods = S.cfg.pay || [];
+      if (!methods.length) return 'Ainda não há cartões configurados.';
+      var rows = methods.map(function(card) {
+        var total = sumVal(S.df.filter(function(d) { return isActiveForYm(d, ref.ym) && d.card === card; }))
+                  + sumVal(S.dc.filter(function(d) { return inMonth(d.date, ref.ym) && d.card === card; }));
+        return { card: card, total: total };
+      }).sort(function(a, b) { return b.total - a.total; });
+      if (!rows[0].total) return 'Não há despesas em nenhum cartão em ' + ref.label + '.';
+      return 'O cartão mais usado em ' + ref.label + ' foi <b>' + rows[0].card + '</b>, com <b>' + fmt(rows[0].total) + '</b> em despesas.';
+    }
+  },
+  // receita por fonte específica
+  { test: function(q) { return !!_cpFindInList(q, S.cfg.src || [], 5); },
+    run: function(q, ref) {
+      var src = _cpFindInList(q, S.cfg.src || [], 5);
+      var total = sumVal(S.rec.filter(function(r) { return inMonth(r.date, ref.ym) && r.src === src; }));
+      return total > 0 ? 'Recebeu <b>' + fmt(total) + '</b> de <b>' + src + '</b> em ' + ref.label + '.' : 'Não há receitas de <b>' + src + '</b> registadas em ' + ref.label + '.';
+    }
+  },
+  // categoria de despesa específica
+  { test: function(q) { return !!_cpFindInList(q, (S.cfg.ccat || []).concat(['Veículo'])); },
+    run: function(q, ref) {
+      var cat = _cpFindInList(q, (S.cfg.ccat || []).concat(['Veículo']));
+      var ct = _cpCatTotals(ref.ym);
+      var val = ct[cat] || 0;
+      if (!val) return 'Não há gastos em <b>' + cat + '</b> em ' + ref.label + '.';
+      var totalDesp = Object.keys(ct).reduce(function(s, k) { return s + ct[k]; }, 0);
+      var pct = totalDesp > 0 ? Math.round(val / totalDesp * 100) : 0;
+      return 'Gastou <b>' + fmt(val) + '</b> em <b>' + cat + '</b> em ' + ref.label + ' — ' + pct + '% do total de despesas do mês.';
+    }
+  },
+  // orçamento
+  { test: function(q) { return /orcament|dentro do/.test(q); },
+    run: function(q, ref) {
+      var cats = S.cfg.budShow || S.cfg.ccat || [];
+      var over = [];
+      cats.forEach(function(cat) {
+        var bud = (S.cfg.bud || {})[cat] || 0; if (!bud) return;
+        var real = sumVal(S.dc.filter(function(d) { return inMonth(d.date, ref.ym) && d.cat === cat && (!d._src || d._src === 'parc' || d._src === 'veh'); }))
+                 + sumVal(S.df.filter(function(d) { return isActiveForYm(d, ref.ym) && d.cat === cat; }))
+                 + sumVal((S.veh.df || []).filter(function(d) { return isActiveForYm(d, ref.ym) && d.cat === cat; }));
+        if (real > bud) over.push(cat);
+      });
+      if (!cats.length) return 'Ainda não há orçamento definido por categoria.';
+      if (!over.length) return 'Está dentro do orçamento em todas as categorias em ' + ref.label + '.';
+      return 'Está a ultrapassar o orçamento em ' + ref.label + ' em: <b>' + over.join(', ') + '</b>.';
+    }
+  },
+  // pendente (só o mês que o Dashboard já está a mostrar — ver cache acima)
+  { test: function(q) { return q.indexOf('pendente') > -1; },
+    run: function(q, ref) {
+      if (!window._cpDash || window._cpDash.ym !== ref.ym) return 'Só sei calcular pendentes para o mês que está a ver no Dashboard (' + monthLabel(globalMonth) + ').';
+      var pend = window._cpDash.pendente;
+      return pend > 0 ? 'Tem <b>' + fmt(pend) + '</b> em despesas fixas/parcelas de ' + ref.label + ' ainda por lançar.' : 'Não há pendentes em ' + ref.label + '.';
+    }
+  },
+  // poupança / meta (+ projeção no ritmo atual)
+  { test: function(q) { return /poupanc|\bmeta\b/.test(q); },
+    run: function(q, ref) {
+      var mt = _cpMonthTotals(ref.ym);
+      var sld = mt.rec - mt.desp;
+      var goal = S.cfg.sgoal || 0;
+      var base = 'A meta de poupança é <b>' + fmt(goal) + '</b>. Em ' + ref.label + ' o saldo está em <b>' + fmt(sld) + '</b> — ' + (sld >= goal ? 'acima' : 'abaixo') + ' da meta.';
+      if (/ritmo|projec|vou bater/.test(q) && ref.ym === currentYm()) {
+        var today = todayStr(), day = parseInt(today.slice(8));
+        var lastDay = new Date(parseInt(ref.ym.slice(0, 4), 10), parseInt(ref.ym.slice(5, 7), 10), 0).getDate();
+        var proj = day > 0 ? sld / day * lastDay : sld;
+        base += ' No ritmo actual, a projecção para o fim do mês é <b>' + fmt(proj) + '</b> (' + (proj >= goal ? 'bate' : 'não bate') + ' a meta).';
+      }
+      return base;
+    }
+  },
+  // melhor / pior mês do ano
+  { test: function(q) { return /melhor mes|pior mes/.test(q); },
+    run: function(q, ref) {
+      var bw = _cpBestWorstMonth();
+      if (q.indexOf('melhor') > -1) return 'O melhor mês do ano foi <b>' + monthLabel(bw.best.ym) + '</b>, com saldo de <b>' + fmt(bw.best.net) + '</b>.';
+      return 'O pior mês do ano foi <b>' + monthLabel(bw.worst.ym) + '</b>, com saldo de <b>' + fmt(bw.worst.net) + '</b>.';
+    }
+  },
+  // calendário / próximos eventos
+  { test: function(q) { return /calendari|evento|agenda|proxim/.test(q); },
+    run: function(q, ref) {
+      var today = todayStr(), in7 = _cpAddDays(today, 7);
+      var upcoming = (S.evt || []).filter(function(e) { return e.date >= today && e.date <= in7; }).sort(function(a, b) { return a.date < b.date ? -1 : 1; });
+      if (!upcoming.length) return 'Não há eventos agendados nos próximos 7 dias.';
+      return 'Nos próximos 7 dias: ' + upcoming.slice(0, 5).map(function(e) { return '<b>' + (e.name || 'Evento') + '</b> em ' + fmtDate(e.date) + (e.val ? ' (' + fmt(e.val) + ')' : ''); }).join('; ') + '.';
+    }
+  },
+  // alertas activos (lê o que já está renderizado em #dAlerts, sem duplicar a lógica)
+  { test: function(q) { return q.indexOf('alerta') > -1; },
+    run: function(q, ref) {
+      var ae = document.getElementById('dAlerts');
+      var txt = ae ? ae.textContent.trim() : '';
+      return txt ? 'Alertas activos: ' + txt : 'Não há alertas activos.';
+    }
+  },
+  // resumo do mês ou do ano
+  { test: function(q) { return /resumo|resume|como foi|como estou/.test(q); },
+    run: function(q, ref) {
+      if (ref.isYear) {
+        var y = ref.year, recY = 0, despY = 0;
+        for (var mi = 1; mi <= 12; mi++) { var ym = y + '-' + pad2(mi); if (ym > currentYm()) break; recY += totRec(ym); despY += totDespRealized(ym); }
+        return 'Em ' + y + ' recebeu <b>' + fmt(recY) + '</b> e gastou <b>' + fmt(despY) + '</b> — saldo de <b>' + fmt(recY - despY) + '</b>.';
+      }
+      var mt = _cpMonthTotals(ref.ym), rec = mt.rec, desp = mt.desp;
+      var ct = _cpCatTotals(ref.ym), catKeys = Object.keys(ct);
+      var maior = catKeys.length ? catKeys.reduce(function(a, b) { return ct[b] > ct[a] ? b : a; }) : null;
+      return 'Em ' + ref.label + ' recebeu <b>' + fmt(rec) + '</b> e gastou <b>' + fmt(desp) + '</b> — saldo de <b>' + fmt(rec - desp) + '</b>.' + (maior ? ' Maior categoria: <b>' + maior + '</b> (' + fmt(ct[maior]) + ').' : '');
+    }
+  },
+  // saldo (mês ou ano)
+  { test: function(q) { return q.indexOf('saldo') > -1; },
+    run: function(q, ref) {
+      if (ref.isYear) {
+        var y = ref.year, recY = 0, despY = 0;
+        for (var mi = 1; mi <= 12; mi++) { var ym = y + '-' + pad2(mi); if (ym > currentYm()) break; recY += totRec(ym); despY += totDespRealized(ym); }
+        return 'O saldo de ' + y + ' é <b>' + fmt(recY - despY) + '</b>.';
+      }
+      var mt = _cpMonthTotals(ref.ym);
+      return 'O saldo de ' + ref.label + ' é <b>' + fmt(mt.rec - mt.desp) + '</b> (receitas menos despesas).';
+    }
+  },
+  // receitas genérico
+  { test: function(q) { return /receita|recebi|entrou|ganhei/.test(q); },
+    run: function(q, ref) { return 'Recebeu <b>' + fmt(_cpMonthTotals(ref.ym).rec) + '</b> em ' + ref.label + '.'; }
+  },
+  // despesas genérico
+  { test: function(q) { return /despes|gastei|\bgasto\b/.test(q); },
+    run: function(q, ref) { return 'Gastou <b>' + fmt(_cpMonthTotals(ref.ym).desp) + '</b> em ' + ref.label + '.'; }
+  }
+];
+
+function cpAsk(question) {
+  if (!question || !question.trim()) return;
+  var aEl = document.getElementById('cpA');
+  if (!aEl) return;
+  aEl.innerHTML = '<span class="cp-dots"><span></span><span></span><span></span></span>';
+  setTimeout(function() {
+    var q = _cpNorm(question);
+    var ref = _cpParseRef(q);
+    var answer = null;
+    for (var i = 0; i < _CP_INTENTS.length && answer == null; i++) {
+      if (_CP_INTENTS[i].test(q)) answer = _CP_INTENTS[i].run(q, ref);
+    }
+    aEl.innerHTML = answer || 'Ainda não sei responder a isso. Pergunte sobre categorias, orçamento, poupança, parcelas, cartões, veículo, calendário ou peça um resumo do mês.';
+  }, 220);
 }
 
 // ================================================================
