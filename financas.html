@@ -495,9 +495,12 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      botão, "afastando" os ícones um do outro (reportado pelo usuário). Agora
      a barra só é tão larga quanto o conteúdo pede, com um gap pequeno e
      fixo entre as abas. */
-  .tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.3rem .4rem;border-radius:999px;box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:visible;gap:.3rem}
-  .tb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.1rem;padding:.15rem .5rem;font-size:.58rem;border-radius:16px}
-  .tb-ic{font-size:1rem;line-height:1;display:flex;align-items:center;justify-content:center;width:1.55rem;height:1.55rem;border-radius:50%;transition:background var(--tr),transform var(--tr),box-shadow var(--tr)}
+  /* Tamanhos alvo (pedido do usuário — um valor pra comparar no aparelho):
+     ícone visível ~25px (perto do padrão de barra de navegação da Apple),
+     rótulo ~12px, bolha da aba ativa ~34px de diâmetro. */
+  .tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.45rem .6rem;border-radius:999px;box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:visible;gap:.5rem}
+  .tb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;padding:.2rem .6rem;font-size:.75rem;border-radius:16px}
+  .tb-ic{font-size:1.4rem;line-height:1;display:flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;border-radius:50%;transition:background var(--tr),transform var(--tr),box-shadow var(--tr)}
   .tb-lbl{line-height:1}
   /* Aba ativa: o ícone vira uma bolha verde-água elevada, saindo por cima
      da borda da pílula (referência visual passada pelo usuário). O rótulo
@@ -510,7 +513,7 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
   .tb.on .tb-lbl{color:var(--blu);font-weight:700}
   /* color:#fff aqui — sem isso o ícone SVG (stroke=currentColor) herdava o
      cinza de .tb.on acima, ficando quase invisível em cima da bolha cheia. */
-  .tb.on .tb-ic{background:var(--blu);color:#fff;box-shadow:0 2px 8px rgba(var(--blu-rgb),.45);transform:translateY(-.3rem) scale(1.05)}
+  .tb.on .tb-ic{background:var(--blu);color:#fff;box-shadow:0 3px 10px rgba(var(--blu-rgb),.45);transform:translateY(-.4rem) scale(1.05)}
   /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra —
      FAB e painéis usam a mesma medida, mais o afastamento do fundo acima,
      pra não ficarem escondidos atrás dela. !important porque existe uma
