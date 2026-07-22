@@ -490,14 +490,13 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      usuário, ver .tb-ic/.tb-lbl). Afastada das duas laterais: encostada
      ponta a ponta (left:0;right:0) ela caía bem em cima da curvatura física
      do ecrã nos cantos de baixo, cortando visualmente Dashboard/Mais. */
-  .tabs{justify-content:space-around;position:fixed;left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.3rem .25rem;border-radius:999px;box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:visible}
-  /* flex:1 — cada aba visível ocupa uma fatia igual da barra em vez de
-     ficar com o tamanho mínimo do conteúdo e sobrar vão vazio entre elas
-     (reportado pelo usuário: "muito espaço vazio na tab bar"). Barra
-     inteira encolhida de novo (2ª rodada) — a versão anterior, mesmo já
-     maior que a original, continuava bem mais alta que a referência
-     passada pelo usuário. */
-  .tb{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:.1rem;padding:.15rem .2rem;font-size:.58rem;border-radius:16px}
+  /* Largura automática e centrada em vez de esticar ponta a ponta (left/
+     right:14px + flex:1 no .tb) — isso deixava vão vazio dentro de cada
+     botão, "afastando" os ícones um do outro (reportado pelo usuário). Agora
+     a barra só é tão larga quanto o conteúdo pede, com um gap pequeno e
+     fixo entre as abas. */
+  .tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.3rem .4rem;border-radius:999px;box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:visible;gap:.3rem}
+  .tb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.1rem;padding:.15rem .5rem;font-size:.58rem;border-radius:16px}
   .tb-ic{font-size:1rem;line-height:1;display:flex;align-items:center;justify-content:center;width:1.55rem;height:1.55rem;border-radius:50%;transition:background var(--tr),transform var(--tr),box-shadow var(--tr)}
   .tb-lbl{line-height:1}
   /* Aba ativa: o ícone vira uma bolha verde-água elevada, saindo por cima
@@ -573,7 +572,8 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      max-height:70vh;overflow-y:auto;box-shadow:0 -6px 40px rgba(0,0,0,.45)}
 .mnsh.on{transform:translateY(0);transition:transform .32s cubic-bezier(.32,.72,0,1)}
 .mnsh .mnh{width:42px;height:5px;background:var(--mut);border-radius:3px;margin:0 auto .9rem;opacity:.4}
-.mnsh .mni{display:block;width:100%;background:none;border:none;color:var(--txt);font:inherit;font-weight:600;font-size:.85rem;padding:.8rem .3rem;border-bottom:1px solid var(--brd);text-align:left;cursor:pointer;transition:background var(--tr)}
+.mnsh .mni{display:flex;align-items:center;justify-content:center;gap:.55rem;width:100%;background:none;border:none;color:var(--txt);font:inherit;font-weight:600;font-size:.85rem;padding:.8rem .3rem;border-bottom:1px solid var(--brd);text-align:center;cursor:pointer;transition:background var(--tr)}
+.mnsh .mni-svg{width:1.15rem;height:1.15rem;flex-shrink:0}
 .mnsh .mni:last-child{border-bottom:none}
 .mnsh .mni:active{background:var(--s2)}
 .mnsh .mni.on{color:var(--blu)}
@@ -995,6 +995,43 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
     <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/>
     <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/>
     <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/>
+  </symbol>
+  <!-- Ícones da folha "Mais" (abas escondidas atrás dela no mobile) -->
+  <symbol id="i-car" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 16 4.5 9.5A2 2 0 0 1 6.4 8h11.2a2 2 0 0 1 1.9 1.5L21 16"/>
+    <rect x="2.5" y="16" width="19" height="4" rx="1.5"/>
+    <circle cx="7" cy="20" r="1.4"/>
+    <circle cx="17" cy="20" r="1.4"/>
+  </symbol>
+  <symbol id="i-wheel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/>
+    <circle cx="12" cy="12" r="2.3"/>
+    <path d="M12 3v6.3M4.8 16.5 9.9 13M19.2 16.5 14.1 13"/>
+  </symbol>
+  <symbol id="i-card" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="5" width="20" height="14" rx="2"/>
+    <line x1="2" y1="10" x2="22" y2="10"/>
+  </symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2"/>
+    <line x1="16" y1="2" x2="16" y2="6"/>
+    <line x1="8" y1="2" x2="8" y2="6"/>
+    <line x1="3" y1="10" x2="21" y2="10"/>
+  </symbol>
+  <symbol id="i-bank" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2 10 12 3l10 7"/>
+    <path d="M4 10v11M20 10v11M8 21v-7M12 21v-7M16 21v-7"/>
+    <path d="M3 21h18"/>
+  </symbol>
+  <symbol id="i-target" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/>
+    <circle cx="12" cy="12" r="5"/>
+    <circle cx="12" cy="12" r="1.3"/>
+  </symbol>
+  <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3v12"/>
+    <polyline points="7 11 12 16 17 11"/>
+    <path d="M4 19h16"/>
   </symbol>
 </svg>
 
@@ -9929,13 +9966,13 @@ function _impBankFile(bank) {
 <div class="mnov" id="moreNavOv" onclick="closeMoreNav()"></div>
 <div class="mnsh" id="moreNavSh">
   <div class="mnh"></div>
-  <button class="mni" data-tab="veiculo" onclick="moreNavGo('veiculo')">🚘 Veículo</button>
-  <button class="mni" data-tab="tvde" id="moreNavTvde" onclick="moreNavGo('tvde')">🚕 TVDE</button>
-  <button class="mni" data-tab="parcelas" onclick="moreNavGo('parcelas')">💳 Parcelas</button>
-  <button class="mni" data-tab="cal" onclick="moreNavGo('cal')">📅 Calendário</button>
-  <button class="mni" data-tab="cartoes" onclick="moreNavGo('cartoes')">🏦 Cartões</button>
-  <button class="mni" data-tab="metas" onclick="moreNavGo('metas')">🎯 Metas</button>
-  <button class="mni" data-tab="import" onclick="moreNavGo('import')">📥 Importar</button>
+  <button class="mni" data-tab="veiculo" onclick="moreNavGo('veiculo')"><svg class="mni-svg"><use href="#i-car"></use></svg>Veículo</button>
+  <button class="mni" data-tab="tvde" id="moreNavTvde" onclick="moreNavGo('tvde')"><svg class="mni-svg"><use href="#i-wheel"></use></svg>TVDE</button>
+  <button class="mni" data-tab="parcelas" onclick="moreNavGo('parcelas')"><svg class="mni-svg"><use href="#i-card"></use></svg>Parcelas</button>
+  <button class="mni" data-tab="cal" onclick="moreNavGo('cal')"><svg class="mni-svg"><use href="#i-calendar"></use></svg>Calendário</button>
+  <button class="mni" data-tab="cartoes" onclick="moreNavGo('cartoes')"><svg class="mni-svg"><use href="#i-bank"></use></svg>Cartões</button>
+  <button class="mni" data-tab="metas" onclick="moreNavGo('metas')"><svg class="mni-svg"><use href="#i-target"></use></svg>Metas</button>
+  <button class="mni" data-tab="import" onclick="moreNavGo('import')"><svg class="mni-svg"><use href="#i-download"></use></svg>Importar</button>
 </div>
 <div class="qov" id="qOv" onclick="qClose()"></div>
 <div class="qsh" id="qSh">
