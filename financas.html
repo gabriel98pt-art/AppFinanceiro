@@ -494,15 +494,18 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      usuário, ver .tb-ic/.tb-lbl). Afastada das duas laterais: encostada
      ponta a ponta (left:0;right:0) ela caía bem em cima da curvatura física
      do ecrã nos cantos de baixo, cortando visualmente Dashboard/Mais. */
-  /* Largura automática e centrada em vez de esticar ponta a ponta (left/
-     right:14px + flex:1 no .tb) — isso deixava vão vazio dentro de cada
-     botão, "afastando" os ícones um do outro (reportado pelo usuário). Agora
-     a barra só é tão larga quanto o conteúdo pede, com um gap pequeno e
-     fixo entre as abas. */
+  /* Largura automática (hug do conteúdo) em vez de esticar ponta a ponta
+     (left/right:14px + flex:1 no .tb) — isso deixava vão vazio dentro de
+     cada botão, "afastando" os ícones um do outro (reportado pelo usuário).
+     Ancorada por "right", não centralizada por left:50%+transform — reserva
+     um espaço fixo do lado direito pro botão de registo rápido (.qfab, ver
+     comentário nele mais abaixo) sem precisar medir a largura de nada em
+     JS. 78px = 14px (afastamento da borda) + 54px (largura do botão) +
+     10px (vão entre os dois). */
   /* Tamanhos alvo (pedido do usuário — um valor pra comparar no aparelho):
      ícone visível ~25px (perto do padrão de barra de navegação da Apple),
      rótulo ~12px, bolha da aba ativa ~34px de diâmetro. */
-  .tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.45rem .6rem;border-radius:999px;box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:visible;gap:.5rem}
+  .tabs{position:fixed;right:78px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;left:auto;padding:.45rem .6rem;border-radius:999px;box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:visible;gap:.5rem}
   .tb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;padding:.2rem .6rem;font-size:.75rem;border-radius:16px}
   .tb-ic{font-size:1.4rem;line-height:1;display:flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;border-radius:50%;transition:background var(--tr),transform var(--tr),box-shadow var(--tr)}
   .tb-lbl{line-height:1}
@@ -520,16 +523,25 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
   .tb.on .tb-ic{background:var(--blu);color:#fff;box-shadow:0 3px 10px rgba(var(--blu-rgb),.45);transform:translateY(-.4rem) scale(1.05)}
   /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra;
      .pnl ainda usa pra não ficar escondido atrás dela.
-     FAB agora fica do LADO da barra (pedido do usuário) em vez de flutuar
-     por cima dela — bottom aqui só centraliza verticalmente com a altura da
-     barra; a posição horizontal (left/right) é calculada em JS
-     (fixStickyOffsets), porque em telas de ~375-430px não sobra espaço pra
-     centralizar a barra sozinha E encaixar o botão do lado sem ele ficar
-     parcialmente fora da tela — os dois precisam ser centralizados juntos,
-     como um grupo só. !important porque existe uma regra
-     .qfab{bottom:1.4rem} sem media query mais abaixo no ficheiro — em ordem
-     normal ela venceria esta por vir depois no CSS. */
-  .qfab{bottom:calc(env(safe-area-inset-bottom,0px) + 10px + (var(--tabbar-h,63px) - 54px)/2) !important}
+     FAB do lado da barra (pedido do usuário). Duas tentativas anteriores
+     falharam: (1) calcular a posição em JS medindo a largura da barra —
+     frágil, a fonte carrega depois da medição num aparelho real e a barra
+     fica mais larga do que o JS tinha medido, sobrepondo a aba "Mais" (bug
+     reportado com print); (2) mover o próprio botão pra dentro do <nav
+     class="tabs"> e deixar o flexbox posicionar — quebrou o desktop, porque
+     .tabs tem overflow-x:auto lá, e isso bagunçou o position:fixed do botão
+     mesmo ele "escapando" do fluxo em teoria. Solução final: nada de medir,
+     nada de aninhar — .tabs (acima) reserva 78px fixos do lado direito
+     (right:78px em vez de centralizar com left:50%+transform), e aqui o
+     botão fica ancorado num "right" fixo dentro desse espaço reservado.
+     bottom centraliza verticalmente com a altura real da barra (--tabbar-h).
+     !important porque existe uma regra .qfab{bottom:1.4rem;right:1.2rem}
+     sem media query mais abaixo no ficheiro — em ordem normal ela venceria
+     esta por vir depois no CSS. */
+  .qfab{
+    bottom:calc(env(safe-area-inset-bottom,0px) + 10px + (var(--tabbar-h,63px) - 54px)/2) !important;
+    right:14px !important;
+  }
   /* Zonas de toque maiores nos botões de ação das tabelas */
   .ic{width:36px;height:36px}
   /* Padding reduzido nas células — reduz scroll horizontal desnecessário */
@@ -8939,51 +8951,17 @@ function fixStickyOffsets() {
   // só precisa descontar o cabeçalho, não a altura das abas. tabs.style.top
   // tem de ser limpo (não só "não mexido"): um valor inline de uma largura
   // anterior venceria o top:auto da media query, já que inline > stylesheet.
-  var fab = document.querySelector('.qfab');
   if (mobile) {
     tabs.style.top = '';
     gnav.style.top = hh + 'px';
     document.documentElement.style.setProperty('--tabbar-h', tabs.offsetHeight + 'px');
-    // FAB do lado da barra (pedido do usuário): em telas de ~375-430px não
-    // sobra espaço pra centralizar só a barra (left:50%+transform, no CSS)
-    // E colar o botão do lado dela sem parte dele ficar fora da tela — os
-    // dois precisam ser centralizados JUNTOS, como um grupo só. Por isso a
-    // barra troca o transform:translateX(-50%) por um left em px calculado
-    // aqui, e o botão ganha left (não right) logo depois dela + 10px de vão.
-    if (fab) {
-      var gap = 10;
-      // Limpa left/transform antes de medir — chamadas repetidas (resize,
-      // reordenar secções, etc.) partiam de um left em px de uma chamada
-      // anterior, e medir em cima disso podia sair errado. Zerando primeiro,
-      // toda chamada mede a barra no estado natural do CSS (left:50%,
-      // largura definida só pelo conteúdo), sempre do mesmo jeito.
-      tabs.style.left = '';
-      tabs.style.transform = '';
-      var barW = tabs.getBoundingClientRect().width, fabW = fab.offsetWidth;
-      var groupLeft = (window.innerWidth - (barW + gap + fabW)) / 2;
-      tabs.style.left = groupLeft + 'px';
-      tabs.style.transform = 'none';
-      fab.style.left = (groupLeft + barW + gap) + 'px';
-      fab.style.right = 'auto';
-    }
   } else {
     tabs.style.top = hh + 'px';
     gnav.style.top = (hh + tabs.offsetHeight) + 'px';
-    // Limpa o posicionamento de grupo do mobile ao voltar pra desktop —
-    // senão o left/transform em px fica preso e desalinha a barra sticky.
-    tabs.style.left = '';
-    tabs.style.transform = '';
-    if (fab) { fab.style.left = ''; fab.style.right = ''; }
   }
   _centerActiveTab();
 }
 window.addEventListener('resize', fixStickyOffsets);
-// A 1ª chamada de fixStickyOffsets() acontece no boot, ainda dentro do
-// parsing do HTML — o botão .qfab só existe bem mais abaixo no documento,
-// então document.querySelector('.qfab') volta null e o agrupamento com a
-// barra não é aplicado. DOMContentLoaded garante uma 2ª passada depois que
-// o HTML inteiro (incluindo o .qfab) já existe.
-document.addEventListener('DOMContentLoaded', fixStickyOffsets);
 
 // ================================================================
 // QUICK-ADD FAB
@@ -10007,7 +9985,6 @@ function _impBankFile(bank) {
     </div>
   </div>
 </div>
-
 <!-- QUICK-ADD FAB -->
 <button class="qfab" id="qFab" onclick="qOpen()" title="Registo rápido">＋</button>
 <div class="mnov" id="moreNavOv" onclick="closeMoreNav()"></div>
