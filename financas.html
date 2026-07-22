@@ -88,6 +88,7 @@ tbody td,tfoot td,.kval,.ksub,.pgr,.mbar-lbl,#qAmt{font-variant-numeric:tabular-
 .tb{background:none;border:1px solid transparent;border-radius:8px;color:var(--mut);cursor:pointer;padding:.38rem .85rem;font-size:.73rem;font-weight:600;white-space:nowrap;transition:background var(--tr),color var(--tr),border-color var(--tr),box-shadow var(--tr),transform .1s cubic-bezier(.4,0,1,1);line-height:1.4}
 .tb:active{transform:scale(.95);opacity:.8}
 .tb.on{background:var(--blu);color:#fff;border-color:transparent;box-shadow:0 2px 12px rgba(var(--blu-rgb),.4)}
+.tb-mais{display:none}
 .tb:hover:not(.on){background:var(--s2);color:var(--txt);border-color:var(--brd)}
 
 /* PANELS */
@@ -451,6 +452,10 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 
 /* Mobile compacto */
 @media(max-width:600px){
+  /* Barra de baixo só com as 3 abas mais usadas + "Mais" (evita rolar de lado
+     pra achar as outras 7 — ver .mnov/.mnsh mais abaixo) */
+  .tb-more{display:none}
+  .tb-mais{display:inline-block}
   /* Tabs mais compactos para caber todos os labels */
   /* Barra de abas desce pra base do ecrã — top:auto sobrepõe o sticky top:52px
      (fixStickyOffsets() já sabe não mexer no top inline nesta largura, ver JS) */
@@ -505,6 +510,20 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 .qhandle{width:42px;height:5px;background:var(--mut);border-radius:3px;margin:.75rem auto 1rem;opacity:.4}
 .qsh-drag-zone{position:absolute;top:0;left:0;right:0;height:52px;cursor:grab;touch-action:none;z-index:1}
 .qsh-drag-zone:active{cursor:grabbing}
+/* Folha "Mais" (abas secundárias) — mesmo padrão do .qov/.qsh acima, sem arrastar */
+.mnov{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:510;opacity:0;pointer-events:none;transition:opacity .22s}
+.mnov.on{opacity:1;pointer-events:auto}
+.mnsh{position:fixed;bottom:0;left:0;right:0;z-index:520;background:var(--s1);
+     border-radius:20px 20px 0 0;padding:.75rem 1.1rem calc(1.1rem + env(safe-area-inset-bottom,0px));
+     transform:translateY(105%);transition:transform .28s cubic-bezier(.4,0,1,1);
+     max-height:70vh;overflow-y:auto;box-shadow:0 -6px 40px rgba(0,0,0,.45)}
+.mnsh.on{transform:translateY(0);transition:transform .32s cubic-bezier(.32,.72,0,1)}
+.mnsh .mnh{width:42px;height:5px;background:var(--mut);border-radius:3px;margin:0 auto .9rem;opacity:.4}
+.mnsh .mni{display:block;width:100%;background:none;border:none;color:var(--txt);font:inherit;font-weight:600;font-size:.85rem;padding:.8rem .3rem;border-bottom:1px solid var(--brd);text-align:left;cursor:pointer;transition:background var(--tr)}
+.mnsh .mni:last-child{border-bottom:none}
+.mnsh .mni:active{background:var(--s2)}
+.mnsh .mni.on{color:var(--blu)}
+@media(prefers-reduced-motion:reduce){.mnsh{transition:transform .01s linear}.mnov{transition:opacity .01s linear}}
 .qtype{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.38rem;
        background:var(--s2);border-radius:10px;padding:.28rem;margin-bottom:1rem}
 .qtpill{border-radius:7px;padding:.52rem;font-size:.8rem;font-weight:700;
@@ -928,16 +947,17 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
 </header>
 
 <nav class="tabs">
-  <button class="tb on" onclick="sw('dashboard',this)">📊 Dashboard</button>
-  <button class="tb" onclick="sw('receitas',this)">💰 Receitas</button>
-  <button class="tb" onclick="sw('despesas',this)">💸 Despesas</button>
-  <button class="tb" onclick="sw('veiculo',this)">🚘 Veículo</button>
-  <button class="tb" onclick="sw('tvde',this)">🚕 TVDE</button>
-  <button class="tb" onclick="sw('parcelas',this)">💳 Parcelas</button>
-  <button class="tb" onclick="sw('cal',this)">📅 Calendário</button>
-  <button class="tb" onclick="sw('cartoes',this)">🏦 Cartões</button>
-  <button class="tb" onclick="sw('metas',this)">🎯 Metas</button>
-  <button class="tb" onclick="sw('import',this)">📥 Importar</button>
+  <button class="tb on" id="tb-dashboard" onclick="sw('dashboard',this)">📊 Dashboard</button>
+  <button class="tb" id="tb-receitas" onclick="sw('receitas',this)">💰 Receitas</button>
+  <button class="tb" id="tb-despesas" onclick="sw('despesas',this)">💸 Despesas</button>
+  <button class="tb tb-more" id="tb-veiculo" onclick="sw('veiculo',this)">🚘 Veículo</button>
+  <button class="tb tb-more" id="tb-tvde" onclick="sw('tvde',this)">🚕 TVDE</button>
+  <button class="tb tb-more" id="tb-parcelas" onclick="sw('parcelas',this)">💳 Parcelas</button>
+  <button class="tb tb-more" id="tb-cal" onclick="sw('cal',this)">📅 Calendário</button>
+  <button class="tb tb-more" id="tb-cartoes" onclick="sw('cartoes',this)">🏦 Cartões</button>
+  <button class="tb tb-more" id="tb-metas" onclick="sw('metas',this)">🎯 Metas</button>
+  <button class="tb tb-more" id="tb-import" onclick="sw('import',this)">📥 Importar</button>
+  <button class="tb tb-mais" id="tb-mais" onclick="openMoreNav()">⋯ Mais</button>
 </nav>
 <div class="gmnav-bar">
   <div class="mnav">
@@ -1583,6 +1603,8 @@ function _fbApplyTvdeVisibility() {
   var show = !S.cfg || S.cfg.showTvde !== false;
   var btn = document.querySelector('.tabs .tb[onclick*="\'tvde\'"]');
   if (btn) btn.style.display = show ? '' : 'none';
+  var moreBtn = document.getElementById('moreNavTvde');
+  if (moreBtn) moreBtn.style.display = show ? '' : 'none';
   if (!show && CUR === 'tvde') sw('dashboard', document.querySelector('.tabs .tb'));
 }
 
@@ -3044,11 +3066,34 @@ var PAL = CCAT_PAL.map(function(p){return p.c;});
 // TABS
 // ================================================================
 var CUR = 'dashboard';
+// Abas escondidas atrás do botão "Mais" na barra de baixo do mobile (ver .tb-more/.tb-mais)
+var _MORE_TABS = ['veiculo','tvde','parcelas','cal','cartoes','metas','import'];
+
+function openMoreNav() {
+  var ov = document.getElementById('moreNavOv'), sh = document.getElementById('moreNavSh');
+  if (!ov || !sh) return;
+  document.querySelectorAll('#moreNavSh .mni').forEach(function(el) {
+    el.classList.toggle('on', el.dataset.tab === CUR);
+  });
+  ov.classList.add('on'); sh.classList.add('on');
+}
+function closeMoreNav() {
+  var ov = document.getElementById('moreNavOv'), sh = document.getElementById('moreNavSh');
+  if (ov) ov.classList.remove('on');
+  if (sh) sh.classList.remove('on');
+}
+function moreNavGo(id) {
+  sw(id, document.getElementById('tb-' + id));
+  closeMoreNav();
+}
 
 function _centerActiveTab() {
   var tabsEl = document.querySelector('.tabs');
   var btn = tabsEl && tabsEl.querySelector('.tb.on');
-  if (!tabsEl || !btn) return;
+  // .tb-more fica display:none no mobile — se a aba activa for uma delas, o
+  // "Mais" é quem representa ela na barra visível, não o botão real escondido
+  if (btn && !btn.offsetParent) btn = document.getElementById('tb-mais');
+  if (!tabsEl || !btn || !btn.offsetParent) return;
   var tr = tabsEl.getBoundingClientRect();
   var br = btn.getBoundingClientRect();
   tabsEl.scrollLeft += br.left - tr.left - (tabsEl.offsetWidth - btn.offsetWidth) / 2;
@@ -3064,6 +3109,8 @@ function sw(id, btn) {
   var panel = document.getElementById('p-' + id);
   if (panel) panel.classList.add('on');
   if (btn) btn.classList.add('on');
+  var maisBtn = document.getElementById('tb-mais');
+  if (maisBtn) maisBtn.classList.toggle('on', _MORE_TABS.indexOf(id) > -1);
   window.scrollTo(0, 0);
   _centerActiveTab();
   renderTab(id);
@@ -9796,6 +9843,17 @@ function _impBankFile(bank) {
 
 <!-- QUICK-ADD FAB -->
 <button class="qfab" id="qFab" onclick="qOpen()" title="Registo rápido">＋</button>
+<div class="mnov" id="moreNavOv" onclick="closeMoreNav()"></div>
+<div class="mnsh" id="moreNavSh">
+  <div class="mnh"></div>
+  <button class="mni" data-tab="veiculo" onclick="moreNavGo('veiculo')">🚘 Veículo</button>
+  <button class="mni" data-tab="tvde" id="moreNavTvde" onclick="moreNavGo('tvde')">🚕 TVDE</button>
+  <button class="mni" data-tab="parcelas" onclick="moreNavGo('parcelas')">💳 Parcelas</button>
+  <button class="mni" data-tab="cal" onclick="moreNavGo('cal')">📅 Calendário</button>
+  <button class="mni" data-tab="cartoes" onclick="moreNavGo('cartoes')">🏦 Cartões</button>
+  <button class="mni" data-tab="metas" onclick="moreNavGo('metas')">🎯 Metas</button>
+  <button class="mni" data-tab="import" onclick="moreNavGo('import')">📥 Importar</button>
+</div>
 <div class="qov" id="qOv" onclick="qClose()"></div>
 <div class="qsh" id="qSh">
   <div class="qsh-drag-zone" id="qDragZone"></div>
