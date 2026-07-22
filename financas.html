@@ -483,64 +483,45 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 
 /* Mobile compacto */
 @media(max-width:600px){
-  /* Barra de baixo só com as 3 abas mais usadas + "Mais" (evita rolar de lado
-     pra achar as outras 7 — ver .mnov/.mnsh mais abaixo) */
+  /* Barra de baixo só com as 4 abas mais usadas (a 4ª troca entre Calendário
+     e TVDE, ver tb-mobile-visible/tb-cal-hide-mobile abaixo) + "Mais" (evita
+     rolar de lado pra achar as outras — ver .mnov/.mnsh mais abaixo) */
   .tb-more{display:none!important}
   .tb-mais{display:flex}
-  /* Tabs mais compactos para caber todos os labels */
-  /* Barra de abas desce pra base do ecrã — top:auto sobrepõe o sticky top:52px
-     (fixStickyOffsets() já sabe não mexer no top inline nesta largura, ver JS) */
-  /* Barra flutuante em pílula — ícone em cima, rótulo embaixo (pedido do
-     usuário, ver .tb-ic/.tb-lbl). Afastada das duas laterais: encostada
-     ponta a ponta (left:0;right:0) ela caía bem em cima da curvatura física
-     do ecrã nos cantos de baixo, cortando visualmente Dashboard/Mais. */
-  /* Largura automática (hug do conteúdo) em vez de esticar ponta a ponta
-     (left/right:14px + flex:1 no .tb) — isso deixava vão vazio dentro de
-     cada botão, "afastando" os ícones um do outro (reportado pelo usuário).
-     Ancorada por "right", não centralizada por left:50%+transform — reserva
-     um espaço fixo do lado direito pro botão de registo rápido (.qfab, ver
-     comentário nele mais abaixo) sem precisar medir a largura de nada em
-     JS. 78px = 14px (afastamento da borda) + 54px (largura do botão) +
-     10px (vão entre os dois). */
-  /* Tamanhos alvo (pedido do usuário — um valor pra comparar no aparelho):
-     ícone visível ~25px (perto do padrão de barra de navegação da Apple),
-     rótulo ~12px, bolha da aba ativa ~34px de diâmetro. */
-  .tabs{position:fixed;right:78px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;left:auto;padding:.45rem .6rem;border-radius:999px;box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:visible;gap:.5rem}
-  .tb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;padding:.2rem .6rem;font-size:.75rem;border-radius:16px}
-  .tb-ic{font-size:1.4rem;line-height:1;display:flex;align-items:center;justify-content:center;width:2.1rem;height:2.1rem;border-radius:50%;transition:background var(--tr),transform var(--tr),box-shadow var(--tr)}
+  /* TVDE assume o lugar do Calendário como 5º item só pra quem tem
+     S.cfg.showTvde ligado (na prática só o dono, pedido do usuário) —
+     _fbApplyTvdeVisibility() liga/desliga estas classes. Especificidade
+     .tb-more.tb-mobile-visible (0,2,0) + !important vence o
+     .tb-more{display:none!important} (0,1,0) de cima. */
+  .tb-more.tb-mobile-visible{display:flex!important}
+  .tb-cal-hide-mobile{display:none!important}
+  /* Barra plana, ponta a ponta e encostada no fundo — referência visual
+     passada pelo usuário (estilo WhatsApp: ícone em cima, rótulo embaixo,
+     abas do mesmo tamanho dividindo a largura toda, sem pílula flutuante
+     nem bolha elevada na aba ativa — as duas tentativas anteriores). */
+  .tabs{position:fixed;left:0;right:0;bottom:0;top:auto;padding:.35rem .2rem calc(.45rem + env(safe-area-inset-bottom,0px));border-radius:0;box-shadow:none;border-top:1px solid var(--brd);overflow:visible;gap:0}
+  .tb{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;padding:.25rem .1rem;font-size:.65rem;border-radius:0}
+  .tb-ic{font-size:1.3rem;line-height:1;display:flex;align-items:center;justify-content:center}
   .tb-lbl{line-height:1}
-  /* Aba ativa: o ícone vira uma bolha verde-água elevada, saindo por cima
-     da borda da pílula (referência visual passada pelo usuário). O rótulo
-     continua visível embaixo — escondê-lo (tentativa anterior) deixava um
-     vão vazio feio só na aba ativa e tirava a certeza de qual está selecionada.
-     A regra .tb.on{background:var(--blu)...} do desktop (não tem media query,
-     vale pra todos os tamanhos) pintava o botão inteiro — precisa ser
-     desfeita aqui, só o ícone (.tb-ic) deve ficar colorido. */
-  .tb.on{background:none;color:var(--mut);box-shadow:none}
-  .tb.on .tb-lbl{color:var(--blu);font-weight:700}
-  /* color:#fff aqui — sem isso o ícone SVG (stroke=currentColor) herdava o
-     cinza de .tb.on acima, ficando quase invisível em cima da bolha cheia. */
-  .tb.on .tb-ic{background:var(--blu);color:#fff;box-shadow:0 3px 10px rgba(var(--blu-rgb),.45);transform:translateY(-.4rem) scale(1.05)}
-  /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra;
-     .pnl ainda usa pra não ficar escondido atrás dela.
-     FAB do lado da barra (pedido do usuário). Duas tentativas anteriores
-     falharam: (1) calcular a posição em JS medindo a largura da barra —
-     frágil, a fonte carrega depois da medição num aparelho real e a barra
-     fica mais larga do que o JS tinha medido, sobrepondo a aba "Mais" (bug
-     reportado com print); (2) mover o próprio botão pra dentro do <nav
-     class="tabs"> e deixar o flexbox posicionar — quebrou o desktop, porque
-     .tabs tem overflow-x:auto lá, e isso bagunçou o position:fixed do botão
-     mesmo ele "escapando" do fluxo em teoria. Solução final: nada de medir,
-     nada de aninhar — .tabs (acima) reserva 78px fixos do lado direito
-     (right:78px em vez de centralizar com left:50%+transform), e aqui o
-     botão fica ancorado num "right" fixo dentro desse espaço reservado.
-     bottom centraliza verticalmente com a altura real da barra (--tabbar-h).
-     !important porque existe uma regra .qfab{bottom:1.4rem;right:1.2rem}
-     sem media query mais abaixo no ficheiro — em ordem normal ela venceria
-     esta por vir depois no CSS. */
+  /* Aba ativa: só muda de cor (ícone + rótulo), sem fundo/bolha/elevação —
+     mantém a barra lisa como a referência. */
+  /* Desfaz o .tb.on{background:var(--blu)...} do desktop (sem media query,
+     vale pra todos os tamanhos) — aqui a aba ativa só muda de cor, sem
+     fundo sólido cobrindo o botão inteiro. */
+  .tb.on{background:none;color:var(--mut);border-color:transparent;box-shadow:none}
+  .tb.on .tb-ic,.tb.on .tb-lbl{color:var(--blu)}
+  .tb.on .tb-lbl{font-weight:700}
+  /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra
+     (já inclui o respiro do safe-area, embutido no padding acima) — .pnl e
+     o FAB usam essa medida pra não ficarem escondidos atrás dela.
+     FAB de volta a flutuar ACIMA da barra (não mais do lado — pedido do
+     usuário depois de ver a referência nova) e um pouco menor. !important
+     porque existe uma regra .qfab{bottom:1.4rem;width:54px...} sem media
+     query mais abaixo no ficheiro — em ordem normal ela venceria esta por
+     vir depois no CSS. */
   .qfab{
-    bottom:calc(env(safe-area-inset-bottom,0px) + 10px + (var(--tabbar-h,63px) - 54px)/2) !important;
-    right:14px !important;
+    bottom:calc(var(--tabbar-h,56px) + 14px) !important;
+    width:46px !important;height:46px !important;font-size:1.3rem !important;
   }
   /* Zonas de toque maiores nos botões de ação das tabelas */
   .ic{width:36px;height:36px}
@@ -549,7 +530,7 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
   tbody td{padding:.4rem .6rem}
   tfoot td{padding:.4rem .6rem}
   /* Padding dos painéis e cards */
-  .pnl{padding:.75rem;padding-bottom:calc(var(--tabbar-h,60px) + 10px + env(safe-area-inset-bottom,0px) + 1rem)}
+  .pnl{padding:.75rem;padding-bottom:calc(var(--tabbar-h,56px) + 10px + 1rem)}
   .tch{padding:.6rem .75rem}
   .kc{padding:.7rem .75rem}
   .meta-sav-grid{grid-template-columns:1fr}
@@ -1095,9 +1076,19 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
   <button class="tb" id="tb-receitas" onclick="sw('receitas',this)"><span class="tb-ic"><svg class="tb-svg"><use href="#i-trend-up"></use></svg></span><span class="tb-lbl">Receitas</span></button>
   <button class="tb" id="tb-despesas" onclick="sw('despesas',this)"><span class="tb-ic"><svg class="tb-svg"><use href="#i-trend-down"></use></svg></span><span class="tb-lbl">Despesas</span></button>
   <button class="tb tb-more" id="tb-veiculo" onclick="sw('veiculo',this)">🚘 Veículo</button>
-  <button class="tb tb-more" id="tb-tvde" onclick="sw('tvde',this)">🚕 TVDE</button>
+  <!-- TVDE: escondido por padrão (tb-more) — _fbApplyTvdeVisibility() liga a
+       classe tb-mobile-visible quando S.cfg.showTvde é true pra esta conta,
+       aí ele vira o 5º item da barra mobile no lugar do Calendário (pedido
+       do usuário: só a conta dele usa TVDE no dia a dia). Ícone/rótulo já
+       no formato usado pelas outras abas visíveis no mobile. -->
+  <button class="tb tb-more" id="tb-tvde" onclick="sw('tvde',this)"><span class="tb-ic"><svg class="tb-svg"><use href="#i-wheel"></use></svg></span><span class="tb-lbl">TVDE</span></button>
   <button class="tb tb-more" id="tb-parcelas" onclick="sw('parcelas',this)">💳 Parcelas</button>
-  <button class="tb tb-more" id="tb-cal" onclick="sw('cal',this)">📅 Calendário</button>
+  <!-- Calendário: 5º item da barra mobile por padrão (pedido do usuário) —
+       por isso NÃO tem a classe tb-more (que esconderia no mobile). Some do
+       mobile só quando o TVDE assume esse lugar (classe tb-cal-hide-mobile,
+       ver _fbApplyTvdeVisibility()); continua acessível pela folha "Mais"
+       nesse caso. No desktop aparece sempre, igual às outras abas. -->
+  <button class="tb" id="tb-cal" onclick="sw('cal',this)"><span class="tb-ic"><svg class="tb-svg"><use href="#i-calendar"></use></svg></span><span class="tb-lbl">Calendário</span></button>
   <button class="tb tb-more" id="tb-cartoes" onclick="sw('cartoes',this)">🏦 Cartões</button>
   <button class="tb tb-more" id="tb-metas" onclick="sw('metas',this)">🎯 Metas</button>
   <button class="tb tb-more" id="tb-import" onclick="sw('import',this)">📥 Importar</button>
@@ -1750,6 +1741,16 @@ function _fbApplyTvdeVisibility() {
   var moreBtn = document.getElementById('moreNavTvde');
   if (moreBtn) moreBtn.style.display = show ? '' : 'none';
   if (!show && CUR === 'tvde') sw('dashboard', document.querySelector('.tabs .tb'));
+  // 5º item da barra mobile: TVDE no lugar de Calendário quando showTvde
+  // está ligado pra esta conta (pedido do usuário — na prática só o dono
+  // liga isso, já que convidados nascem com showTvde:false). A classe
+  // tb-mobile-visible tem !important+especificidade maior que o
+  // display:none!important padrão de .tb-more (ver CSS); tb-cal-hide-mobile
+  // some o Calendário do mobile nesse caso, mas ele continua acessível pela
+  // folha "Mais".
+  if (btn) btn.classList.toggle('tb-mobile-visible', show);
+  var calBtn = document.getElementById('tb-cal');
+  if (calBtn) calBtn.classList.toggle('tb-cal-hide-mobile', show);
 }
 
 // Rótulos de símbolo de moeda que estão fixos no HTML (fora de qualquer template JS) —
