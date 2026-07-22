@@ -123,6 +123,21 @@ tbody td,tfoot td,.kval,.ksub,.pgr,.mbar-lbl,#qAmt{font-variant-numeric:tabular-
 @media(min-width:800px){.cg{grid-template-columns:minmax(240px,2fr) minmax(0,3fr)}}
 .dash-grid{display:grid;grid-template-columns:1fr;gap:.75rem;align-items:stretch;margin-bottom:.75rem}
 @media(min-width:768px){.dash-grid{grid-template-columns:1fr 1fr}}
+/* Abaixo de 768px o dash-grid vira 1 coluna só — a coluna da categoria e a
+   coluna dos quadros (Orçamento/Poupança/Resumo/Copiloto) empilham, uma em
+   cima da outra, em vez de lado a lado. O height:100%/flex:N inline delas
+   só existe pra repartir a altura QUANDO estão lado a lado (esticadas pra
+   bater com a altura da pizza); empilhadas, esse height:100% aponta pra uma
+   grid row de altura automática (sem valor fixo), o que em alguns motores
+   de render (confirmado real, não só Chrome) faz os quadros ficarem mais
+   baixos que o próprio conteúdo — e o .tc tem overflow:hidden, então a
+   última linha (ex. "Saldo:" do Resumo Anual) simplesmente sumia, cortada.
+   Solução: nessa largura, cada quadro cresce pro tamanho do seu conteúdo. */
+@media(max-width:767px){
+  [data-secgrp="dash-right"]{height:auto!important}
+  [data-secgrp="dash-right"]>[data-sec]{flex:none!important}
+  .cc{height:auto!important}
+}
 .cc{background:var(--s1);border-radius:var(--r);padding:1rem 1.1rem;box-shadow:var(--sh-card)}
 .cc canvas{max-height:300px}
 .cp-a b{font-weight:700}
@@ -464,7 +479,10 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
   /* Tabs mais compactos para caber todos os labels */
   /* Barra de abas desce pra base do ecrã — top:auto sobrepõe o sticky top:52px
      (fixStickyOffsets() já sabe não mexer no top inline nesta largura, ver JS) */
-  .tabs{justify-content:flex-start;position:fixed;left:0;right:0;bottom:0;top:auto;padding-bottom:calc(.45rem + env(safe-area-inset-bottom,0px))}
+  /* Cantos de cima arredondados — a barra reta batendo direto no FAB redondo
+     ficava com um choque de formas; assim lê como um material só, mais
+     "flutuante", igual ao resto dos elementos translúcidos da app */
+  .tabs{justify-content:flex-start;position:fixed;left:0;right:0;bottom:0;top:auto;padding-bottom:calc(.45rem + env(safe-area-inset-bottom,0px));border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.25)}
   .tb{padding:.38rem .55rem;font-size:.7rem}
   /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra —
      FAB e painéis usam a mesma medida pra não ficarem escondidos atrás dela */
