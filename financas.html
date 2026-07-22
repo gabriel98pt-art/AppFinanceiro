@@ -479,14 +479,18 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
   /* Tabs mais compactos para caber todos os labels */
   /* Barra de abas desce pra base do ecrã — top:auto sobrepõe o sticky top:52px
      (fixStickyOffsets() já sabe não mexer no top inline nesta largura, ver JS) */
-  /* Cantos de cima arredondados — a barra reta batendo direto no FAB redondo
-     ficava com um choque de formas; assim lê como um material só, mais
-     "flutuante", igual ao resto dos elementos translúcidos da app */
-  .tabs{justify-content:flex-start;position:fixed;left:0;right:0;bottom:0;top:auto;padding-bottom:calc(.45rem + env(safe-area-inset-bottom,0px));border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.25)}
-  .tb{padding:.38rem .55rem;font-size:.7rem}
+  /* Barra flutuante, afastada das duas laterais — encostada ponta a ponta
+     (left:0;right:0) ela caía bem em cima da curvatura física do ecrã nos
+     cantos de baixo, cortando visualmente Dashboard/Mais. Afastada das
+     bordas fica sempre na área plana. Também ficou maior/mais centralizada
+     (pedido do usuário) e com cantos todos arredondados — sem mais o choque
+     reto-contra-redondo com o FAB. */
+  .tabs{justify-content:space-around;position:fixed;left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.55rem .5rem;border-radius:22px;box-shadow:0 6px 28px rgba(0,0,0,.35)}
+  .tb{padding:.5rem .7rem;font-size:.74rem}
   /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra —
-     FAB e painéis usam a mesma medida pra não ficarem escondidos atrás dela */
-  .qfab{bottom:calc(var(--tabbar-h,60px) + .6rem)}
+     FAB e painéis usam a mesma medida, mais o afastamento do fundo acima,
+     pra não ficarem escondidos atrás dela */
+  .qfab{bottom:calc(var(--tabbar-h,60px) + 10px + env(safe-area-inset-bottom,0px) + .6rem)}
   /* Zonas de toque maiores nos botões de ação das tabelas */
   .ic{width:36px;height:36px}
   /* Padding reduzido nas células — reduz scroll horizontal desnecessário */
@@ -494,7 +498,7 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
   tbody td{padding:.4rem .6rem}
   tfoot td{padding:.4rem .6rem}
   /* Padding dos painéis e cards */
-  .pnl{padding:.75rem;padding-bottom:calc(var(--tabbar-h,60px) + 1rem)}
+  .pnl{padding:.75rem;padding-bottom:calc(var(--tabbar-h,60px) + 10px + env(safe-area-inset-bottom,0px) + 1rem)}
   .tch{padding:.6rem .75rem}
   .kc{padding:.7rem .75rem}
   .meta-sav-grid{grid-template-columns:1fr}
@@ -3095,6 +3099,7 @@ var _MORE_TABS = ['veiculo','tvde','parcelas','cal','cartoes','metas','import'];
 function openMoreNav() {
   var ov = document.getElementById('moreNavOv'), sh = document.getElementById('moreNavSh');
   if (!ov || !sh) return;
+  if (typeof qClose === 'function') qClose(); // as duas folhas usam o mesmo z-index — nunca as duas abertas ao mesmo tempo
   document.querySelectorAll('#moreNavSh .mni').forEach(function(el) {
     el.classList.toggle('on', el.dataset.tab === CUR);
   });
