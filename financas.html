@@ -89,6 +89,10 @@ tbody td,tfoot td,.kval,.ksub,.pgr,.mbar-lbl,#qAmt{font-variant-numeric:tabular-
 .tb:active{transform:scale(.95);opacity:.8}
 .tb.on{background:var(--blu);color:#fff;border-color:transparent;box-shadow:0 2px 12px rgba(var(--blu-rgb),.4)}
 .tb-mais{display:none}
+/* Ícones da barra (sprite SVG no topo do <body>) — stroke acompanha a cor
+   do texto (currentColor), então herda o var(--mut)/#fff de .tb/.tb.on
+   automaticamente, sem precisar de regra própria por estado. */
+.tb-svg{width:1.1em;height:1.1em;vertical-align:-.2em;display:inline-block}
 .tb:hover:not(.on){background:var(--s2);color:var(--txt);border-color:var(--brd)}
 
 /* PANELS */
@@ -505,7 +509,9 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      desfeita aqui, só o ícone (.tb-ic) deve ficar colorido. */
   .tb.on{background:none;color:var(--mut);box-shadow:none}
   .tb.on .tb-lbl{color:var(--blu);font-weight:700}
-  .tb.on .tb-ic{background:var(--blu);box-shadow:0 2px 8px rgba(var(--blu-rgb),.45);transform:translateY(-.3rem) scale(1.05)}
+  /* color:#fff aqui — sem isso o ícone SVG (stroke=currentColor) herdava o
+     cinza de .tb.on acima, ficando quase invisível em cima da bolha cheia. */
+  .tb.on .tb-ic{background:var(--blu);color:#fff;box-shadow:0 2px 8px rgba(var(--blu-rgb),.45);transform:translateY(-.3rem) scale(1.05)}
   /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra —
      FAB e painéis usam a mesma medida, mais o afastamento do fundo acima,
      pra não ficarem escondidos atrás dela. !important porque existe uma
@@ -964,6 +970,34 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
 </head>
 <body>
 
+<!-- Sprite de ícones da barra de navegação — SVG embutido (sem pedido de rede,
+     funciona offline), traçados adaptados do conjunto livre Feather Icons
+     (MIT). Trocado no lugar dos emojis do teclado a pedido do usuário: emoji
+     tem cor/desenho próprios que não acompanham o tema claro/escuro e mudam
+     de aparência entre aparelhos; SVG com stroke="currentColor" resolve os
+     dois problemas. -->
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 9.5 12 3l9 6.5"/>
+    <path d="M5 9v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/>
+    <path d="M9 21v-6h6v6"/>
+  </symbol>
+  <symbol id="i-trend-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="3 17 9.5 10.5 14 15 21 7"/>
+    <polyline points="15 7 21 7 21 13"/>
+  </symbol>
+  <symbol id="i-trend-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="3 7 9.5 13.5 14 9 21 17"/>
+    <polyline points="15 17 21 17 21 11"/>
+  </symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/>
+    <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/>
+    <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/>
+    <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/>
+  </symbol>
+</svg>
+
 <header class="hdr">
   <div class="logo">Finanças<em>.</em></div>
   <div class="hdr-r">
@@ -995,9 +1029,9 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
 </header>
 
 <nav class="tabs">
-  <button class="tb on" id="tb-dashboard" onclick="sw('dashboard',this)"><span class="tb-ic">📊</span><span class="tb-lbl">Dashboard</span></button>
-  <button class="tb" id="tb-receitas" onclick="sw('receitas',this)"><span class="tb-ic">💰</span><span class="tb-lbl">Receitas</span></button>
-  <button class="tb" id="tb-despesas" onclick="sw('despesas',this)"><span class="tb-ic">💸</span><span class="tb-lbl">Despesas</span></button>
+  <button class="tb on" id="tb-dashboard" onclick="sw('dashboard',this)"><span class="tb-ic"><svg class="tb-svg"><use href="#i-home"></use></svg></span><span class="tb-lbl">Dashboard</span></button>
+  <button class="tb" id="tb-receitas" onclick="sw('receitas',this)"><span class="tb-ic"><svg class="tb-svg"><use href="#i-trend-up"></use></svg></span><span class="tb-lbl">Receitas</span></button>
+  <button class="tb" id="tb-despesas" onclick="sw('despesas',this)"><span class="tb-ic"><svg class="tb-svg"><use href="#i-trend-down"></use></svg></span><span class="tb-lbl">Despesas</span></button>
   <button class="tb tb-more" id="tb-veiculo" onclick="sw('veiculo',this)">🚘 Veículo</button>
   <button class="tb tb-more" id="tb-tvde" onclick="sw('tvde',this)">🚕 TVDE</button>
   <button class="tb tb-more" id="tb-parcelas" onclick="sw('parcelas',this)">💳 Parcelas</button>
@@ -1005,7 +1039,7 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
   <button class="tb tb-more" id="tb-cartoes" onclick="sw('cartoes',this)">🏦 Cartões</button>
   <button class="tb tb-more" id="tb-metas" onclick="sw('metas',this)">🎯 Metas</button>
   <button class="tb tb-more" id="tb-import" onclick="sw('import',this)">📥 Importar</button>
-  <button class="tb tb-mais" id="tb-mais" onclick="openMoreNav()"><span class="tb-ic">⋯</span><span class="tb-lbl">Mais</span></button>
+  <button class="tb tb-mais" id="tb-mais" onclick="openMoreNav()"><span class="tb-ic"><svg class="tb-svg"><use href="#i-grid"></use></svg></span><span class="tb-lbl">Mais</span></button>
 </nav>
 <div class="gmnav-bar">
   <div class="mnav">
