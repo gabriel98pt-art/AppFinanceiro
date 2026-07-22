@@ -506,7 +506,14 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      página, ver comentário grande mais abaixo/no histórico: confunde o
      cálculo de largura de elementos position:fixed nesse cenário). 100vw é
      sempre relativo à tela de verdade. */
-  .tabs{position:fixed;left:14px;right:14px;width:calc(100vw - 28px);bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.35rem .2rem;border-radius:24px;box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:visible;gap:0}
+  /* Toque de "liquid glass" (pedido do usuário) — mais desfoque/saturação
+     que o --s1-t padrão do resto do app, mais uma borda clara bem sutil
+     simulando o brilho de borda que o material de vidro da Apple tem.
+     overflow:hidden (em vez de visible) garante que o desfoque e o fundo
+     fiquem mesmo recortados pelos cantos arredondados — não sobra mais
+     necessidade do :visible de antes, que era só pra bolha elevada da aba
+     ativa (removida faz duas rodadas). */
+  .tabs{position:fixed;left:14px;right:14px;width:calc(100vw - 28px);bottom:calc(16px + env(safe-area-inset-bottom,0px));top:auto;padding:.35rem .2rem;border-radius:24px;background:var(--s1-t);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(255,255,255,.14);box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:hidden;gap:0}
   /* white-space:normal + min-width:0 desfazem o white-space:nowrap do botão
      genérico (.tb base, sem media query, linha ~88) — sem isso, o item flex
      nunca encolhe abaixo da largura do rótulo inteiro numa linha só (é o
@@ -527,15 +534,18 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
   .tb.on .tb-ic,.tb.on .tb-lbl{color:var(--blu)}
   .tb.on .tb-lbl{font-weight:700}
   /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra
-     (já inclui o respiro do safe-area, embutido no padding acima) — .pnl e
-     o FAB usam essa medida pra não ficarem escondidos atrás dela.
-     FAB de volta a flutuar ACIMA da barra (não mais do lado — pedido do
-     usuário depois de ver a referência nova) e um pouco menor. !important
-     porque existe uma regra .qfab{bottom:1.4rem;width:54px...} sem media
-     query mais abaixo no ficheiro — em ordem normal ela venceria esta por
-     vir depois no CSS. */
+     — .pnl e o FAB usam essa medida pra não ficarem escondidos atrás dela.
+     O cálculo do FAB precisa somar o afastamento próprio da barra do fundo
+     da tela (16px+safe-area, ver .tabs acima) — antes faltava esse termo,
+     então o FAB só "coincidia" em ficar acima por causa do gap ser maior
+     que o afastamento da barra; ficou frágil e não subia junto se a barra
+     mudasse de posição. Agora sobe sempre junto, mais um respiro próprio
+     (20px) pedido pelo usuário ("subir um pouco o botão flutuante").
+     !important porque existe uma regra .qfab{bottom:1.4rem;width:54px...}
+     sem media query mais abaixo no ficheiro — em ordem normal ela venceria
+     esta por vir depois no CSS. */
   .qfab{
-    bottom:calc(var(--tabbar-h,56px) + 14px) !important;
+    bottom:calc(16px + env(safe-area-inset-bottom,0px) + var(--tabbar-h,56px) + 20px) !important;
     width:46px !important;height:46px !important;font-size:1.3rem !important;
   }
   /* Zonas de toque maiores nos botões de ação das tabelas */
@@ -545,7 +555,7 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
   tbody td{padding:.4rem .6rem}
   tfoot td{padding:.4rem .6rem}
   /* Padding dos painéis e cards */
-  .pnl{padding:.75rem;padding-bottom:calc(var(--tabbar-h,56px) + 10px + 1rem)}
+  .pnl{padding:.75rem;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px) + var(--tabbar-h,56px) + 1rem)}
   .tch{padding:.6rem .75rem}
   .kc{padding:.7rem .75rem}
   .meta-sav-grid{grid-template-columns:1fr}
