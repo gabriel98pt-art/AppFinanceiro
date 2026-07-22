@@ -474,23 +474,28 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
 @media(max-width:600px){
   /* Barra de baixo só com as 3 abas mais usadas + "Mais" (evita rolar de lado
      pra achar as outras 7 — ver .mnov/.mnsh mais abaixo) */
-  .tb-more{display:none}
-  .tb-mais{display:inline-block}
+  .tb-more{display:none!important}
+  .tb-mais{display:flex}
   /* Tabs mais compactos para caber todos os labels */
   /* Barra de abas desce pra base do ecrã — top:auto sobrepõe o sticky top:52px
      (fixStickyOffsets() já sabe não mexer no top inline nesta largura, ver JS) */
-  /* Barra flutuante, afastada das duas laterais — encostada ponta a ponta
-     (left:0;right:0) ela caía bem em cima da curvatura física do ecrã nos
-     cantos de baixo, cortando visualmente Dashboard/Mais. Afastada das
-     bordas fica sempre na área plana. Também ficou maior/mais centralizada
-     (pedido do usuário) e com cantos todos arredondados — sem mais o choque
-     reto-contra-redondo com o FAB. */
-  .tabs{justify-content:space-around;position:fixed;left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.55rem .5rem;border-radius:22px;box-shadow:0 6px 28px rgba(0,0,0,.35)}
-  .tb{padding:.5rem .7rem;font-size:.74rem}
+  /* Barra flutuante em pílula — ícone em cima, rótulo embaixo (pedido do
+     usuário, ver .tb-ic/.tb-lbl). Afastada das duas laterais: encostada
+     ponta a ponta (left:0;right:0) ela caía bem em cima da curvatura física
+     do ecrã nos cantos de baixo, cortando visualmente Dashboard/Mais. */
+  .tabs{justify-content:space-around;position:fixed;left:14px;right:14px;bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.5rem .4rem;border-radius:999px;box-shadow:0 6px 28px rgba(0,0,0,.35)}
+  .tb{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;padding:.4rem .5rem;font-size:.62rem;border-radius:16px}
+  .tb-ic{font-size:1.2rem;line-height:1}
+  .tb-lbl{line-height:1}
+  /* Destaque suave da aba ativa — pílula clara atrás só dela, não o bloco
+     sólido azul cobrindo tudo que o resto da app usa pra "on" */
+  .tb.on{background:var(--s2);color:var(--blu);box-shadow:none}
   /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra —
      FAB e painéis usam a mesma medida, mais o afastamento do fundo acima,
-     pra não ficarem escondidos atrás dela */
-  .qfab{bottom:calc(var(--tabbar-h,60px) + 10px + env(safe-area-inset-bottom,0px) + .6rem)}
+     pra não ficarem escondidos atrás dela. !important porque existe uma
+     regra .qfab{bottom:1.4rem} sem media query mais abaixo no ficheiro —
+     em ordem normal ela venceria esta por vir depois no CSS. */
+  .qfab{bottom:calc(var(--tabbar-h,60px) + 10px + env(safe-area-inset-bottom,0px) + .6rem) !important}
   /* Zonas de toque maiores nos botões de ação das tabelas */
   .ic{width:36px;height:36px}
   /* Padding reduzido nas células — reduz scroll horizontal desnecessário */
@@ -974,9 +979,9 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
 </header>
 
 <nav class="tabs">
-  <button class="tb on" id="tb-dashboard" onclick="sw('dashboard',this)">📊 Dashboard</button>
-  <button class="tb" id="tb-receitas" onclick="sw('receitas',this)">💰 Receitas</button>
-  <button class="tb" id="tb-despesas" onclick="sw('despesas',this)">💸 Despesas</button>
+  <button class="tb on" id="tb-dashboard" onclick="sw('dashboard',this)"><span class="tb-ic">📊</span><span class="tb-lbl">Dashboard</span></button>
+  <button class="tb" id="tb-receitas" onclick="sw('receitas',this)"><span class="tb-ic">💰</span><span class="tb-lbl">Receitas</span></button>
+  <button class="tb" id="tb-despesas" onclick="sw('despesas',this)"><span class="tb-ic">💸</span><span class="tb-lbl">Despesas</span></button>
   <button class="tb tb-more" id="tb-veiculo" onclick="sw('veiculo',this)">🚘 Veículo</button>
   <button class="tb tb-more" id="tb-tvde" onclick="sw('tvde',this)">🚕 TVDE</button>
   <button class="tb tb-more" id="tb-parcelas" onclick="sw('parcelas',this)">💳 Parcelas</button>
@@ -984,7 +989,7 @@ button:focus-visible,a:focus-visible,.tb:focus-visible,.tgl:focus-visible,.ib:fo
   <button class="tb tb-more" id="tb-cartoes" onclick="sw('cartoes',this)">🏦 Cartões</button>
   <button class="tb tb-more" id="tb-metas" onclick="sw('metas',this)">🎯 Metas</button>
   <button class="tb tb-more" id="tb-import" onclick="sw('import',this)">📥 Importar</button>
-  <button class="tb tb-mais" id="tb-mais" onclick="openMoreNav()">⋯ Mais</button>
+  <button class="tb tb-mais" id="tb-mais" onclick="openMoreNav()"><span class="tb-ic">⋯</span><span class="tb-lbl">Mais</span></button>
 </nav>
 <div class="gmnav-bar">
   <div class="mnav">
