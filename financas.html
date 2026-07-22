@@ -495,17 +495,18 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      .tb-more{display:none!important} (0,1,0) de cima. */
   .tb-more.tb-mobile-visible{display:flex!important}
   .tb-cal-hide-mobile{display:none!important}
-  /* Barra plana, ponta a ponta e encostada no fundo — referência visual
-     passada pelo usuário (estilo WhatsApp: ícone em cima, rótulo embaixo,
-     abas do mesmo tamanho dividindo a largura toda, sem pílula flutuante
-     nem bolha elevada na aba ativa — as duas tentativas anteriores). */
-  /* width:100vw explícito (não só left:0;right:0) — achamos uma tabela larga
-     no Dashboard que força a página inteira a ficar rolável de lado; quando
-     isso acontece, left:0;right:0 sozinho não bate mais com a largura real
-     da tela (a barra ficava mais larga que a tela e desalinhada — bug
-     reportado pelo usuário: "posição errada, nome cortado"). 100vw é sempre
-     relativo ao viewport de verdade, imune a esse efeito. */
-  .tabs{position:fixed;left:0;right:0;width:100vw;bottom:0;top:auto;padding:.35rem .2rem calc(.45rem + env(safe-area-inset-bottom,0px));border-radius:0;box-shadow:none;border-top:1px solid var(--brd);overflow:visible;gap:0}
+  /* Barra flutuante, afastada das duas laterais e com cantos arredondados
+     (voltou a ser assim depois da barra "plana, ponta a ponta" ter ficado
+     com os cantos retos batendo em cima da curvatura física da tela nos
+     aparelhos reais — feio e reportado pelo usuário com print). Ícone em
+     cima, rótulo embaixo, abas do mesmo tamanho dividindo a largura,
+     aba ativa só muda de cor (sem bolha/elevação). */
+  /* width:calc(100vw - 28px) explícito — left:14px;right:14px sozinho não
+     bastava (mesmo problema da tabela larga que força scroll horizontal da
+     página, ver comentário grande mais abaixo/no histórico: confunde o
+     cálculo de largura de elementos position:fixed nesse cenário). 100vw é
+     sempre relativo à tela de verdade. */
+  .tabs{position:fixed;left:14px;right:14px;width:calc(100vw - 28px);bottom:calc(10px + env(safe-area-inset-bottom,0px));top:auto;padding:.35rem .2rem;border-radius:24px;box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:visible;gap:0}
   /* white-space:normal + min-width:0 desfazem o white-space:nowrap do botão
      genérico (.tb base, sem media query, linha ~88) — sem isso, o item flex
      nunca encolhe abaixo da largura do rótulo inteiro numa linha só (é o
