@@ -499,10 +499,24 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      passada pelo usuário (estilo WhatsApp: ícone em cima, rótulo embaixo,
      abas do mesmo tamanho dividindo a largura toda, sem pílula flutuante
      nem bolha elevada na aba ativa — as duas tentativas anteriores). */
-  .tabs{position:fixed;left:0;right:0;bottom:0;top:auto;padding:.35rem .2rem calc(.45rem + env(safe-area-inset-bottom,0px));border-radius:0;box-shadow:none;border-top:1px solid var(--brd);overflow:visible;gap:0}
-  .tb{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;padding:.25rem .1rem;font-size:.65rem;border-radius:0}
+  /* width:100vw explícito (não só left:0;right:0) — achamos uma tabela larga
+     no Dashboard que força a página inteira a ficar rolável de lado; quando
+     isso acontece, left:0;right:0 sozinho não bate mais com a largura real
+     da tela (a barra ficava mais larga que a tela e desalinhada — bug
+     reportado pelo usuário: "posição errada, nome cortado"). 100vw é sempre
+     relativo ao viewport de verdade, imune a esse efeito. */
+  .tabs{position:fixed;left:0;right:0;width:100vw;bottom:0;top:auto;padding:.35rem .2rem calc(.45rem + env(safe-area-inset-bottom,0px));border-radius:0;box-shadow:none;border-top:1px solid var(--brd);overflow:visible;gap:0}
+  /* white-space:normal + min-width:0 desfazem o white-space:nowrap do botão
+     genérico (.tb base, sem media query, linha ~88) — sem isso, o item flex
+     nunca encolhe abaixo da largura do rótulo inteiro numa linha só (é o
+     comportamento padrão de min-width:auto em flex), e com 5 abas dividindo
+     a barra num telemóvel real os rótulos maiores ("Calendário",
+     "Dashboard") furavam a largura da aba e saíam cortados/empurravam a
+     barra inteira fora da posição. Agora o rótulo pode quebrar em 2 linhas
+     quando precisar. */
+  .tb{display:flex;flex:1;min-width:0;flex-direction:column;align-items:center;justify-content:center;gap:.15rem;padding:.25rem .1rem;font-size:.65rem;border-radius:0;white-space:normal}
   .tb-ic{font-size:1.3rem;line-height:1;display:flex;align-items:center;justify-content:center}
-  .tb-lbl{line-height:1}
+  .tb-lbl{line-height:1.15;text-align:center}
   /* Aba ativa: só muda de cor (ícone + rótulo), sem fundo/bolha/elevação —
      mantém a barra lisa como a referência. */
   /* Desfaz o .tb.on{background:var(--blu)...} do desktop (sem media query,
