@@ -544,7 +544,20 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      !important porque existe uma regra .qfab{bottom:1.4rem;width:54px...}
      sem media query mais abaixo no ficheiro — em ordem normal ela venceria
      esta por vir depois no CSS. */
+  /* Centralizado em vez de colado no canto direito (right:1.2rem, herdado
+     do desktop) — colado no canto, o botão ficava bem em cima da aba
+     "Mais", deixando o lado direito da composição mais "pesado"
+     visualmente que o esquerdo mesmo a barra sendo simétrica por baixo
+     (14px dos dois lados, conferido por medição — reportado pelo usuário
+     com print, achava que a barra em si estava torta). Centralizado, some
+     essa sensação de desequilíbrio.
+     left:calc(50vw - 23px) em vez de left:50%+transform:translateX(-50%) —
+     mesmo problema da tabela larga que confunde o cálculo de % em
+     elementos position:fixed (ver comentário grande na .tabs, linhas
+     acima); vw é sempre relativo à tela de verdade. 23px = metade da
+     largura do botão (46px). */
   .qfab{
+    left:calc(50vw - 23px) !important;right:auto !important;transform:none !important;
     bottom:calc(16px + env(safe-area-inset-bottom,0px) + var(--tabbar-h,56px) + 20px) !important;
     width:46px !important;height:46px !important;font-size:1.3rem !important;
   }
