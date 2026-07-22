@@ -581,11 +581,22 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      (14px dos dois lados, conferido por medição — reportado pelo usuário
      com print, achava que a barra em si estava torta). Centralizado, some
      essa sensação de desequilíbrio.
-     left é fallback fixo (46px de botão numa tela de ~390px); o valor de
-     verdade vem de fixStickyOffsets() com window.innerWidth direto — vw e
-     % têm o mesmo bug descrito no comentário grande da .tabs acima. */
+     ACHADO O BUG DE VERDADE (medindo pixel a pixel um print real do
+     usuário): "left" aqui estava com !important, e a regra de base
+     (linha ~616, sem "left" nenhum) não tinha nada pra disputar essa
+     propriedade — mas o !important TAMBÉM vence estilo inline definido
+     via JS (element.style.left = ...) sem "important"! Então o
+     fixStickyOffsets() calculava a posição certa, escrevia em
+     fab.style.left, e o CSS abaixo simplesmente ignorava e ficava
+     sempre travado no valor de reserva (172px) — o botão nunca se
+     movia de verdade, só a barra (cujo "left" no CSS não tem
+     !important) respondia ao JS. É por isso que a barra sempre media
+     certa mas o botão continuava torto em toda tentativa anterior. Sem
+     "left" com !important aqui: nada mais disputa essa propriedade
+     (a regra de base não declara left), então o inline do JS manda
+     de verdade. */
   .qfab{
-    left:172px !important;right:auto !important;transform:none !important;
+    left:172px;right:auto !important;transform:none !important;
     bottom:calc(16px + env(safe-area-inset-bottom,0px) + var(--tabbar-h,56px) + 20px) !important;
     width:46px !important;height:46px !important;font-size:1.3rem !important;
   }
