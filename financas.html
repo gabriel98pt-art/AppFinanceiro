@@ -518,12 +518,18 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
   /* color:#fff aqui — sem isso o ícone SVG (stroke=currentColor) herdava o
      cinza de .tb.on acima, ficando quase invisível em cima da bolha cheia. */
   .tb.on .tb-ic{background:var(--blu);color:#fff;box-shadow:0 3px 10px rgba(var(--blu-rgb),.45);transform:translateY(-.4rem) scale(1.05)}
-  /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra —
-     FAB e painéis usam a mesma medida, mais o afastamento do fundo acima,
-     pra não ficarem escondidos atrás dela. !important porque existe uma
-     regra .qfab{bottom:1.4rem} sem media query mais abaixo no ficheiro —
-     em ordem normal ela venceria esta por vir depois no CSS. */
-  .qfab{bottom:calc(var(--tabbar-h,60px) + 10px + env(safe-area-inset-bottom,0px) + .6rem) !important}
+  /* --tabbar-h é medida em JS (fixStickyOffsets) com a altura real da barra;
+     .pnl ainda usa pra não ficar escondido atrás dela.
+     FAB agora fica do LADO da barra (pedido do usuário) em vez de flutuar
+     por cima dela — bottom aqui só centraliza verticalmente com a altura da
+     barra; a posição horizontal (left/right) é calculada em JS
+     (fixStickyOffsets), porque em telas de ~375-430px não sobra espaço pra
+     centralizar a barra sozinha E encaixar o botão do lado sem ele ficar
+     parcialmente fora da tela — os dois precisam ser centralizados juntos,
+     como um grupo só. !important porque existe uma regra
+     .qfab{bottom:1.4rem} sem media query mais abaixo no ficheiro — em ordem
+     normal ela venceria esta por vir depois no CSS. */
+  .qfab{bottom:calc(env(safe-area-inset-bottom,0px) + 10px + (var(--tabbar-h,63px) - 54px)/2) !important}
   /* Zonas de toque maiores nos botões de ação das tabelas */
   .ic{width:36px;height:36px}
   /* Padding reduzido nas células — reduz scroll horizontal desnecessário */
@@ -8933,17 +8939,51 @@ function fixStickyOffsets() {
   // só precisa descontar o cabeçalho, não a altura das abas. tabs.style.top
   // tem de ser limpo (não só "não mexido"): um valor inline de uma largura
   // anterior venceria o top:auto da media query, já que inline > stylesheet.
+  var fab = document.querySelector('.qfab');
   if (mobile) {
     tabs.style.top = '';
     gnav.style.top = hh + 'px';
     document.documentElement.style.setProperty('--tabbar-h', tabs.offsetHeight + 'px');
+    // FAB do lado da barra (pedido do usuário): em telas de ~375-430px não
+    // sobra espaço pra centralizar só a barra (left:50%+transform, no CSS)
+    // E colar o botão do lado dela sem parte dele ficar fora da tela — os
+    // dois precisam ser centralizados JUNTOS, como um grupo só. Por isso a
+    // barra troca o transform:translateX(-50%) por um left em px calculado
+    // aqui, e o botão ganha left (não right) logo depois dela + 10px de vão.
+    if (fab) {
+      var gap = 10;
+      // Limpa left/transform antes de medir — chamadas repetidas (resize,
+      // reordenar secções, etc.) partiam de um left em px de uma chamada
+      // anterior, e medir em cima disso podia sair errado. Zerando primeiro,
+      // toda chamada mede a barra no estado natural do CSS (left:50%,
+      // largura definida só pelo conteúdo), sempre do mesmo jeito.
+      tabs.style.left = '';
+      tabs.style.transform = '';
+      var barW = tabs.getBoundingClientRect().width, fabW = fab.offsetWidth;
+      var groupLeft = (window.innerWidth - (barW + gap + fabW)) / 2;
+      tabs.style.left = groupLeft + 'px';
+      tabs.style.transform = 'none';
+      fab.style.left = (groupLeft + barW + gap) + 'px';
+      fab.style.right = 'auto';
+    }
   } else {
     tabs.style.top = hh + 'px';
     gnav.style.top = (hh + tabs.offsetHeight) + 'px';
+    // Limpa o posicionamento de grupo do mobile ao voltar pra desktop —
+    // senão o left/transform em px fica preso e desalinha a barra sticky.
+    tabs.style.left = '';
+    tabs.style.transform = '';
+    if (fab) { fab.style.left = ''; fab.style.right = ''; }
   }
   _centerActiveTab();
 }
 window.addEventListener('resize', fixStickyOffsets);
+// A 1ª chamada de fixStickyOffsets() acontece no boot, ainda dentro do
+// parsing do HTML — o botão .qfab só existe bem mais abaixo no documento,
+// então document.querySelector('.qfab') volta null e o agrupamento com a
+// barra não é aplicado. DOMContentLoaded garante uma 2ª passada depois que
+// o HTML inteiro (incluindo o .qfab) já existe.
+document.addEventListener('DOMContentLoaded', fixStickyOffsets);
 
 // ================================================================
 // QUICK-ADD FAB
