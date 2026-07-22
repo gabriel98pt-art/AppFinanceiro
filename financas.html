@@ -233,6 +233,10 @@ tbody.anim tr:nth-child(n+6){animation-delay:.14s}
 
 /* ALERTS */
 .alist{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.8rem}
+/* Sem alertas (caso comum), o .alist fica vazio mas o margin-bottom continuava
+   empurrando o resto do painel pra baixo — sobrava um vão entre a barra de
+   mês/ano e os cartões de KPI mesmo sem nada ali (reportado pelo usuário). */
+.alist:empty{margin-bottom:0}
 .alrt{display:flex;align-items:center;gap:.5rem;padding:.45rem .75rem;border-radius:var(--r-sm);font-size:.75rem;font-weight:500;cursor:pointer;user-select:none}
 .alrt:hover{opacity:.75}
 .alrt:active{opacity:.5}
