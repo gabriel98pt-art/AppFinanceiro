@@ -530,11 +530,20 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      definem a caixa toda; ter right:14px AO MESMO TEMPO que left+width
      deixava o elemento "sobre-restringido" (3 propriedades de posição
      horizontal ao mesmo tempo), e é exatamente esse tipo de caso que
-     motores de navegador resolvem de forma inconsistente entre si — pode
-     ter sido essa a causa real da barra ainda saindo torta depois da
-     correção anterior (que só tinha corrigido left/width, sem tirar o
-     right concorrente). */
-  .tabs{position:fixed;left:14px;bottom:calc(16px + env(safe-area-inset-bottom,0px));top:auto;padding:.35rem .2rem;border-radius:24px;background:var(--s1-t);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(255,255,255,.14);box-shadow:0 4px 16px rgba(0,0,0,.3);overflow:hidden;gap:0}
+     motores de navegador resolvem de forma inconsistente entre si. */
+  /* Depois de 3 tentativas sem resolver pro usuário, mudei de hipótese:
+     .tabs tinha position:fixed JUNTO com backdrop-filter+border-radius+
+     overflow:hidden no MESMO elemento — essa combinação tem bugs
+     conhecidos e documentados no motor do Safari (WebKit), onde o
+     elemento fixo pode renderizar/posicionar errado quando também usa
+     desfoque de fundo. Separado agora: .tabs (este elemento, o que tem
+     position:fixed) fica só com posicionamento puro, sem nenhum efeito
+     visual. Todo o "vidro" (fundo, desfoque, cantos arredondados, borda,
+     sombra) foi pro ::before logo abaixo — que é position:absolute
+     (preenchendo o pai via inset:0), não position:fixed, então não cai
+     nessa categoria de bug. */
+  .tabs{position:fixed;left:14px;bottom:calc(16px + env(safe-area-inset-bottom,0px));top:auto;padding:.35rem .2rem;gap:0}
+  .tabs::before{content:'';position:absolute;inset:0;border-radius:24px;background:var(--s1-t);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(255,255,255,.14);box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:-1}
   /* white-space:normal + min-width:0 desfazem o white-space:nowrap do botão
      genérico (.tb base, sem media query, linha ~88) — sem isso, o item flex
      nunca encolhe abaixo da largura do rótulo inteiro numa linha só (é o
