@@ -504,28 +504,26 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      .tb-more{display:none!important} (0,1,0) de cima. */
   .tb-more.tb-mobile-visible{display:flex!important}
   .tb-cal-hide-mobile{display:none!important}
-  /* MUDANÇA DE ABORDAGEM (depois de 5 tentativas de acertar uma barra
-     "flutuante" inset — cada uma resolvia uma causa real mas o usuário
-     continuava vendo folgas diferentes dos dois lados num aparelho real):
-     o padrão nativo de barra de abas da Apple (Ajustes, App Store, etc.)
-     não é uma pílula flutuante afastada das bordas — é ponta a ponta,
-     sem cantos arredondados, encostada no fundo de verdade. Isso não é só
-     estética: elimina a categoria INTEIRA de bug que persegui essa sessão
-     inteira, porque left:0/right:0 nunca pode "calcular errado" (0 é 0
-     em qualquer motor de navegador, não existe ambiguidade de containing
-     block pra um valor zero — diferente de left:14px+width:calc(...) ou
-     left:50%, que dependem de medir a largura real da tela). Os cantos
-     retos não colidem mais com a curvatura física do aparelho porque não
-     existe mais uma FORMA (cantos arredondados destacados) pra colidir —
-     é só uma faixa de cor lisa cobrindo a largura toda, incluindo a
-     própria curva. */
-  .tabs{position:fixed;left:0;right:0;bottom:0;top:auto;padding:.35rem .2rem calc(.35rem + env(safe-area-inset-bottom,0px));gap:0}
-  /* ::before em vez de estilo direto em .tabs — mesmo sem canto arredondado
-     agora, mantém separado do elemento que tem position:fixed por segurança
-     (bug documentado do WebKit com fixed+backdrop-filter no mesmo elemento).
-     border-top (não border completo) é o tratamento padrão do UITabBar
-     nativo — uma linha fina separando do conteúdo, não uma borda ao redor. */
-  .tabs::before{content:'';position:absolute;inset:0;background:var(--s1-t);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border-top:1px solid var(--brd);z-index:-1}
+  /* Barra flutuante, arredondada, afastada das duas laterais — pedido
+     explícito do usuário (a versão "ponta a ponta" cortava os rótulos das
+     abas e não é o visual que ele queria, mesmo eliminando a categoria de
+     bug de posição). Reunindo aqui as 5 causas reais encontradas nas
+     rodadas anteriores, todas corrigidas ao mesmo tempo:
+     1) left/width calculados em JS com window.innerWidth (não % nem vw —
+        os dois têm bug conhecido no Safari quando a página tem overflow
+        horizontal, e uma tabela larga no Dashboard causa isso);
+     2) SEM "right" no CSS — só left+width definem a caixa; ter right
+        também ativo ao mesmo tempo é "sobre-restringido" e navegadores
+        resolvem isso de forma inconsistente entre si;
+     3) position:fixed (aqui) separado do efeito de vidro (no ::before
+        abaixo) — bug documentado do WebKit quando os dois ficam no MESMO
+        elemento;
+     4) nenhuma propriedade de posição aqui usa !important — precisa
+        continuar sobrescrevível pelo JS via style.left/width normais;
+     5) white-space:normal+min-width:0 no .tb mais abaixo, pro rótulo
+        poder quebrar linha em vez de furar a largura da aba. */
+  .tabs{position:fixed;left:14px;bottom:calc(16px + env(safe-area-inset-bottom,0px));top:auto;padding:.35rem .2rem;gap:0}
+  .tabs::before{content:'';position:absolute;inset:0;border-radius:24px;background:var(--s1-t);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid rgba(255,255,255,.14);box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:-1}
   /* white-space:normal + min-width:0 desfazem o white-space:nowrap do botão
      genérico (.tb base, sem media query, linha ~88) — sem isso, o item flex
      nunca encolhe abaixo da largura do rótulo inteiro numa linha só (é o
@@ -577,13 +575,12 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
      "left" com !important aqui: nada mais disputa essa propriedade
      (a regra de base não declara left), então o inline do JS manda
      de verdade. */
-  /* bottom aqui NÃO soma env(safe-area-inset-bottom) de novo — --tabbar-h
-     já inclui esse respiro embutido (a barra agora é bottom:0 rente à tela,
-     com o safe-area dentro do próprio padding dela, ver .tabs acima), então
-     somar de novo contaria a mesma coisa 2x e deixaria o botão alto demais. */
+  /* bottom soma o mesmo afastamento do fundo que a barra tem (16px+
+     safe-area, ver .tabs acima) + a altura dela (--tabbar-h) + um respiro
+     de 20px entre os dois. */
   .qfab{
     left:172px;right:auto !important;transform:none !important;
-    bottom:calc(var(--tabbar-h,56px) + 20px) !important;
+    bottom:calc(16px + env(safe-area-inset-bottom,0px) + var(--tabbar-h,56px) + 20px) !important;
     width:46px !important;height:46px !important;font-size:1.3rem !important;
   }
   /* Zonas de toque maiores nos botões de ação das tabelas */
@@ -593,7 +590,7 @@ code{background:var(--s2);padding:.1rem .35rem;border-radius:4px;font-size:.8em}
   tbody td{padding:.4rem .6rem}
   tfoot td{padding:.4rem .6rem}
   /* Padding dos painéis e cards */
-  .pnl{padding:.75rem;padding-bottom:calc(var(--tabbar-h,56px) + 1rem)}
+  .pnl{padding:.75rem;padding-bottom:calc(16px + env(safe-area-inset-bottom,0px) + var(--tabbar-h,56px) + 1rem)}
   .tch{padding:.6rem .75rem}
   .kc{padding:.7rem .75rem}
   .meta-sav-grid{grid-template-columns:1fr}
@@ -9018,20 +9015,19 @@ function fixStickyOffsets() {
   if (mobile) {
     tabs.style.top = '';
     gnav.style.top = hh + 'px';
-    // A barra em si (.tabs) não precisa mais de nenhum cálculo em JS — é
-    // left:0;right:0 puro no CSS agora (barra nativa Apple, ponta a ponta),
-    // e 0 nunca "calcula errado" em nenhum motor de navegador, ao contrário
-    // de left:14px+width:calc(...) ou left:50% (dependiam de medir a
-    // largura real da tela, e uma tabela larga em outro quadro do
-    // Dashboard deixa a página com overflow horizontal que confunde esse
-    // tipo de cálculo em alguns navegadores — foi essa a causa raiz de
-    // várias rodadas de bug reportadas pelo usuário nessa barra).
+    // left/width da barra em px, de window.innerWidth — não % nem vw (bug
+    // conhecido no Safari quando a página tem overflow horizontal; uma
+    // tabela larga no Dashboard causa isso). SEM tabs.style.right — deixar
+    // left+width+right ativos ao mesmo tempo é "sobre-restringido" e
+    // navegadores resolvem isso de forma inconsistente entre si.
+    var margin = 14;
+    tabs.style.left = margin + 'px';
+    tabs.style.width = (window.innerWidth - margin * 2) + 'px';
+    tabs.style.right = 'auto';
     document.documentElement.style.setProperty('--tabbar-h', tabs.offsetHeight + 'px');
-    // O botão de registo rápido (+) continua precisando de JS pra
-    // centralizar (não tem como centralizar em CSS puro sem cair no mesmo
-    // problema de % acima) — usa window.innerWidth direto, que é sempre a
-    // largura visível de verdade. offsetWidth do botão é seguro de medir
-    // (largura fixa em CSS, não depende de texto/fonte carregada).
+    // Botão de registo rápido (+): mesma lógica, centralizado com
+    // window.innerWidth. offsetWidth do botão é seguro de medir (largura
+    // fixa em CSS, não depende de texto/fonte carregada).
     var fab = document.querySelector('.qfab');
     if (fab) {
       var fabW = fab.offsetWidth || 46;
@@ -9040,6 +9036,9 @@ function fixStickyOffsets() {
   } else {
     tabs.style.top = hh + 'px';
     gnav.style.top = (hh + tabs.offsetHeight) + 'px';
+    tabs.style.left = '';
+    tabs.style.width = '';
+    tabs.style.right = '';
     var fabD = document.querySelector('.qfab');
     if (fabD) fabD.style.left = '';
   }
